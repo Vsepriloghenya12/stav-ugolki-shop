@@ -1,7 +1,7 @@
 {
   "name": "stav-ugolki-analog-shop",
-  "version": "2.0.0",
-  "description": "Telegram Mini App shop for 'Ставь угольки' with storefront, owner panel, analytics and optional Telegram bot.",
+  "version": "3.0.0",
+  "description": "Telegram Mini App shop for 'Ставь угольки' without external runtime dependencies.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,11 +17,5 @@
     "hookah"
   ],
   "author": "OpenAI",
-  "license": "MIT",
-  "dependencies": {
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2",
-    "telegraf": "^4.16.3"
-  }
+  "license": "MIT"
 }

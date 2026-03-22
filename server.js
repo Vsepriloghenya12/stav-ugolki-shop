@@ -1,15 +1,13 @@
-try { require('dotenv').config(); } catch (_error) {}
-const express = require('express');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { URL } = require('url');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const PUBLIC_DIR = path.join(ROOT, 'public');
-
 const JWT_SECRET = process.env.JWT_SECRET || 'please-change-me';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'owner';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'stavugolki2026';
@@ -24,15 +22,23 @@ const STATUS_LABELS = {
   cancelled: 'Отменен'
 };
 
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use('/assets', express.static(path.join(PUBLIC_DIR, 'assets')));
-app.use(express.static(PUBLIC_DIR));
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain; charset=utf-8'
+};
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 function readJson(fileName, fallback) {
@@ -41,7 +47,7 @@ function readJson(fileName, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch (_error) {
+  } catch {
     return fallback;
   }
 }
@@ -92,20 +98,6 @@ function escapeText(value) {
 
 function formatCurrency(value, currency = 'VND') {
   return `${Number(value || 0).toLocaleString('ru-RU')} ${currency}`;
-}
-
-function authRequired(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
-  }
-  try {
-    req.admin = jwt.verify(token, JWT_SECRET);
-    return next();
-  } catch (_error) {
-    return res.status(401).json({ error: 'Сессия истекла, войдите снова' });
-  }
 }
 
 function sortProducts(items) {
@@ -299,193 +291,362 @@ function buildAnalytics() {
   };
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'stav-ugolki-mobile', time: new Date().toISOString() });
-});
+function base64url(input) {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
 
-app.get('/api/settings', (_req, res) => {
-  res.json(sanitizePublicSettings(getSettings()));
-});
+function decodeBase64url(input) {
+  const normalized = String(input).replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '==='.slice((normalized.length + 3) % 4);
+  return Buffer.from(padded, 'base64').toString('utf8');
+}
 
-app.get('/api/banners', (_req, res) => {
-  res.json({ items: getActiveBanners() });
-});
+function signToken(payload) {
+  const body = base64url(JSON.stringify(payload));
+  const sig = crypto.createHmac('sha256', JWT_SECRET).update(body).digest('hex');
+  return `${body}.${sig}`;
+}
 
-app.get('/api/products', (req, res) => {
-  const includeOutOfStock = req.query.all === '1';
-  const category = escapeText(req.query.category || '');
-  const q = escapeText(req.query.q || '');
-  const items = getVisibleProducts({ q, category, includeOutOfStock });
-  res.json({ items, categories: CATEGORIES, count: items.length });
-});
+function verifyToken(token) {
+  const [body, sig] = String(token || '').split('.');
+  if (!body || !sig) throw new Error('missing');
+  const expected = crypto.createHmac('sha256', JWT_SECRET).update(body).digest('hex');
+  const ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  if (!ok) throw new Error('bad-signature');
+  const payload = JSON.parse(decodeBase64url(body));
+  if (!payload || payload.exp < Date.now()) throw new Error('expired');
+  return payload;
+}
 
-app.get('/api/products/:id', (req, res) => {
-  const needle = escapeText(req.params.id).toLowerCase();
-  const product = getProducts().find((item) => [item.id, item.slug, item.deepLink].filter(Boolean).map((v) => String(v).toLowerCase()).includes(needle));
-  if (!product) return res.status(404).json({ error: 'Товар не найден' });
-  return res.json(product);
-});
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 5 * 1024 * 1024) {
+        reject(new Error('PAYLOAD_TOO_LARGE'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (!raw) return resolve({});
+      const contentType = String(req.headers['content-type'] || '');
+      try {
+        if (contentType.includes('application/json')) return resolve(JSON.parse(raw));
+        if (contentType.includes('application/x-www-form-urlencoded')) {
+          const params = new URLSearchParams(raw);
+          return resolve(Object.fromEntries(params.entries()));
+        }
+        return resolve({ raw });
+      } catch {
+        reject(new Error('BAD_JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
 
-app.post('/api/orders', (req, res) => {
+function sendJson(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(body),
+    'Cache-Control': 'no-store'
+  });
+  res.end(body);
+}
+
+function sendText(res, status, text, contentType = 'text/plain; charset=utf-8') {
+  res.writeHead(status, { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(text) });
+  res.end(text);
+}
+
+function sendFile(res, filePath) {
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    return sendJson(res, 404, { error: 'Файл не найден' });
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400'
+  });
+  fs.createReadStream(filePath).pipe(res);
+}
+
+function getAuth(req) {
+  const header = String(req.headers.authorization || '');
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) return null;
   try {
-    const payload = normalizeOrderInput(req.body || {});
-    const settings = getSettings();
-    if (!payload.items.length) {
-      return res.status(400).json({ error: 'Корзина пуста' });
+    return verifyToken(token);
+  } catch {
+    return null;
+  }
+}
+
+function notFoundApi(res) {
+  return sendJson(res, 404, { error: 'Маршрут не найден' });
+}
+
+function matchPath(pathname, prefix) {
+  if (!pathname.startsWith(prefix)) return null;
+  return decodeURIComponent(pathname.slice(prefix.length));
+}
+
+async function handleApi(req, res, url) {
+  const pathname = url.pathname;
+  const method = req.method || 'GET';
+
+  if (method === 'GET' && pathname === '/api/health') {
+    return sendJson(res, 200, { ok: true, service: 'stav-ugolki-mobile', time: new Date().toISOString() });
+  }
+
+  if (method === 'GET' && pathname === '/api/settings') {
+    return sendJson(res, 200, sanitizePublicSettings(getSettings()));
+  }
+
+  if (method === 'GET' && pathname === '/api/banners') {
+    return sendJson(res, 200, { items: getActiveBanners() });
+  }
+
+  if (method === 'GET' && pathname === '/api/products') {
+    const includeOutOfStock = url.searchParams.get('all') === '1';
+    const category = escapeText(url.searchParams.get('category') || '');
+    const q = escapeText(url.searchParams.get('q') || '');
+    const items = getVisibleProducts({ q, category, includeOutOfStock });
+    return sendJson(res, 200, { items, categories: CATEGORIES, count: items.length });
+  }
+
+  const productId = matchPath(pathname, '/api/products/');
+  if (method === 'GET' && productId !== null) {
+    const needle = escapeText(productId).toLowerCase();
+    const product = getProducts().find((item) => [item.id, item.slug, item.deepLink].filter(Boolean).map((v) => String(v).toLowerCase()).includes(needle));
+    if (!product) return sendJson(res, 404, { error: 'Товар не найден' });
+    return sendJson(res, 200, product);
+  }
+
+  if (method === 'POST' && pathname === '/api/orders') {
+    let body;
+    try {
+      body = await readBody(req);
+    } catch (error) {
+      return sendJson(res, error.message === 'PAYLOAD_TOO_LARGE' ? 413 : 400, { error: 'Некорректный запрос' });
     }
-    if (!payload.customer.name || !payload.customer.phone) {
-      return res.status(400).json({ error: 'Укажите имя и телефон' });
+    try {
+      const payload = normalizeOrderInput(body || {});
+      const settings = getSettings();
+      if (!payload.items.length) return sendJson(res, 400, { error: 'Корзина пуста' });
+      if (!payload.customer.name || !payload.customer.phone) return sendJson(res, 400, { error: 'Укажите имя и телефон' });
+      if (payload.customer.deliveryType !== 'Самовывоз' && payload.total < parseNumber(settings.minOrder, 0)) {
+        return sendJson(res, 400, { error: `Минимальная сумма для доставки — ${formatCurrency(settings.minOrder, settings.currency || 'VND')}` });
+      }
+      const orders = getOrders();
+      orders.unshift(payload);
+      saveOrders(orders);
+      return sendJson(res, 201, {
+        message: 'Заказ создан',
+        order: payload,
+        shareText: `Новый заказ ${payload.id} на сумму ${formatCurrency(payload.total, settings.currency || 'VND')}`
+      });
+    } catch {
+      return sendJson(res, 500, { error: 'Не удалось создать заказ' });
     }
-    if (payload.customer.deliveryType !== 'Самовывоз' && payload.total < parseNumber(settings.minOrder, 0)) {
-      return res.status(400).json({
-        error: `Минимальная сумма для доставки — ${formatCurrency(settings.minOrder, settings.currency || 'VND')}`
+  }
+
+  if (method === 'POST' && pathname === '/api/admin/login') {
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      return sendJson(res, 400, { error: 'Некорректный запрос' });
+    }
+    const { username, password } = body || {};
+    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+      return sendJson(res, 401, { error: 'Неверный логин или пароль' });
+    }
+    const token = signToken({ role: 'admin', username, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+    return sendJson(res, 200, { token, username });
+  }
+
+  if (pathname.startsWith('/api/admin/')) {
+    const admin = getAuth(req);
+    if (!admin) return sendJson(res, 401, { error: 'Сессия истекла, войдите снова' });
+
+    if (method === 'GET' && pathname === '/api/admin/bootstrap') {
+      return sendJson(res, 200, {
+        products: getProducts(),
+        orders: [...getOrders()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+        banners: getBanners(),
+        settings: getSettings(),
+        categories: CATEGORIES,
+        analytics: buildAnalytics(),
+        statusMap: STATUS_LABELS
       });
     }
-    const orders = getOrders();
-    orders.unshift(payload);
-    saveOrders(orders);
-    return res.status(201).json({
-      message: 'Заказ создан',
-      order: payload,
-      shareText: `Новый заказ ${payload.id} на сумму ${formatCurrency(payload.total, settings.currency || 'VND')}`
-    });
-  } catch (_error) {
-    return res.status(500).json({ error: 'Не удалось создать заказ' });
+
+    if (method === 'GET' && pathname === '/api/admin/products') {
+      return sendJson(res, 200, getProducts());
+    }
+
+    if (method === 'POST' && pathname === '/api/admin/products') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const products = getProducts();
+      const product = normalizeProductInput(body || {}, {});
+      if (!product.name) return sendJson(res, 400, { error: 'Укажите название товара' });
+      products.unshift(product);
+      saveProducts(products);
+      return sendJson(res, 201, product);
+    }
+
+    const adminProductId = matchPath(pathname, '/api/admin/products/');
+    if (adminProductId !== null && method === 'PUT') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const products = getProducts();
+      const index = products.findIndex((item) => item.id === adminProductId);
+      if (index === -1) return sendJson(res, 404, { error: 'Товар не найден' });
+      const next = normalizeProductInput(body || {}, products[index]);
+      if (!next.name) return sendJson(res, 400, { error: 'Укажите название товара' });
+      products[index] = next;
+      saveProducts(products);
+      return sendJson(res, 200, next);
+    }
+
+    if (adminProductId !== null && method === 'DELETE') {
+      const products = getProducts();
+      const next = products.filter((item) => item.id !== adminProductId);
+      if (next.length === products.length) return sendJson(res, 404, { error: 'Товар не найден' });
+      saveProducts(next);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (method === 'GET' && pathname === '/api/admin/banners') {
+      return sendJson(res, 200, getBanners());
+    }
+
+    if (method === 'POST' && pathname === '/api/admin/banners') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const banners = getBanners();
+      const banner = normalizeBannerInput(body || {}, {});
+      if (!banner.image) return sendJson(res, 400, { error: 'Укажите изображение баннера' });
+      banners.unshift(banner);
+      saveBanners(banners);
+      return sendJson(res, 201, banner);
+    }
+
+    const bannerId = matchPath(pathname, '/api/admin/banners/');
+    if (bannerId !== null && method === 'PUT') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const banners = getBanners();
+      const index = banners.findIndex((item) => item.id === bannerId);
+      if (index === -1) return sendJson(res, 404, { error: 'Баннер не найден' });
+      const next = normalizeBannerInput(body || {}, banners[index]);
+      if (!next.image) return sendJson(res, 400, { error: 'Укажите изображение баннера' });
+      banners[index] = next;
+      saveBanners(banners);
+      return sendJson(res, 200, next);
+    }
+
+    if (bannerId !== null && method === 'DELETE') {
+      const banners = getBanners();
+      const next = banners.filter((item) => item.id !== bannerId);
+      if (next.length === banners.length) return sendJson(res, 404, { error: 'Баннер не найден' });
+      saveBanners(next);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (method === 'GET' && pathname === '/api/admin/orders') {
+      return sendJson(res, 200, { items: getOrders(), statusMap: STATUS_LABELS });
+    }
+
+    const orderId = matchPath(pathname, '/api/admin/orders/');
+    if (orderId !== null && method === 'PUT') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const orders = getOrders();
+      const index = orders.findIndex((item) => item.id === orderId);
+      const nextStatus = escapeText(body?.status);
+      if (index === -1) return sendJson(res, 404, { error: 'Заказ не найден' });
+      if (!ORDER_STATUSES.includes(nextStatus)) return sendJson(res, 400, { error: 'Некорректный статус' });
+      orders[index].status = nextStatus;
+      orders[index].updatedAt = new Date().toISOString();
+      saveOrders(orders);
+      return sendJson(res, 200, orders[index]);
+    }
+
+    if (method === 'GET' && pathname === '/api/admin/analytics') {
+      return sendJson(res, 200, buildAnalytics());
+    }
+
+    if (method === 'GET' && pathname === '/api/admin/settings') {
+      return sendJson(res, 200, getSettings());
+    }
+
+    if (method === 'PUT' && pathname === '/api/admin/settings') {
+      let body;
+      try { body = await readBody(req); } catch { return sendJson(res, 400, { error: 'Некорректный запрос' }); }
+      const current = getSettings();
+      const next = {
+        ...current,
+        ...body,
+        minOrder: parseNumber(body?.minOrder, current.minOrder),
+        deliveryPrice: parseNumber(body?.deliveryPrice, current.deliveryPrice),
+        freeDeliveryFrom: parseNumber(body?.freeDeliveryFrom, current.freeDeliveryFrom)
+      };
+      saveSettings(next);
+      return sendJson(res, 200, next);
+    }
+
+    return notFoundApi(res);
+  }
+
+  return notFoundApi(res);
+}
+
+function safeJoin(base, target) {
+  const targetPath = path.normalize(path.join(base, target));
+  return targetPath.startsWith(base) ? targetPath : null;
+}
+
+function handleStatic(req, res, url) {
+  const pathname = decodeURIComponent(url.pathname);
+
+  if (pathname === '/admin' || pathname === '/admin.html') {
+    return sendFile(res, path.join(PUBLIC_DIR, 'admin.html'));
+  }
+  if (pathname === '/' || pathname === '/index.html') {
+    return sendFile(res, path.join(PUBLIC_DIR, 'index.html'));
+  }
+  if (pathname.startsWith('/assets/')) {
+    const filePath = safeJoin(PUBLIC_DIR, pathname.slice(1));
+    if (filePath) return sendFile(res, filePath);
+  }
+
+  const directFile = safeJoin(PUBLIC_DIR, pathname.slice(1));
+  if (directFile && fs.existsSync(directFile) && fs.statSync(directFile).isFile()) {
+    return sendFile(res, directFile);
+  }
+
+  return sendFile(res, path.join(PUBLIC_DIR, 'index.html'));
+}
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
+    return handleStatic(req, res, url);
+  } catch (error) {
+    return sendJson(res, 500, { error: 'Внутренняя ошибка сервера' });
   }
 });
 
-app.post('/api/admin/login', (req, res) => {
-  const { username, password } = req.body || {};
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Неверный логин или пароль' });
-  }
-  const token = jwt.sign({ role: 'admin', username }, JWT_SECRET, { expiresIn: '7d' });
-  return res.json({ token, username });
-});
-
-app.get('/api/admin/bootstrap', authRequired, (_req, res) => {
-  return res.json({
-    products: getProducts(),
-    orders: [...getOrders()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    banners: getBanners(),
-    settings: getSettings(),
-    categories: CATEGORIES,
-    analytics: buildAnalytics(),
-    statusMap: STATUS_LABELS
-  });
-});
-
-app.get('/api/admin/products', authRequired, (_req, res) => {
-  return res.json(getProducts());
-});
-
-app.post('/api/admin/products', authRequired, (req, res) => {
-  const products = getProducts();
-  const product = normalizeProductInput(req.body || {}, {});
-  if (!product.name) return res.status(400).json({ error: 'Укажите название товара' });
-  products.unshift(product);
-  saveProducts(products);
-  return res.status(201).json(product);
-});
-
-app.put('/api/admin/products/:id', authRequired, (req, res) => {
-  const products = getProducts();
-  const index = products.findIndex((item) => item.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Товар не найден' });
-  const next = normalizeProductInput(req.body || {}, products[index]);
-  if (!next.name) return res.status(400).json({ error: 'Укажите название товара' });
-  products[index] = next;
-  saveProducts(products);
-  return res.json(next);
-});
-
-app.delete('/api/admin/products/:id', authRequired, (req, res) => {
-  const products = getProducts();
-  const next = products.filter((item) => item.id !== req.params.id);
-  if (next.length === products.length) return res.status(404).json({ error: 'Товар не найден' });
-  saveProducts(next);
-  return res.json({ ok: true });
-});
-
-app.get('/api/admin/banners', authRequired, (_req, res) => {
-  return res.json(getBanners());
-});
-
-app.post('/api/admin/banners', authRequired, (req, res) => {
-  const banners = getBanners();
-  const banner = normalizeBannerInput(req.body || {}, {});
-  if (!banner.image) return res.status(400).json({ error: 'Укажите изображение баннера' });
-  banners.unshift(banner);
-  saveBanners(banners);
-  return res.status(201).json(banner);
-});
-
-app.put('/api/admin/banners/:id', authRequired, (req, res) => {
-  const banners = getBanners();
-  const index = banners.findIndex((item) => item.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Баннер не найден' });
-  const next = normalizeBannerInput(req.body || {}, banners[index]);
-  if (!next.image) return res.status(400).json({ error: 'Укажите изображение баннера' });
-  banners[index] = next;
-  saveBanners(banners);
-  return res.json(next);
-});
-
-app.delete('/api/admin/banners/:id', authRequired, (req, res) => {
-  const banners = getBanners();
-  const next = banners.filter((item) => item.id !== req.params.id);
-  if (next.length === banners.length) return res.status(404).json({ error: 'Баннер не найден' });
-  saveBanners(next);
-  return res.json({ ok: true });
-});
-
-app.get('/api/admin/orders', authRequired, (_req, res) => {
-  return res.json({ items: getOrders(), statusMap: STATUS_LABELS });
-});
-
-app.put('/api/admin/orders/:id', authRequired, (req, res) => {
-  const orders = getOrders();
-  const index = orders.findIndex((item) => item.id === req.params.id);
-  const nextStatus = escapeText(req.body?.status);
-  if (index === -1) return res.status(404).json({ error: 'Заказ не найден' });
-  if (!ORDER_STATUSES.includes(nextStatus)) return res.status(400).json({ error: 'Некорректный статус' });
-  orders[index].status = nextStatus;
-  orders[index].updatedAt = new Date().toISOString();
-  saveOrders(orders);
-  return res.json(orders[index]);
-});
-
-app.get('/api/admin/analytics', authRequired, (_req, res) => {
-  return res.json(buildAnalytics());
-});
-
-app.get('/api/admin/settings', authRequired, (_req, res) => {
-  return res.json(getSettings());
-});
-
-app.put('/api/admin/settings', authRequired, (req, res) => {
-  const current = getSettings();
-  const next = {
-    ...current,
-    ...req.body,
-    minOrder: parseNumber(req.body?.minOrder, current.minOrder),
-    deliveryPrice: parseNumber(req.body?.deliveryPrice, current.deliveryPrice),
-    freeDeliveryFrom: parseNumber(req.body?.freeDeliveryFrom, current.freeDeliveryFrom)
-  };
-  saveSettings(next);
-  return res.json(next);
-});
-
-app.get('/admin', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
-app.get('/admin.html', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'admin.html')));
-
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'Маршрут не найден' });
-  }
-  return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`Ставь угольки запущен на http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Ставь угольки запущен на 0.0.0.0:${PORT}`);
 });
