@@ -1,0 +1,24 @@
+{
+  "storeName": "Ставь угольки",
+  "headline": "Уголь, розжиг и аксессуары — в один тап внутри Telegram",
+  "subheadline": "Темный стиль, быстрый заказ, мобильная витрина и живая аналитика для владельца.",
+  "announcement": "Бесплатная доставка от 2500 ₽. Новые поставки кокосового угля каждую неделю.",
+  "supportTelegram": "@stavugolki",
+  "supportPhone": "+7 (900) 000-00-00",
+  "pickupAddress": "Москва, ул. Малая Почтовая, 7",
+  "workingHours": "ежедневно 12:00–23:00",
+  "minOrder": 1000,
+  "deliveryPrice": 290,
+  "currency": "₽",
+  "accent": "#58b8aa",
+  "background": "#1e2628",
+  "surface": "#243033",
+  "textPrimary": "#f2ead5",
+  "textMuted": "#9db2ad",
+  "heroBadges": [
+    "Telegram Mini App",
+    "Мобильный storefront",
+    "Редактор товаров",
+    "Аналитика заказов"
+  ]
+}

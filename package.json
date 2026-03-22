@@ -1,0 +1,26 @@
+{
+  "name": "stav-ugolki-telegram-shop",
+  "version": "1.0.0",
+  "description": "Telegram Mini App shop for \"Ставь угольки\" with storefront, admin dashboard, analytics, and optional Telegram bot.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "bot": "node bot.js"
+  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "shop",
+    "admin",
+    "analytics"
+  ],
+  "author": "OpenAI",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "telegraf": "^4.16.3"
+  }
+}

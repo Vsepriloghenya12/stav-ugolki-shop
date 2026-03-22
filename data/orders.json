@@ -1,0 +1,150 @@
+[
+  {
+    "id": "order-240301",
+    "status": "done",
+    "createdAt": "2026-03-16T18:24:00.000Z",
+    "customer": {
+      "name": "Артём",
+      "phone": "+7 999 123-45-67",
+      "telegram": "@artstyle",
+      "address": "Москва, ул. Лобачика, 14",
+      "comment": "Позвонить за 10 минут",
+      "deliveryType": "Доставка"
+    },
+    "items": [
+      {
+        "productId": "prod-c26-premium",
+        "name": "C26 Premium Coconut",
+        "price": 690,
+        "quantity": 2,
+        "lineTotal": 1380
+      },
+      {
+        "productId": "prod-metal-tongs",
+        "name": "Щипцы Steel Grip",
+        "price": 290,
+        "quantity": 1,
+        "lineTotal": 290
+      }
+    ],
+    "total": 1670,
+    "source": "telegram-mini-app"
+  },
+  {
+    "id": "order-240302",
+    "status": "confirmed",
+    "createdAt": "2026-03-17T14:40:00.000Z",
+    "customer": {
+      "name": "Елена",
+      "phone": "+7 926 222-88-11",
+      "telegram": "@elena_smoke",
+      "address": "Самовывоз",
+      "comment": "Заберу вечером",
+      "deliveryType": "Самовывоз"
+    },
+    "items": [
+      {
+        "productId": "prod-burner-mini",
+        "name": "Burner Mini 1000W",
+        "price": 1490,
+        "quantity": 1,
+        "lineTotal": 1490
+      }
+    ],
+    "total": 1490,
+    "source": "telegram-mini-app"
+  },
+  {
+    "id": "order-240303",
+    "status": "new",
+    "createdAt": "2026-03-19T09:05:00.000Z",
+    "customer": {
+      "name": "Кирилл",
+      "phone": "+7 977 502-00-91",
+      "telegram": "@kiro",
+      "address": "Санкт-Петербург, Невский пр., 52",
+      "comment": "Нужна сдача с 5000",
+      "deliveryType": "Доставка"
+    },
+    "items": [
+      {
+        "productId": "prod-hexa-1kg",
+        "name": "Hexa Long Heat 1 кг",
+        "price": 990,
+        "quantity": 1,
+        "lineTotal": 990
+      },
+      {
+        "productId": "prod-wind-cover",
+        "name": "Колпак Heat Control",
+        "price": 740,
+        "quantity": 1,
+        "lineTotal": 740
+      }
+    ],
+    "total": 1730,
+    "source": "web"
+  },
+  {
+    "id": "order-240304",
+    "status": "done",
+    "createdAt": "2026-03-20T20:19:00.000Z",
+    "customer": {
+      "name": "Илья",
+      "phone": "+7 905 301-22-90",
+      "telegram": "@ilya_hookah",
+      "address": "Казань, ул. Спартаковская, 2",
+      "comment": "Без звонка, написать в TG",
+      "deliveryType": "Доставка"
+    },
+    "items": [
+      {
+        "productId": "prod-c25-classic",
+        "name": "C25 Classic Box",
+        "price": 520,
+        "quantity": 3,
+        "lineTotal": 1560
+      },
+      {
+        "productId": "prod-quick-lite",
+        "name": "Quick Lite Tabs",
+        "price": 350,
+        "quantity": 1,
+        "lineTotal": 350
+      }
+    ],
+    "total": 1910,
+    "source": "telegram-mini-app"
+  },
+  {
+    "id": "order-240305",
+    "status": "delivering",
+    "createdAt": "2026-03-21T12:31:00.000Z",
+    "customer": {
+      "name": "Марина",
+      "phone": "+7 916 444-91-91",
+      "telegram": "@mari_n",
+      "address": "Краснодар, ул. Красная, 88",
+      "comment": "Оставить у консьержа",
+      "deliveryType": "Доставка"
+    },
+    "items": [
+      {
+        "productId": "prod-c26-premium",
+        "name": "C26 Premium Coconut",
+        "price": 690,
+        "quantity": 1,
+        "lineTotal": 690
+      },
+      {
+        "productId": "prod-burner-mini",
+        "name": "Burner Mini 1000W",
+        "price": 1490,
+        "quantity": 1,
+        "lineTotal": 1490
+      }
+    ],
+    "total": 2180,
+    "source": "telegram-mini-app"
+  }
+]
