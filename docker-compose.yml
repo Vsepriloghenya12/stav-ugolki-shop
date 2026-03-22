@@ -1,18 +1,8 @@
+version: "3.9"
 services:
-  app:
+  stav-ugolki:
     build: .
     ports:
       - "3000:3000"
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
-  bot:
-    build: .
-    command: node bot.js
-    env_file:
-      - .env
-    volumes:
-      - ./data:/app/data
-    profiles:
-      - bot

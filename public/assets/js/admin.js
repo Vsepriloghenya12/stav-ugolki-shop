@@ -1,568 +1,571 @@
-const adminState = {
+const state = {
   token: localStorage.getItem('stav-ugolki-admin-token') || '',
   username: localStorage.getItem('stav-ugolki-admin-user') || 'owner',
+  currentTab: 'dashboard',
   products: [],
   orders: [],
+  settings: {},
   analytics: null,
-  settings: null,
-  activeTab: 'dashboard'
+  statusMap: {},
+  editingProductId: null,
+  productQuery: '',
+  orderFilter: 'all'
 };
 
-const ui = {
-  loginWrap: document.getElementById('loginWrap'),
+const els = {
+  loginView: document.getElementById('loginView'),
+  adminApp: document.getElementById('adminApp'),
   loginForm: document.getElementById('loginForm'),
   loginNotice: document.getElementById('loginNotice'),
-  adminApp: document.getElementById('adminApp'),
   adminUserBadge: document.getElementById('adminUserBadge'),
-  logoutBtn: document.getElementById('logoutBtn'),
-  navButtons: Array.from(document.querySelectorAll('.nav-btn')),
-  panels: Array.from(document.querySelectorAll('[data-panel]')),
-  refreshDashboardBtn: document.getElementById('refreshDashboardBtn'),
-  refreshOrdersBtn: document.getElementById('refreshOrdersBtn'),
+  logoutButton: document.getElementById('logoutButton'),
+  navButtons: Array.from(document.querySelectorAll('.nav-button')),
+  panelSections: Array.from(document.querySelectorAll('.panel-section')),
+  refreshButton: document.getElementById('refreshButton'),
   dashboardMetrics: document.getElementById('dashboardMetrics'),
-  dashboardChart: document.getElementById('dashboardChart'),
+  dashboardRevenueBars: document.getElementById('dashboardRevenueBars'),
   dashboardRecentOrders: document.getElementById('dashboardRecentOrders'),
-  productCountLabel: document.getElementById('productCountLabel'),
-  productAdminList: document.getElementById('productAdminList'),
+  lowStockList: document.getElementById('lowStockList'),
+  sourceBreakdown: document.getElementById('sourceBreakdown'),
+  productSearchInput: document.getElementById('productSearchInput'),
+  newProductButton: document.getElementById('newProductButton'),
+  adminProductList: document.getElementById('adminProductList'),
   productForm: document.getElementById('productForm'),
-  productFormTitle: document.getElementById('productFormTitle'),
+  productEditorTitle: document.getElementById('productEditorTitle'),
   productNotice: document.getElementById('productNotice'),
-  resetProductFormBtn: document.getElementById('resetProductFormBtn'),
+  deleteProductButton: document.getElementById('deleteProductButton'),
+  resetProductButton: document.getElementById('resetProductButton'),
+  orderFilterSelect: document.getElementById('orderFilterSelect'),
   ordersList: document.getElementById('ordersList'),
-  analyticsMetrics: document.getElementById('analyticsMetrics'),
-  analyticsRevenueChart: document.getElementById('analyticsRevenueChart'),
-  analyticsCategories: document.getElementById('analyticsCategories'),
-  topProductsTable: document.getElementById('topProductsTable'),
-  recentOrdersTable: document.getElementById('recentOrdersTable'),
+  topProductsList: document.getElementById('topProductsList'),
+  categoryRevenueList: document.getElementById('categoryRevenueList'),
+  statusCards: document.getElementById('statusCards'),
   settingsForm: document.getElementById('settingsForm'),
   settingsNotice: document.getElementById('settingsNotice')
 };
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function formatPrice(value) {
-  const currency = adminState.settings?.currency || '₽';
+  const currency = state.settings?.currency || '₽';
   return `${Number(value || 0).toLocaleString('ru-RU')} ${currency}`;
 }
 
-function formatDate(value) {
-  const date = new Date(value);
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-function pluralize(number, forms) {
-  const n = Math.abs(number) % 100;
-  const n1 = n % 10;
-  if (n > 10 && n < 20) return forms[2];
-  if (n1 > 1 && n1 < 5) return forms[1];
-  if (n1 === 1) return forms[0];
-  return forms[2];
-}
-
-function showNotice(element, message, type) {
-  element.className = 'notice';
-  element.textContent = message;
-  if (message) {
-    element.classList.add(type);
+async function fetchJson(url, options = {}, auth = true) {
+  const headers = { ...(options.headers || {}) };
+  if (auth && state.token) {
+    headers.Authorization = `Bearer ${state.token}`;
   }
-}
-
-async function api(url, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {})
-  };
-
-  if (adminState.token) {
-    headers.Authorization = `Bearer ${adminState.token}`;
-  }
-
   const response = await fetch(url, { ...options, headers });
   const data = await response.json();
-
   if (!response.ok) {
-    if (response.status === 401) {
-      logout();
-    }
     throw new Error(data.error || 'Ошибка запроса');
   }
-
   return data;
 }
 
-function setActiveTab(tab) {
-  adminState.activeTab = tab;
-  ui.navButtons.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.tab === tab);
-  });
-  ui.panels.forEach((panel) => {
-    panel.classList.toggle('hidden', panel.dataset.panel !== tab);
-  });
+function setLoginNotice(message, type) {
+  els.loginNotice.textContent = message;
+  els.loginNotice.className = 'notice';
+  if (message && type) {
+    els.loginNotice.classList.add(type);
+  }
 }
 
-function loginSucceeded(token, username) {
-  adminState.token = token;
-  adminState.username = username;
+function setProductNotice(message, type) {
+  els.productNotice.textContent = message;
+  els.productNotice.className = 'notice';
+  if (message && type) {
+    els.productNotice.classList.add(type);
+  }
+}
+
+function setSettingsNotice(message, type) {
+  els.settingsNotice.textContent = message;
+  els.settingsNotice.className = 'notice';
+  if (message && type) {
+    els.settingsNotice.classList.add(type);
+  }
+}
+
+function saveAuth(token, username) {
+  state.token = token;
+  state.username = username;
   localStorage.setItem('stav-ugolki-admin-token', token);
   localStorage.setItem('stav-ugolki-admin-user', username);
-  ui.adminUserBadge.textContent = username;
-  ui.loginWrap.classList.add('hidden');
-  ui.adminApp.classList.remove('hidden');
 }
 
-function logout() {
+function clearAuth() {
+  state.token = '';
   localStorage.removeItem('stav-ugolki-admin-token');
   localStorage.removeItem('stav-ugolki-admin-user');
-  adminState.token = '';
-  ui.adminApp.classList.add('hidden');
-  ui.loginWrap.classList.remove('hidden');
-  showNotice(ui.loginNotice, 'Сессия завершена. Войдите снова.', 'error');
-}
-
-function resetProductForm() {
-  ui.productForm.reset();
-  ui.productForm.elements.id.value = '';
-  ui.productForm.elements.inStock.checked = true;
-  ui.productForm.elements.featured.checked = false;
-  ui.productFormTitle.textContent = 'Новый товар';
-}
-
-function fillProductForm(product) {
-  ui.productForm.elements.id.value = product.id;
-  ui.productForm.elements.name.value = product.name || '';
-  ui.productForm.elements.category.value = product.category || '';
-  ui.productForm.elements.price.value = product.price || 0;
-  ui.productForm.elements.oldPrice.value = product.oldPrice || 0;
-  ui.productForm.elements.image.value = product.image || '';
-  ui.productForm.elements.stockCount.value = product.stockCount || 0;
-  ui.productForm.elements.unit.value = product.unit || 'шт';
-  ui.productForm.elements.description.value = product.description || '';
-  ui.productForm.elements.inStock.checked = Boolean(product.inStock);
-  ui.productForm.elements.featured.checked = Boolean(product.featured);
-  ui.productFormTitle.textContent = `Редактирование: ${product.name}`;
-  setActiveTab('products');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function renderDashboard() {
-  const metrics = adminState.analytics?.metrics;
-  if (!metrics) return;
-
-  ui.dashboardMetrics.innerHTML = [
-    { label: 'Выручка', value: metrics.revenueLabel },
-    { label: 'Заказы', value: `${metrics.orders}` },
-    { label: 'Средний чек', value: metrics.averageCheckLabel },
-    { label: 'Новые', value: `${metrics.newOrders}` },
-    { label: 'Хиты', value: `${metrics.featuredProducts}` },
-    { label: 'Остаток', value: `${metrics.totalStock}` }
-  ]
-    .map(
-      (item) => `
-        <div class="metric-card">
-          <small>${item.label}</small>
-          <strong>${item.value}</strong>
-        </div>
-      `
-    )
-    .join('');
-
-  renderRevenueChart(ui.dashboardChart, adminState.analytics.dailyRevenue);
-  ui.dashboardRecentOrders.innerHTML = adminState.analytics.recentOrders
-    .slice(0, 5)
-    .map(
-      (order) => `
-        <div class="order-list-item">
-          <div class="order-row">
-            <strong>${order.id}</strong>
-            <span class="status-chip ${order.status}">${adminState.analytics.statusMap[order.status]}</span>
-          </div>
-          <div class="muted">${order.customer?.name || 'Клиент'} · ${formatDate(order.createdAt)}</div>
-          <strong>${formatPrice(order.total)}</strong>
-        </div>
-      `
-    )
-    .join('');
-}
-
-function renderRevenueChart(target, items = []) {
-  if (!items.length) {
-    target.innerHTML = '<p class="muted">Пока нет данных для графика.</p>';
-    return;
-  }
-
-  const maxValue = Math.max(...items.map((item) => item.revenue), 1);
-  target.innerHTML = items
-    .map((item) => {
-      const height = Math.max(18, Math.round((item.revenue / maxValue) * 180));
-      return `
-        <div class="bar-wrap">
-          <div class="bar" style="height:${height}px"></div>
-          <strong>${formatPrice(item.revenue)}</strong>
-          <span class="bar-label">${item.label}</span>
-        </div>
-      `;
-    })
-    .join('');
-}
-
-function renderProducts() {
-  ui.productCountLabel.textContent = `${adminState.products.length} ${pluralize(adminState.products.length, ['позиция', 'позиции', 'позиций'])}`;
-  ui.productAdminList.innerHTML = adminState.products
-    .map(
-      (product) => `
-        <div class="product-admin-card">
-          <div class="product-thumb"><img src="${product.image}" alt="${product.name}" loading="lazy" /></div>
-          <div>
-            <div class="card-tags">
-              <span class="tag">${product.category}</span>
-              ${product.featured ? '<span class="tag featured">Хит</span>' : ''}
-              ${product.inStock ? '<span class="tag">В наличии</span>' : '<span class="tag out">Нет в наличии</span>'}
-            </div>
-            <h3 style="margin:10px 0 8px;">${product.name}</h3>
-            <p class="muted">${product.description || 'Без описания'}</p>
-            <div class="helper-row">
-              <strong>${formatPrice(product.price)}</strong>
-              <span class="muted">Остаток: ${product.stockCount || 0} ${product.unit || 'шт'}</span>
-            </div>
-          </div>
-          <div class="stack-actions">
-            <button class="secondary-btn" type="button" data-edit-product="${product.id}">Редактировать</button>
-            <button class="secondary-btn is-danger" type="button" data-delete-product="${product.id}">Удалить</button>
-          </div>
-        </div>
-      `
-    )
-    .join('');
-
-  const productsNav = ui.navButtons.find((btn) => btn.dataset.tab === 'products');
-  if (productsNav) {
-    productsNav.innerHTML = `Товары <span>${adminState.products.length}</span>`;
-  }
-}
-
-function renderOrders() {
-  if (!adminState.orders.length) {
-    ui.ordersList.innerHTML = '<div class="empty-state"><h3>Заказов пока нет</h3><p>Новые заказы появятся здесь автоматически.</p></div>';
-    return;
-  }
-
-  ui.ordersList.innerHTML = adminState.orders
-    .map((order) => {
-      const itemsText = (order.items || [])
-        .map((item) => `${item.name} × ${item.quantity}`)
-        .join(', ');
-
-      return `
-        <div class="order-list-item">
-          <div class="order-row">
-            <div>
-              <strong>${order.id}</strong>
-              <div class="muted">${formatDate(order.createdAt)} · ${order.source || 'web'}</div>
-            </div>
-            <div class="status-row">
-              <span class="status-chip ${order.status}">${statusLabel(order.status)}</span>
-              <select class="status-select secondary-btn" data-order-status-id="${order.id}">
-                ${['new', 'confirmed', 'delivering', 'done', 'cancelled']
-                  .map(
-                    (status) => `
-                      <option value="${status}" ${order.status === status ? 'selected' : ''}>${statusLabel(status)}</option>
-                    `
-                  )
-                  .join('')}
-              </select>
-            </div>
-          </div>
-          <div class="order-row">
-            <div>
-              <div><strong>${order.customer?.name || 'Без имени'}</strong></div>
-              <div class="muted">${order.customer?.phone || 'Телефон не указан'} · ${order.customer?.telegram || 'TG не указан'}</div>
-              <div class="muted">${order.customer?.deliveryType || 'Доставка'} · ${order.customer?.address || 'Адрес не указан'}</div>
-            </div>
-            <div style="text-align:right;">
-              <div><strong>${formatPrice(order.total)}</strong></div>
-              <div class="muted">${itemsText}</div>
-            </div>
-          </div>
-          ${order.customer?.comment ? `<div class="muted">Комментарий: ${order.customer.comment}</div>` : ''}
-        </div>
-      `;
-    })
-    .join('');
-
-  const ordersNav = ui.navButtons.find((btn) => btn.dataset.tab === 'orders');
-  if (ordersNav) {
-    const newOrders = adminState.orders.filter((order) => order.status === 'new').length;
-    ordersNav.innerHTML = `Заказы <span>${newOrders || adminState.orders.length}</span>`;
-  }
-}
-
-function renderAnalytics() {
-  if (!adminState.analytics) return;
-  const metrics = adminState.analytics.metrics;
-  ui.analyticsMetrics.innerHTML = [
-    { label: 'Выручка', value: metrics.revenueLabel },
-    { label: 'Средний чек', value: metrics.averageCheckLabel },
-    { label: 'Всего заказов', value: `${metrics.orders}` },
-    { label: 'Завершено', value: `${metrics.doneOrders}` },
-    { label: 'Новых заказов', value: `${metrics.newOrders}` },
-    { label: 'Остатков', value: `${metrics.totalStock}` }
-  ]
-    .map(
-      (item) => `
-        <div class="metric-card">
-          <small>${item.label}</small>
-          <strong>${item.value}</strong>
-        </div>
-      `
-    )
-    .join('');
-
-  renderRevenueChart(ui.analyticsRevenueChart, adminState.analytics.dailyRevenue);
-  renderCategoryProgress();
-  renderTopProductsTable();
-  renderRecentOrdersTable();
-}
-
-function renderCategoryProgress() {
-  const categories = adminState.analytics.topCategories || [];
-  if (!categories.length) {
-    ui.analyticsCategories.innerHTML = '<p class="muted">Категории появятся после первых продаж.</p>';
-    return;
-  }
-  const maxValue = Math.max(...categories.map((item) => item.revenue), 1);
-  ui.analyticsCategories.innerHTML = categories
-    .map(
-      (item) => `
-        <div class="progress-item">
-          <div class="helper-row">
-            <strong>${item.name}</strong>
-            <span>${formatPrice(item.revenue)}</span>
-          </div>
-          <div class="progress-line"><span style="width:${Math.max(12, Math.round((item.revenue / maxValue) * 100))}%"></span></div>
-        </div>
-      `
-    )
-    .join('');
-}
-
-function renderTopProductsTable() {
-  const products = adminState.analytics.topProducts || [];
-  ui.topProductsTable.innerHTML = products.length
-    ? products
-        .map(
-          (item) => `
-            <tr>
-              <td>${item.name}</td>
-              <td>${item.quantity}</td>
-              <td>${formatPrice(item.revenue)}</td>
-            </tr>
-          `
-        )
-        .join('')
-    : '<tr><td colspan="3" class="muted">Данных пока нет</td></tr>';
-}
-
-function renderRecentOrdersTable() {
-  const orders = adminState.analytics.recentOrders || [];
-  ui.recentOrdersTable.innerHTML = orders.length
-    ? orders
-        .map(
-          (order) => `
-            <tr>
-              <td>${order.id}</td>
-              <td>${order.customer?.name || 'Клиент'}</td>
-              <td>${formatPrice(order.total)}</td>
-            </tr>
-          `
-        )
-        .join('')
-    : '<tr><td colspan="3" class="muted">Заказов пока нет</td></tr>';
-}
-
-function statusLabel(status) {
-  return {
-    new: 'Новый',
-    confirmed: 'Подтвержден',
-    delivering: 'В доставке',
-    done: 'Завершен',
-    cancelled: 'Отменен'
-  }[status] || status;
-}
-
-function fillSettingsForm() {
-  if (!adminState.settings) return;
-  const form = ui.settingsForm;
-  Object.entries(adminState.settings).forEach(([key, value]) => {
-    if (!(key in form.elements)) return;
-    form.elements[key].value = Array.isArray(value) ? value.join(', ') : value ?? '';
-  });
-}
-
-async function loadProtectedData() {
-  const [products, orders, analytics, settings] = await Promise.all([
-    api('/api/admin/products'),
-    api('/api/admin/orders'),
-    api('/api/admin/analytics'),
-    api('/api/admin/settings')
-  ]);
-
-  adminState.products = products;
-  adminState.orders = orders.items || [];
-  adminState.analytics = analytics;
-  adminState.settings = settings;
-
-  renderProducts();
-  renderOrders();
-  renderDashboard();
-  renderAnalytics();
-  fillSettingsForm();
 }
 
 async function handleLogin(event) {
   event.preventDefault();
-  showNotice(ui.loginNotice, '', '');
-
-  const formData = new FormData(ui.loginForm);
+  const formData = new FormData(els.loginForm);
   try {
-    const data = await api('/api/admin/login', {
+    const result = await fetchJson('/api/admin/login', {
       method: 'POST',
-      headers: {},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.fromEntries(formData.entries()))
-    });
-    loginSucceeded(data.token, data.username);
-    await loadProtectedData();
+    }, false);
+    saveAuth(result.token, result.username);
+    state.username = result.username;
+    await bootstrapAdmin();
   } catch (error) {
-    showNotice(ui.loginNotice, error.message, 'error');
+    setLoginNotice(error.message, 'error');
   }
+}
+
+async function bootstrapAdmin() {
+  try {
+    const payload = await fetchJson('/api/admin/bootstrap');
+    state.products = payload.products || [];
+    state.orders = payload.orders || [];
+    state.settings = payload.settings || {};
+    state.analytics = payload.analytics || null;
+    state.statusMap = payload.statusMap || {};
+    els.adminUserBadge.textContent = state.username;
+    els.loginView.classList.add('hidden');
+    els.adminApp.classList.remove('hidden');
+    renderAll();
+  } catch (error) {
+    clearAuth();
+    els.adminApp.classList.add('hidden');
+    els.loginView.classList.remove('hidden');
+    setLoginNotice(error.message, 'error');
+  }
+}
+
+function renderAll() {
+  renderNav();
+  renderDashboard();
+  renderProducts();
+  renderOrders();
+  renderAnalytics();
+  fillSettingsForm();
+  updateProductEditor();
+}
+
+function renderNav() {
+  els.navButtons.forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.tab === state.currentTab);
+  });
+  els.panelSections.forEach((section) => {
+    section.classList.toggle('hidden', section.dataset.panel !== state.currentTab);
+  });
+}
+
+function renderDashboard() {
+  const analytics = state.analytics;
+  if (!analytics) return;
+  const metrics = [
+    { label: 'Выручка', value: analytics.metrics.revenueLabel },
+    { label: 'Средний чек', value: analytics.metrics.averageCheckLabel },
+    { label: 'Заказы', value: String(analytics.metrics.orders) },
+    { label: 'Новые заказы', value: String(analytics.metrics.newOrders) },
+    { label: 'Товары', value: String(analytics.metrics.products) },
+    { label: 'Хиты', value: String(analytics.metrics.featuredProducts) },
+    { label: 'Низкий остаток', value: String(analytics.metrics.lowStock) },
+    { label: 'Завершено', value: String(analytics.metrics.doneOrders) }
+  ];
+
+  els.dashboardMetrics.innerHTML = metrics
+    .map((item) => `
+      <article class="metric-card">
+        <span class="muted-text">${escapeHtml(item.label)}</span>
+        <strong>${escapeHtml(item.value)}</strong>
+      </article>
+    `)
+    .join('');
+
+  const dailyRevenue = analytics.dailyRevenue || [];
+  const maxRevenue = Math.max(...dailyRevenue.map((item) => item.revenue), 1);
+  els.dashboardRevenueBars.innerHTML = dailyRevenue
+    .map((item) => {
+      const height = Math.max(8, Math.round((item.revenue / maxRevenue) * 170));
+      return `
+        <div class="chart-bar-item">
+          <div class="chart-bar" style="height:${height}px"></div>
+          <div class="chart-bar-label">${escapeHtml(item.label)}</div>
+        </div>
+      `;
+    })
+    .join('');
+
+  els.dashboardRecentOrders.innerHTML = (analytics.recentOrders || [])
+    .map((order) => `
+      <article class="stack-item">
+        <div class="stack-item-head">
+          <div>
+            <strong>${escapeHtml(order.id)}</strong>
+            <p>${escapeHtml(order.customer?.name || 'Клиент')}</p>
+          </div>
+          <span class="order-status-pill">${escapeHtml(state.statusMap[order.status] || order.status)}</span>
+        </div>
+        <p>${formatPrice(order.total)} · ${new Date(order.createdAt).toLocaleString('ru-RU')}</p>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Заказов пока нет</div>';
+
+  els.lowStockList.innerHTML = (analytics.lowStockProducts || [])
+    .map((product) => `
+      <article class="stack-item">
+        <div class="stack-item-head">
+          <div>
+            <strong>${escapeHtml(product.name)}</strong>
+            <p>${escapeHtml(product.category || '')}</p>
+          </div>
+          <span class="order-status-pill">${Number(product.stockCount || 0)} ${escapeHtml(product.unit || 'шт.')}</span>
+        </div>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Все остатки в норме</div>';
+
+  const totalSources = (analytics.sources || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+  els.sourceBreakdown.innerHTML = (analytics.sources || [])
+    .map((source) => {
+      const percent = totalSources ? Math.round((Number(source.value || 0) / totalSources) * 100) : 0;
+      return `
+        <article class="source-item">
+          <strong>${escapeHtml(source.name)}</strong>
+          <span>${percent}%</span>
+          <div class="source-track"><div class="source-fill" style="width:${percent}%"></div></div>
+        </article>
+      `;
+    })
+    .join('') || '<div class="muted-text">Источники появятся после заказов</div>';
+}
+
+function getFilteredProducts() {
+  const query = state.productQuery.trim().toLowerCase();
+  return [...state.products]
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'))
+    .filter((product) => {
+      if (!query) return true;
+      const haystack = [product.name, product.subtitle, product.category, product.brand, ...(product.tags || [])]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+}
+
+function resetProductForm() {
+  state.editingProductId = null;
+  els.productForm.reset();
+  els.productForm.elements.id.value = '';
+  els.productForm.elements.inStock.checked = true;
+  els.productForm.elements.featured.checked = false;
+  els.productEditorTitle.textContent = 'Новый товар';
+  setProductNotice('', '');
+  renderProducts();
+}
+
+function updateProductEditor() {
+  const product = state.products.find((item) => item.id === state.editingProductId);
+  if (!product) {
+    resetProductForm();
+    return;
+  }
+
+  els.productEditorTitle.textContent = `Редактирование: ${product.name}`;
+  const form = els.productForm;
+  form.elements.id.value = product.id || '';
+  form.elements.name.value = product.name || '';
+  form.elements.subtitle.value = product.subtitle || '';
+  form.elements.category.value = product.category || '';
+  form.elements.brand.value = product.brand || '';
+  form.elements.price.value = product.price || 0;
+  form.elements.oldPrice.value = product.oldPrice || 0;
+  form.elements.stockCount.value = product.stockCount || 0;
+  form.elements.unit.value = product.unit || '';
+  form.elements.badge.value = product.badge || '';
+  form.elements.rating.value = product.rating || 4.8;
+  form.elements.pack.value = product.pack || '';
+  form.elements.heat.value = product.heat || '';
+  form.elements.image.value = product.image || '';
+  form.elements.slug.value = product.slug || '';
+  form.elements.deepLink.value = product.deepLink || '';
+  form.elements.tags.value = Array.isArray(product.tags) ? product.tags.join(', ') : '';
+  form.elements.description.value = product.description || '';
+  form.elements.inStock.checked = Boolean(product.inStock);
+  form.elements.featured.checked = Boolean(product.featured);
+  setProductNotice('', '');
+}
+
+function selectProduct(productId) {
+  state.editingProductId = productId;
+  updateProductEditor();
+  renderProducts();
+}
+
+function renderProducts() {
+  const items = getFilteredProducts();
+  els.adminProductList.innerHTML = items
+    .map((product) => `
+      <article class="product-admin-item ${state.editingProductId === product.id ? 'is-active' : ''}" data-product-id="${product.id}">
+        <div class="product-admin-head">
+          <div>
+            <strong>${escapeHtml(product.name)}</strong>
+            <div class="muted-text">${escapeHtml(product.category || '')} · ${formatPrice(product.price)}</div>
+          </div>
+          <span class="admin-chip">${product.inStock ? `Остаток ${Number(product.stockCount || 0)}` : 'Нет в наличии'}</span>
+        </div>
+        <div class="detail-pills">
+          ${product.featured ? '<span class="tag-pill">Хит</span>' : ''}
+          ${product.badge ? `<span class="tag-pill">${escapeHtml(product.badge)}</span>` : ''}
+          ${product.deepLink ? `<span class="tag-pill">${escapeHtml(product.deepLink)}</span>` : ''}
+        </div>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Товары не найдены</div>';
 }
 
 async function handleProductSubmit(event) {
   event.preventDefault();
-  const formData = new FormData(ui.productForm);
-  const raw = Object.fromEntries(formData.entries());
-  const payload = {
-    ...raw,
-    price: Number(raw.price || 0),
-    oldPrice: Number(raw.oldPrice || 0),
-    stockCount: Number(raw.stockCount || 0),
-    inStock: ui.productForm.elements.inStock.checked,
-    featured: ui.productForm.elements.featured.checked,
-    unit: raw.unit || 'шт'
-  };
+  const formData = new FormData(els.productForm);
+  const payload = Object.fromEntries(formData.entries());
+  payload.inStock = els.productForm.elements.inStock.checked;
+  payload.featured = els.productForm.elements.featured.checked;
 
   try {
-    if (raw.id) {
-      await api(`/api/admin/products/${raw.id}`, {
+    let result;
+    if (state.editingProductId) {
+      result = await fetchJson(`/api/admin/products/${state.editingProductId}`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      showNotice(ui.productNotice, 'Товар обновлен', 'success');
+      state.products = state.products.map((item) => item.id === result.id ? result : item);
+      setProductNotice('Товар сохранен', 'success');
     } else {
-      await api('/api/admin/products', {
+      result = await fetchJson('/api/admin/products', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      showNotice(ui.productNotice, 'Товар создан', 'success');
+      state.products.unshift(result);
+      state.editingProductId = result.id;
+      setProductNotice('Товар создан', 'success');
     }
-    resetProductForm();
-    await loadProtectedData();
+    refreshAnalytics();
+    renderProducts();
+    updateProductEditor();
   } catch (error) {
-    showNotice(ui.productNotice, error.message, 'error');
+    setProductNotice(error.message, 'error');
   }
 }
 
-async function handleProductActions(event) {
-  const editBtn = event.target.closest('[data-edit-product]');
-  if (editBtn) {
-    const product = adminState.products.find((item) => item.id === editBtn.dataset.editProduct);
-    if (product) fillProductForm(product);
+async function handleDeleteProduct() {
+  if (!state.editingProductId) {
+    setProductNotice('Сначала выберите товар', 'error');
     return;
   }
+  if (!window.confirm('Удалить выбранный товар?')) return;
 
-  const deleteBtn = event.target.closest('[data-delete-product]');
-  if (deleteBtn) {
-    const product = adminState.products.find((item) => item.id === deleteBtn.dataset.deleteProduct);
-    const confirmed = window.confirm(`Удалить товар «${product?.name || ''}»?`);
-    if (!confirmed) return;
-
-    try {
-      await api(`/api/admin/products/${deleteBtn.dataset.deleteProduct}`, { method: 'DELETE' });
-      showNotice(ui.productNotice, 'Товар удален', 'success');
-      await loadProtectedData();
-    } catch (error) {
-      showNotice(ui.productNotice, error.message, 'error');
-    }
+  try {
+    await fetchJson(`/api/admin/products/${state.editingProductId}`, { method: 'DELETE' });
+    state.products = state.products.filter((item) => item.id !== state.editingProductId);
+    resetProductForm();
+    refreshAnalytics();
+    renderProducts();
+    setProductNotice('Товар удален', 'success');
+  } catch (error) {
+    setProductNotice(error.message, 'error');
   }
 }
 
-async function handleOrderStatusChange(event) {
-  const select = event.target.closest('[data-order-status-id]');
-  if (!select) return;
+function getFilteredOrders() {
+  return state.orders.filter((order) => state.orderFilter === 'all' || order.status === state.orderFilter);
+}
 
+function renderOrders() {
+  const orders = getFilteredOrders();
+  els.ordersList.innerHTML = orders
+    .map((order) => `
+      <article class="order-card">
+        <div class="order-card-head">
+          <div>
+            <h3>${escapeHtml(order.id)}</h3>
+            <div class="muted-text">${escapeHtml(order.customer?.name || 'Клиент')} · ${escapeHtml(order.customer?.phone || '')}</div>
+          </div>
+          <span class="order-status-pill">${escapeHtml(state.statusMap[order.status] || order.status)}</span>
+        </div>
+
+        <p class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')} · ${escapeHtml(order.customer?.deliveryType || 'Доставка')}</p>
+        <p>${escapeHtml(order.customer?.address || 'Адрес не указан')}</p>
+
+        <ul class="order-items-list">
+          ${(order.items || [])
+            .map((item) => `<li>${escapeHtml(item.name)} × ${Number(item.quantity || 0)} — ${formatPrice(item.lineTotal || 0)}</li>`)
+            .join('')}
+        </ul>
+
+        <div class="order-actions">
+          <strong>${formatPrice(order.total)}</strong>
+          <select class="field" data-order-status="${order.id}">
+            ${Object.entries(state.statusMap)
+              .map(([value, label]) => `<option value="${value}" ${order.status === value ? 'selected' : ''}>${escapeHtml(label)}</option>`)
+              .join('')}
+          </select>
+        </div>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Нет заказов под выбранный фильтр</div>';
+}
+
+async function handleOrderStatusChange(orderId, status) {
   try {
-    await api(`/api/admin/orders/${select.dataset.orderStatusId}`, {
+    const updated = await fetchJson(`/api/admin/orders/${orderId}`, {
       method: 'PUT',
-      body: JSON.stringify({ status: select.value })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
     });
-    await loadProtectedData();
+    state.orders = state.orders.map((order) => order.id === updated.id ? updated : order);
+    await refreshAnalytics();
+    renderOrders();
+    renderDashboard();
+    renderAnalytics();
   } catch (error) {
     window.alert(error.message);
   }
 }
 
+function renderAnalytics() {
+  const analytics = state.analytics;
+  if (!analytics) return;
+
+  els.topProductsList.innerHTML = (analytics.topProducts || [])
+    .map((item) => `
+      <article class="stack-item">
+        <div class="stack-item-head">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <p>${Number(item.quantity || 0)} ${Number(item.quantity || 0) === 1 ? 'ед.' : 'ед.'}</p>
+          </div>
+          <strong>${formatPrice(item.revenue || 0)}</strong>
+        </div>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Статистика появится после заказов</div>';
+
+  els.categoryRevenueList.innerHTML = (analytics.categoryRevenue || [])
+    .map((item) => `
+      <article class="stack-item">
+        <div class="stack-item-head">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <p>${Number(item.quantity || 0)} продано</p>
+          </div>
+          <strong>${formatPrice(item.revenue || 0)}</strong>
+        </div>
+      </article>
+    `)
+    .join('') || '<div class="muted-text">Пока нет данных</div>';
+
+  els.statusCards.innerHTML = Object.entries(analytics.statusCounts || {})
+    .map(([status, count]) => `
+      <article class="status-card">
+        <span class="muted-text">${escapeHtml(state.statusMap[status] || status)}</span>
+        <strong>${Number(count || 0)}</strong>
+      </article>
+    `)
+    .join('');
+}
+
+function fillSettingsForm() {
+  const form = els.settingsForm;
+  Object.entries(state.settings || {}).forEach(([key, value]) => {
+    if (!form.elements[key]) return;
+    if (Array.isArray(value)) {
+      form.elements[key].value = value.join(', ');
+    } else {
+      form.elements[key].value = value ?? '';
+    }
+  });
+}
+
 async function handleSettingsSubmit(event) {
   event.preventDefault();
-  const raw = Object.fromEntries(new FormData(ui.settingsForm).entries());
-  raw.minOrder = Number(raw.minOrder || 0);
-  raw.deliveryPrice = Number(raw.deliveryPrice || 0);
+  const payload = Object.fromEntries(new FormData(els.settingsForm).entries());
 
   try {
-    const saved = await api('/api/admin/settings', {
+    const result = await fetchJson('/api/admin/settings', {
       method: 'PUT',
-      body: JSON.stringify(raw)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-    adminState.settings = saved;
+    state.settings = result;
+    await refreshAnalytics();
     fillSettingsForm();
-    showNotice(ui.settingsNotice, 'Настройки сохранены', 'success');
-    await loadProtectedData();
+    setSettingsNotice('Настройки сохранены', 'success');
   } catch (error) {
-    showNotice(ui.settingsNotice, error.message, 'error');
+    setSettingsNotice(error.message, 'error');
   }
 }
 
+async function refreshAnalytics() {
+  const analytics = await fetchJson('/api/admin/analytics');
+  state.analytics = analytics;
+}
+
 function bindEvents() {
-  ui.loginForm.addEventListener('submit', handleLogin);
-  ui.logoutBtn.addEventListener('click', logout);
-  ui.navButtons.forEach((button) => {
-    button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+  els.loginForm.addEventListener('submit', handleLogin);
+  els.logoutButton.addEventListener('click', () => {
+    clearAuth();
+    window.location.reload();
   });
-  ui.refreshDashboardBtn.addEventListener('click', loadProtectedData);
-  ui.refreshOrdersBtn.addEventListener('click', loadProtectedData);
-  ui.productForm.addEventListener('submit', handleProductSubmit);
-  ui.resetProductFormBtn.addEventListener('click', () => {
-    resetProductForm();
-    showNotice(ui.productNotice, '', '');
+
+  els.navButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      state.currentTab = button.dataset.tab;
+      renderNav();
+    });
   });
-  ui.productAdminList.addEventListener('click', handleProductActions);
-  ui.ordersList.addEventListener('change', handleOrderStatusChange);
-  ui.settingsForm.addEventListener('submit', handleSettingsSubmit);
+
+  els.refreshButton.addEventListener('click', bootstrapAdmin);
+
+  els.productSearchInput.addEventListener('input', (event) => {
+    state.productQuery = event.target.value;
+    renderProducts();
+  });
+
+  els.newProductButton.addEventListener('click', resetProductForm);
+  els.resetProductButton.addEventListener('click', resetProductForm);
+  els.deleteProductButton.addEventListener('click', handleDeleteProduct);
+  els.productForm.addEventListener('submit', handleProductSubmit);
+
+  els.adminProductList.addEventListener('click', (event) => {
+    const item = event.target.closest('[data-product-id]');
+    if (!item) return;
+    selectProduct(item.dataset.productId);
+  });
+
+  els.orderFilterSelect.addEventListener('change', (event) => {
+    state.orderFilter = event.target.value;
+    renderOrders();
+  });
+
+  els.ordersList.addEventListener('change', (event) => {
+    const select = event.target.closest('[data-order-status]');
+    if (!select) return;
+    handleOrderStatusChange(select.dataset.orderStatus, select.value);
+  });
+
+  els.settingsForm.addEventListener('submit', handleSettingsSubmit);
 }
 
 async function init() {
   bindEvents();
-
-  if (!adminState.token) {
-    return;
-  }
-
-  try {
-    loginSucceeded(adminState.token, adminState.username);
-    await loadProtectedData();
-  } catch (_error) {
-    logout();
+  if (state.token) {
+    await bootstrapAdmin();
   }
 }
 

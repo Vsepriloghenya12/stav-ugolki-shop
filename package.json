@@ -1,7 +1,7 @@
 {
-  "name": "stav-ugolki-telegram-shop",
-  "version": "1.0.0",
-  "description": "Telegram Mini App shop for \"Ставь угольки\" with storefront, admin dashboard, analytics, and optional Telegram bot.",
+  "name": "stav-ugolki-analog-shop",
+  "version": "2.0.0",
+  "description": "Telegram Mini App shop for 'Ставь угольки' with storefront, owner panel, analytics and optional Telegram bot.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,7 +13,8 @@
     "mini-app",
     "shop",
     "admin",
-    "analytics"
+    "analytics",
+    "hookah"
   ],
   "author": "OpenAI",
   "license": "MIT",

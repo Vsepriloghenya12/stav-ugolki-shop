@@ -1,8 +1,9 @@
 [
   {
-    "id": "order-240301",
+    "id": "order-260320-01",
     "status": "done",
     "createdAt": "2026-03-16T18:24:00.000Z",
+    "updatedAt": "2026-03-16T18:50:00.000Z",
     "customer": {
       "name": "Артём",
       "phone": "+7 999 123-45-67",
@@ -13,27 +14,32 @@
     },
     "items": [
       {
-        "productId": "prod-c26-premium",
-        "name": "C26 Premium Coconut",
+        "productId": "product_6729",
+        "name": "Premium Coconut 72",
+        "category": "Уголь",
         "price": 690,
         "quantity": 2,
         "lineTotal": 1380
       },
       {
-        "productId": "prod-metal-tongs",
-        "name": "Щипцы Steel Grip",
+        "productId": "product_6735",
+        "name": "Long Grip Tongs",
+        "category": "Аксессуары",
         "price": 290,
         "quantity": 1,
         "lineTotal": 290
       }
     ],
-    "total": 1670,
+    "subtotal": 1670,
+    "deliveryCost": 290,
+    "total": 1960,
     "source": "telegram-mini-app"
   },
   {
-    "id": "order-240302",
+    "id": "order-260320-02",
     "status": "confirmed",
     "createdAt": "2026-03-17T14:40:00.000Z",
+    "updatedAt": "2026-03-17T15:10:00.000Z",
     "customer": {
       "name": "Елена",
       "phone": "+7 926 222-88-11",
@@ -44,20 +50,24 @@
     },
     "items": [
       {
-        "productId": "prod-burner-mini",
+        "productId": "product_6732",
         "name": "Burner Mini 1000W",
+        "category": "Розжиг",
         "price": 1490,
         "quantity": 1,
         "lineTotal": 1490
       }
     ],
+    "subtotal": 1490,
+    "deliveryCost": 0,
     "total": 1490,
     "source": "telegram-mini-app"
   },
   {
-    "id": "order-240303",
+    "id": "order-260320-03",
     "status": "new",
     "createdAt": "2026-03-19T09:05:00.000Z",
+    "updatedAt": "2026-03-19T09:05:00.000Z",
     "customer": {
       "name": "Кирилл",
       "phone": "+7 977 502-00-91",
@@ -68,27 +78,24 @@
     },
     "items": [
       {
-        "productId": "prod-hexa-1kg",
-        "name": "Hexa Long Heat 1 кг",
-        "price": 990,
+        "productId": "product_6731",
+        "name": "Club Box 120",
+        "category": "Уголь",
+        "price": 1290,
         "quantity": 1,
-        "lineTotal": 990
-      },
-      {
-        "productId": "prod-wind-cover",
-        "name": "Колпак Heat Control",
-        "price": 740,
-        "quantity": 1,
-        "lineTotal": 740
+        "lineTotal": 1290
       }
     ],
-    "total": 1730,
+    "subtotal": 1290,
+    "deliveryCost": 290,
+    "total": 1580,
     "source": "web"
   },
   {
-    "id": "order-240304",
-    "status": "done",
+    "id": "order-260320-04",
+    "status": "delivering",
     "createdAt": "2026-03-20T20:19:00.000Z",
+    "updatedAt": "2026-03-20T20:45:00.000Z",
     "customer": {
       "name": "Илья",
       "phone": "+7 905 301-22-90",
@@ -99,27 +106,32 @@
     },
     "items": [
       {
-        "productId": "prod-c25-classic",
-        "name": "C25 Classic Box",
+        "productId": "product_6730",
+        "name": "Classic Cube 54",
+        "category": "Уголь",
         "price": 520,
         "quantity": 3,
         "lineTotal": 1560
       },
       {
-        "productId": "prod-quick-lite",
-        "name": "Quick Lite Tabs",
+        "productId": "product_6733",
+        "name": "Quick Start Tabs",
+        "category": "Розжиг",
         "price": 350,
         "quantity": 1,
         "lineTotal": 350
       }
     ],
-    "total": 1910,
+    "subtotal": 1910,
+    "deliveryCost": 290,
+    "total": 2200,
     "source": "telegram-mini-app"
   },
   {
-    "id": "order-240305",
-    "status": "delivering",
+    "id": "order-260320-05",
+    "status": "done",
     "createdAt": "2026-03-21T12:31:00.000Z",
+    "updatedAt": "2026-03-21T13:21:00.000Z",
     "customer": {
       "name": "Марина",
       "phone": "+7 916 444-91-91",
@@ -130,21 +142,25 @@
     },
     "items": [
       {
-        "productId": "prod-c26-premium",
-        "name": "C26 Premium Coconut",
+        "productId": "product_6729",
+        "name": "Premium Coconut 72",
+        "category": "Уголь",
         "price": 690,
         "quantity": 1,
         "lineTotal": 690
       },
       {
-        "productId": "prod-burner-mini",
+        "productId": "product_6732",
         "name": "Burner Mini 1000W",
+        "category": "Розжиг",
         "price": 1490,
         "quantity": 1,
         "lineTotal": 1490
       }
     ],
-    "total": 2180,
+    "subtotal": 2180,
+    "deliveryCost": 290,
+    "total": 2470,
     "source": "telegram-mini-app"
   }
 ]

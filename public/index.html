@@ -3,159 +3,225 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#1e2628" />
+    <meta name="theme-color" content="#23282a" />
     <title>Ставь угольки — магазин</title>
     <link rel="stylesheet" href="/assets/css/styles.css" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body>
+  <body class="store-body">
+    <div class="page-noise"></div>
+
+    <div class="overlay" id="productOverlay"></div>
     <div class="overlay" id="cartOverlay"></div>
-    <div class="shell">
-      <div class="container">
-        <header class="topbar glass">
-          <div class="brand">
-            <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
-            <div class="brand-copy">
-              <p class="brand-title">Ставь угольки</p>
-              <p class="brand-subtitle" id="topbarSubtitle">магазин угля и аксессуаров</p>
-            </div>
-          </div>
 
-          <div class="actions">
-            <a class="secondary-btn" id="supportLink" href="https://t.me/stavugolki" target="_blank" rel="noreferrer">Поддержка</a>
-            <button class="icon-btn" id="cartButton" type="button" aria-label="Открыть корзину">
-              🛒
-              <span class="counter" id="cartCounter">0</span>
-            </button>
-          </div>
-        </header>
-
-        <section class="hero glass">
-          <div class="hero-copy">
-            <div class="kicker">🔥 Telegram Mini App · mobile-first storefront</div>
-            <h1 id="heroTitle">Ставь угольки</h1>
-            <p id="heroSubtitle">Уголь, розжиг и аксессуары — в один тап внутри Telegram.</p>
-            <div class="badges" id="heroBadges"></div>
-            <div class="announcement" id="announcementBox"></div>
-          </div>
-
-          <div class="hero-panel">
-            <div class="logo-panel glass">
-              <img src="/assets/brand/logo.jpg" alt="Логотип магазина" />
-            </div>
-            <div class="stat-grid">
-              <div class="stat-card">
-                <small>Минимальный заказ</small>
-                <strong id="minOrderLabel">—</strong>
-              </div>
-              <div class="stat-card">
-                <small>Доставка</small>
-                <strong id="deliveryLabel">—</strong>
-              </div>
-              <div class="stat-card">
-                <small>Поддержка</small>
-                <strong id="supportHandleLabel">—</strong>
-              </div>
-              <div class="stat-card">
-                <small>Часы работы</small>
-                <strong id="workingHoursLabel">—</strong>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <div class="section-head">
-            <div>
-              <h2 class="page-title">Каталог</h2>
-              <p class="section-intro">Под телефоны, Telegram и быстрый заказ без лишних шагов.</p>
-            </div>
-          </div>
-
-          <div class="search-shell">
-            <label class="search-box">
-              <span>🔎</span>
-              <input id="searchInput" type="search" placeholder="Поиск по товарам" />
-            </label>
-            <div class="helper-row muted">
-              <span id="catalogCount">0 товаров</span>
-            </div>
-          </div>
-
-          <div class="filters" id="categoryFilters"></div>
-        </section>
-
-        <section class="catalog-layout">
+    <div class="store-shell">
+      <header class="miniapp-header glass-card">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
           <div>
-            <div class="product-grid" id="productGrid"></div>
-            <div class="empty-state hidden" id="catalogEmpty">
-              <h3>Ничего не найдено</h3>
-              <p>Попробуйте другой запрос или переключите категорию.</p>
-            </div>
+            <div class="eyebrow">Telegram Mini App</div>
+            <div class="brand-title">Ставь угольки</div>
+            <div class="brand-subtitle" id="headerSubtitle">магазин угля и аксессуаров</div>
+          </div>
+        </div>
+
+        <button class="circle-button" id="cartButton" type="button" aria-label="Открыть корзину">
+          <span>🛒</span>
+          <span class="counter-badge" id="cartCounter">0</span>
+        </button>
+      </header>
+
+      <main class="store-main">
+        <section class="hero-card glass-card">
+          <div class="hero-copy">
+            <span class="soft-pill">Стиль как в лого</span>
+            <h1 id="heroTitle">Ставь угольки</h1>
+            <p id="heroSubtitle">Темный мобильный магазин для Telegram с быстрым заказом.</p>
+            <div class="pill-row" id="heroBadges"></div>
           </div>
 
-          <aside class="checkout-card drawer" id="checkoutCard">
-            <div class="helper-row">
-              <h3>Корзина</h3>
-              <button class="ghost-btn" type="button" id="closeCartMobile">Закрыть</button>
+          <div class="hero-visual">
+            <div class="hero-logo-ring">
+              <img src="/assets/brand/logo.jpg" alt="Лого магазина" />
             </div>
-            <p class="section-intro">Соберите заказ и отправьте его прямо из Mini App.</p>
-
-            <div class="cart-items" id="cartItems"></div>
-            <div class="empty-state" id="cartEmpty">
-              <h3>Корзина пока пустая</h3>
-              <p>Добавьте товары из каталога справа — они появятся здесь.</p>
-            </div>
-
-            <div class="summary-box">
-              <div class="summary-line">
-                <span>Товары</span>
-                <strong id="cartSubtotal">0 ₽</strong>
-              </div>
-              <div class="summary-line">
-                <span>Доставка</span>
-                <strong id="cartDelivery">0 ₽</strong>
-              </div>
-              <div class="summary-line total">
-                <span>Итого</span>
-                <strong id="cartTotal">0 ₽</strong>
-              </div>
-            </div>
-
-            <form class="checkout-form" id="checkoutForm">
-              <div class="field-grid">
-                <input class="field" name="name" type="text" placeholder="Ваше имя" required />
-                <input class="field" name="phone" type="tel" placeholder="Телефон" required />
-              </div>
-              <div class="field-grid">
-                <input class="field" name="telegram" type="text" placeholder="Telegram: @username" />
-                <select class="field select-field" name="deliveryType">
-                  <option value="Доставка">Доставка</option>
-                  <option value="Самовывоз">Самовывоз</option>
-                </select>
-              </div>
-              <input class="field" name="address" type="text" placeholder="Адрес доставки или «Самовывоз»" />
-              <textarea class="textarea" name="comment" placeholder="Комментарий к заказу"></textarea>
-              <div class="checkout-actions">
-                <button class="primary-btn" type="submit">Оформить заказ</button>
-                <button class="secondary-btn" type="button" id="clearCartBtn">Очистить</button>
-              </div>
-            </form>
-
-            <div class="notice" id="checkoutNotice"></div>
-          </aside>
+          </div>
         </section>
 
-        <footer class="footer-note" id="footerNote">
-          Магазин готов к запуску внутри Telegram. После деплоя просто подключите web app URL к вашему боту.
-        </footer>
-      </div>
+        <section class="announcement-card" id="announcementCard">
+          <span>⚡</span>
+          <p id="announcementText"></p>
+        </section>
+
+        <section class="quick-stats">
+          <article class="stat-tile glass-card">
+            <span class="stat-label">Минимум</span>
+            <strong id="minOrderLabel">—</strong>
+          </article>
+          <article class="stat-tile glass-card">
+            <span class="stat-label">Доставка</span>
+            <strong id="deliveryLabel">—</strong>
+          </article>
+          <article class="stat-tile glass-card">
+            <span class="stat-label">Бесплатно от</span>
+            <strong id="freeDeliveryLabel">—</strong>
+          </article>
+          <article class="stat-tile glass-card">
+            <span class="stat-label">Самовывоз</span>
+            <strong id="pickupLabel">—</strong>
+          </article>
+        </section>
+
+        <section class="support-banner glass-card">
+          <div>
+            <div class="section-kicker">Поддержка</div>
+            <h2>Быстрый заказ и связь без выхода из Telegram</h2>
+            <p id="supportMeta">Подскажем по углю, доставке и комплектам.</p>
+          </div>
+          <a class="secondary-button" id="supportLink" href="#" target="_blank" rel="noreferrer">Написать</a>
+        </section>
+
+        <section class="toolbar-card glass-card">
+          <label class="search-input">
+            <span>🔎</span>
+            <input id="searchInput" type="search" placeholder="Поиск по товарам" />
+          </label>
+          <div class="pill-scroll" id="categoryFilters"></div>
+        </section>
+
+        <section class="content-section">
+          <div class="section-headline">
+            <div>
+              <div class="section-kicker">Популярное</div>
+              <h2>Товары, которые чаще всего берут</h2>
+            </div>
+            <button class="ghost-button" id="resetFiltersBtn" type="button">Сбросить</button>
+          </div>
+          <div class="featured-row" id="featuredRow"></div>
+        </section>
+
+        <section class="content-section">
+          <div class="section-headline">
+            <div>
+              <div class="section-kicker">Каталог</div>
+              <h2>Все товары</h2>
+            </div>
+            <div class="muted-text" id="catalogCount">0 товаров</div>
+          </div>
+
+          <div class="product-grid" id="productGrid"></div>
+
+          <div class="empty-state hidden" id="catalogEmpty">
+            <h3>Ничего не найдено</h3>
+            <p>Попробуйте другой запрос или категорию.</p>
+          </div>
+        </section>
+
+        <section class="benefits-grid">
+          <article class="benefit-card glass-card">
+            <div class="benefit-icon">🔥</div>
+            <h3>Ровный жар</h3>
+            <p>Фокус на угле и аксессуарах для стабильной сессии без лишнего шума.</p>
+          </article>
+          <article class="benefit-card glass-card">
+            <div class="benefit-icon">📦</div>
+            <h3>Быстрая доставка</h3>
+            <p>Оформление внутри Mini App, понятная корзина и оформление в пару касаний.</p>
+          </article>
+          <article class="benefit-card glass-card">
+            <div class="benefit-icon">📲</div>
+            <h3>Deep link на товар</h3>
+            <p>При открытии ссылки магазина можно сразу показать нужную карточку товара.</p>
+          </article>
+        </section>
+      </main>
     </div>
 
-    <button class="mobile-cart-toggle primary-btn" id="mobileCartToggle" type="button">
+    <button class="sticky-cart hidden" id="stickyCartButton" type="button">
       <span>Корзина</span>
-      <strong id="mobileCartTotal">0 ₽</strong>
+      <strong id="stickyCartSummary">0 ₽</strong>
     </button>
+
+    <section class="sheet product-sheet" id="productSheet" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" id="closeProductButton" type="button" aria-label="Закрыть">✕</button>
+      <div class="product-detail" id="productDetail"></div>
+    </section>
+
+    <aside class="sheet cart-sheet" id="cartSheet" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <button class="sheet-close" id="closeCartButton" type="button" aria-label="Закрыть">✕</button>
+
+      <div class="cart-head">
+        <div>
+          <div class="section-kicker">Корзина</div>
+          <h2>Ваш заказ</h2>
+        </div>
+        <button class="ghost-button" id="clearCartButton" type="button">Очистить</button>
+      </div>
+
+      <div class="cart-items" id="cartItems"></div>
+
+      <div class="empty-state hidden" id="cartEmpty">
+        <h3>Корзина пока пустая</h3>
+        <p>Откройте карточку товара и добавьте нужное количество.</p>
+      </div>
+
+      <div class="summary-card glass-card">
+        <div class="summary-line">
+          <span>Товары</span>
+          <strong id="cartSubtotal">0 ₽</strong>
+        </div>
+        <div class="summary-line">
+          <span>Доставка</span>
+          <strong id="cartDelivery">0 ₽</strong>
+        </div>
+        <div class="summary-line total">
+          <span>Итого</span>
+          <strong id="cartTotal">0 ₽</strong>
+        </div>
+      </div>
+
+      <form class="checkout-form" id="checkoutForm">
+        <div class="field-grid">
+          <label class="field-wrap">
+            <span>Имя</span>
+            <input class="field" name="name" type="text" placeholder="Ваше имя" required />
+          </label>
+          <label class="field-wrap">
+            <span>Телефон</span>
+            <input class="field" name="phone" type="tel" placeholder="+7..." required />
+          </label>
+        </div>
+
+        <div class="field-grid">
+          <label class="field-wrap">
+            <span>Telegram</span>
+            <input class="field" name="telegram" type="text" placeholder="@username" />
+          </label>
+          <label class="field-wrap">
+            <span>Тип получения</span>
+            <select class="field" name="deliveryType">
+              <option value="Доставка">Доставка</option>
+              <option value="Самовывоз">Самовывоз</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field-wrap">
+          <span>Адрес</span>
+          <input class="field" name="address" type="text" placeholder="Адрес доставки или «Самовывоз»" />
+        </label>
+
+        <label class="field-wrap">
+          <span>Комментарий</span>
+          <textarea class="field textarea" name="comment" placeholder="Комментарий к заказу"></textarea>
+        </label>
+
+        <button class="primary-button wide-button" type="submit">Оформить заказ</button>
+      </form>
+
+      <div class="notice" id="checkoutNotice"></div>
+    </aside>
 
     <script src="/assets/js/store.js" defer></script>
   </body>

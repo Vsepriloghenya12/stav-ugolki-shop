@@ -3,227 +3,384 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1e2628" />
+    <meta name="theme-color" content="#23282a" />
     <title>Ставь угольки — кабинет владельца</title>
     <link rel="stylesheet" href="/assets/css/styles.css" />
   </head>
-  <body>
-    <div class="shell">
-      <div class="container">
-        <section class="login-wrap" id="loginWrap">
-          <div class="login-card">
-            <div class="brand">
-              <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
-              <div class="brand-copy">
-                <p class="brand-title">Ставь угольки</p>
-                <p class="brand-subtitle">кабинет владельца</p>
-              </div>
-            </div>
-            <h1 style="margin:20px 0 8px;">Вход в админку</h1>
-            <p class="login-caption">Управление товарами, заказами и аналитикой в одном окне.</p>
-            <form id="loginForm">
-              <input class="field" type="text" name="username" placeholder="Логин" required />
-              <input class="field" type="password" name="password" placeholder="Пароль" required />
-              <button class="primary-btn" type="submit">Войти</button>
-            </form>
-            <div class="notice" id="loginNotice"></div>
-          </div>
-        </section>
+  <body class="admin-body">
+    <div class="page-noise"></div>
 
-        <div class="hidden" id="adminApp">
-          <header class="topbar glass">
-            <div class="brand">
-              <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
-              <div class="brand-copy">
-                <p class="brand-title">Ставь угольки</p>
-                <p class="brand-subtitle">панель владельца и аналитика</p>
-              </div>
-            </div>
-
-            <div class="actions">
-              <span class="badge" id="adminUserBadge">owner</span>
-              <button class="secondary-btn" id="logoutBtn" type="button">Выйти</button>
-            </div>
-          </header>
-
-          <div class="page-grid">
-            <aside class="sidebar glass">
-              <h3 style="margin:0;">Навигация</h3>
-              <p class="section-intro">Быстрый доступ к товарам, заказам и метрикам.</p>
-              <nav class="sidebar-nav">
-                <button class="nav-btn is-active" type="button" data-tab="dashboard">Дашборд <span>↗</span></button>
-                <button class="nav-btn" type="button" data-tab="products">Товары <span>8</span></button>
-                <button class="nav-btn" type="button" data-tab="orders">Заказы <span>●</span></button>
-                <button class="nav-btn" type="button" data-tab="analytics">Аналитика <span>∿</span></button>
-                <button class="nav-btn" type="button" data-tab="settings">Настройки <span>⚙</span></button>
-              </nav>
-            </aside>
-
-            <main class="main-panel">
-              <section class="welcome-card" data-panel="dashboard">
-                <div class="section-head">
-                  <div>
-                    <h2>Краткая сводка</h2>
-                    <p class="section-intro">Главные показатели по магазину и новые заказы.</p>
-                  </div>
-                  <button class="secondary-btn" type="button" id="refreshDashboardBtn">Обновить</button>
-                </div>
-                <div class="metrics-grid" id="dashboardMetrics"></div>
-                <div class="split-grid" style="margin-top:20px;">
-                  <div class="chart-card">
-                    <small>Выручка за последние дни</small>
-                    <h3>Динамика продаж</h3>
-                    <div class="chart" id="dashboardChart"></div>
-                  </div>
-                  <div class="chart-card">
-                    <small>Последние заказы</small>
-                    <h3>Лента</h3>
-                    <div class="list-grid" id="dashboardRecentOrders"></div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="admin-card hidden" data-panel="products">
-                <div class="section-head">
-                  <div>
-                    <h2>Товары</h2>
-                    <p class="section-intro">Добавляйте позиции и редактируйте каталог в реальном времени.</p>
-                  </div>
-                </div>
-                <div class="admin-grid">
-                  <div class="table-shell">
-                    <div class="helper-row">
-                      <h3>Список товаров</h3>
-                      <span class="muted" id="productCountLabel">0 позиций</span>
-                    </div>
-                    <div class="list-grid" id="productAdminList"></div>
-                  </div>
-                  <div class="form-card">
-                    <h3 id="productFormTitle">Новый товар</h3>
-                    <p class="section-intro">Заполните карточку товара. Изображение можно указать локальным путем или URL.</p>
-                    <form class="form-grid" id="productForm">
-                      <input type="hidden" name="id" />
-                      <input class="field" name="name" type="text" placeholder="Название товара" required />
-                      <input class="field" name="category" type="text" placeholder="Категория" required />
-                      <div class="field-grid">
-                        <input class="field" name="price" type="number" min="0" step="1" placeholder="Цена" required />
-                        <input class="field" name="oldPrice" type="number" min="0" step="1" placeholder="Старая цена" />
-                      </div>
-                      <input class="field" name="image" type="text" placeholder="Путь к изображению или URL" />
-                      <div class="field-grid">
-                        <input class="field" name="stockCount" type="number" min="0" step="1" placeholder="Остаток" />
-                        <input class="field" name="unit" type="text" placeholder="Ед. изм. (шт, упаковка...)" />
-                      </div>
-                      <textarea class="textarea" name="description" placeholder="Описание товара"></textarea>
-                      <div class="field-grid">
-                        <label class="badge"><input name="inStock" type="checkbox" checked />&nbsp; В наличии</label>
-                        <label class="badge"><input name="featured" type="checkbox" />&nbsp; Хит продаж</label>
-                      </div>
-                      <div class="actions-row">
-                        <button class="primary-btn" type="submit">Сохранить</button>
-                        <button class="secondary-btn" id="resetProductFormBtn" type="button">Сбросить</button>
-                      </div>
-                    </form>
-                    <div class="notice" id="productNotice"></div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="admin-card hidden" data-panel="orders">
-                <div class="section-head">
-                  <div>
-                    <h2>Заказы</h2>
-                    <p class="section-intro">Статусы, состав заказа, контакты и сумма.</p>
-                  </div>
-                  <button class="secondary-btn" type="button" id="refreshOrdersBtn">Обновить</button>
-                </div>
-                <div class="list-grid" id="ordersList"></div>
-              </section>
-
-              <section class="admin-card hidden" data-panel="analytics">
-                <div class="section-head">
-                  <div>
-                    <h2>Аналитика</h2>
-                    <p class="section-intro">Выручка, топ товаров, категории и средний чек.</p>
-                  </div>
-                </div>
-                <div class="metrics-grid" id="analyticsMetrics"></div>
-                <div class="split-grid" style="margin-top:20px;">
-                  <div class="chart-card">
-                    <small>Продажи по дням</small>
-                    <h3>Revenue trend</h3>
-                    <div class="chart" id="analyticsRevenueChart"></div>
-                  </div>
-                  <div class="chart-card">
-                    <small>Топ категории</small>
-                    <h3>Category share</h3>
-                    <div class="progress-list" id="analyticsCategories"></div>
-                  </div>
-                </div>
-                <div class="split-grid" style="margin-top:20px;">
-                  <div class="table-shell">
-                    <h3>Топ товаров</h3>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Товар</th>
-                          <th>Штук</th>
-                          <th>Выручка</th>
-                        </tr>
-                      </thead>
-                      <tbody id="topProductsTable"></tbody>
-                    </table>
-                  </div>
-                  <div class="table-shell">
-                    <h3>Последние заказы</h3>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>ID</th>
-                          <th>Клиент</th>
-                          <th>Сумма</th>
-                        </tr>
-                      </thead>
-                      <tbody id="recentOrdersTable"></tbody>
-                    </table>
-                  </div>
-                </div>
-              </section>
-
-              <section class="admin-card hidden" data-panel="settings">
-                <div class="section-head">
-                  <div>
-                    <h2>Настройки магазина</h2>
-                    <p class="section-intro">Редактируйте текст, контакты, сумму доставки и бейджи.</p>
-                  </div>
-                </div>
-                <form class="settings-form" id="settingsForm">
-                  <div class="field-grid">
-                    <input class="field" name="storeName" type="text" placeholder="Название магазина" required />
-                    <input class="field" name="supportTelegram" type="text" placeholder="Telegram поддержки" />
-                  </div>
-                  <div class="field-grid">
-                    <input class="field" name="supportPhone" type="text" placeholder="Телефон поддержки" />
-                    <input class="field" name="workingHours" type="text" placeholder="Часы работы" />
-                  </div>
-                  <div class="field-grid">
-                    <input class="field" name="minOrder" type="number" min="0" step="1" placeholder="Мин. заказ" />
-                    <input class="field" name="deliveryPrice" type="number" min="0" step="1" placeholder="Стоимость доставки" />
-                  </div>
-                  <input class="field" name="headline" type="text" placeholder="Главный заголовок" />
-                  <textarea class="textarea" name="subheadline" placeholder="Подзаголовок"></textarea>
-                  <textarea class="textarea" name="announcement" placeholder="Анонс на главном экране"></textarea>
-                  <input class="field" name="pickupAddress" type="text" placeholder="Адрес самовывоза" />
-                  <input class="field" name="heroBadges" type="text" placeholder="Бейджи через запятую" />
-                  <div class="actions-row">
-                    <button class="primary-btn" type="submit">Сохранить настройки</button>
-                  </div>
-                </form>
-                <div class="notice" id="settingsNotice"></div>
-              </section>
-            </main>
+    <section class="admin-login-shell" id="loginView">
+      <div class="admin-login-card glass-card">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
+          <div>
+            <div class="eyebrow">Owner panel</div>
+            <div class="brand-title">Ставь угольки</div>
+            <div class="brand-subtitle">товары, заказы и аналитика</div>
           </div>
         </div>
+        <h1>Вход в кабинет владельца</h1>
+        <p class="muted-text">Логин по умолчанию: owner / stavugolki2026</p>
+
+        <form class="auth-form" id="loginForm">
+          <input class="field" type="text" name="username" placeholder="Логин" required />
+          <input class="field" type="password" name="password" placeholder="Пароль" required />
+          <button class="primary-button" type="submit">Войти</button>
+        </form>
+
+        <div class="notice" id="loginNotice"></div>
+      </div>
+    </section>
+
+    <div class="admin-shell hidden" id="adminApp">
+      <header class="admin-topbar glass-card">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
+          <div>
+            <div class="eyebrow">Панель владельца</div>
+            <div class="brand-title">Ставь угольки</div>
+            <div class="brand-subtitle">магазин, заказы и аналитика</div>
+          </div>
+        </div>
+
+        <div class="admin-topbar-actions">
+          <span class="soft-pill" id="adminUserBadge">owner</span>
+          <button class="secondary-button" id="logoutButton" type="button">Выйти</button>
+        </div>
+      </header>
+
+      <div class="admin-layout">
+        <aside class="admin-sidebar glass-card">
+          <button class="nav-button is-active" type="button" data-tab="dashboard">Дашборд</button>
+          <button class="nav-button" type="button" data-tab="products">Товары</button>
+          <button class="nav-button" type="button" data-tab="orders">Заказы</button>
+          <button class="nav-button" type="button" data-tab="analytics">Аналитика</button>
+          <button class="nav-button" type="button" data-tab="settings">Настройки</button>
+        </aside>
+
+        <main class="admin-main">
+          <section class="panel-section" data-panel="dashboard">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Сводка</div>
+                <h2>Что происходит в магазине</h2>
+              </div>
+              <button class="ghost-button" id="refreshButton" type="button">Обновить</button>
+            </div>
+
+            <div class="metrics-grid" id="dashboardMetrics"></div>
+
+            <div class="admin-grid-two">
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Выручка по дням</h3>
+                </div>
+                <div class="chart-bars" id="dashboardRevenueBars"></div>
+              </article>
+
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Последние заказы</h3>
+                </div>
+                <div class="stack-list" id="dashboardRecentOrders"></div>
+              </article>
+            </div>
+
+            <div class="admin-grid-two">
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Товары на низком остатке</h3>
+                </div>
+                <div class="stack-list" id="lowStockList"></div>
+              </article>
+
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Источники заказов</h3>
+                </div>
+                <div class="source-list" id="sourceBreakdown"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel-section hidden" data-panel="products">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Каталог</div>
+                <h2>Управление товарами</h2>
+              </div>
+              <button class="primary-button" id="newProductButton" type="button">Новый товар</button>
+            </div>
+
+            <div class="admin-grid-two admin-products-layout">
+              <article class="glass-card panel-card">
+                <div class="toolbar-line">
+                  <input class="field" id="productSearchInput" type="search" placeholder="Поиск товара" />
+                </div>
+                <div class="product-admin-list" id="adminProductList"></div>
+              </article>
+
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3 id="productEditorTitle">Новый товар</h3>
+                </div>
+
+                <form class="product-form" id="productForm">
+                  <input type="hidden" name="id" />
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Название</span>
+                      <input class="field" name="name" type="text" required />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Подзаголовок</span>
+                      <input class="field" name="subtitle" type="text" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Категория</span>
+                      <input class="field" name="category" type="text" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Бренд</span>
+                      <input class="field" name="brand" type="text" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Цена</span>
+                      <input class="field" name="price" type="number" min="0" step="1" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Старая цена</span>
+                      <input class="field" name="oldPrice" type="number" min="0" step="1" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Остаток</span>
+                      <input class="field" name="stockCount" type="number" min="0" step="1" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Ед. измерения</span>
+                      <input class="field" name="unit" type="text" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Бейдж</span>
+                      <input class="field" name="badge" type="text" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Рейтинг</span>
+                      <input class="field" name="rating" type="number" min="0" max="5" step="0.1" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Упаковка / формат</span>
+                      <input class="field" name="pack" type="text" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Жар / метка</span>
+                      <input class="field" name="heat" type="text" />
+                    </label>
+                  </div>
+
+                  <label class="field-wrap">
+                    <span>Изображение</span>
+                    <input class="field" name="image" type="text" placeholder="/assets/products/..." />
+                  </label>
+
+                  <div class="field-grid">
+                    <label class="field-wrap">
+                      <span>Slug</span>
+                      <input class="field" name="slug" type="text" />
+                    </label>
+                    <label class="field-wrap">
+                      <span>Deep link</span>
+                      <input class="field" name="deepLink" type="text" />
+                    </label>
+                  </div>
+
+                  <label class="field-wrap">
+                    <span>Теги</span>
+                    <input class="field" name="tags" type="text" placeholder="через запятую" />
+                  </label>
+
+                  <label class="field-wrap">
+                    <span>Описание</span>
+                    <textarea class="field textarea" name="description"></textarea>
+                  </label>
+
+                  <div class="toggle-row">
+                    <label class="checkbox-wrap"><input type="checkbox" name="inStock" /> В наличии</label>
+                    <label class="checkbox-wrap"><input type="checkbox" name="featured" /> Показывать в популярном</label>
+                  </div>
+
+                  <div class="button-row">
+                    <button class="primary-button" type="submit">Сохранить</button>
+                    <button class="secondary-button" id="deleteProductButton" type="button">Удалить</button>
+                    <button class="ghost-button" id="resetProductButton" type="button">Сбросить</button>
+                  </div>
+                </form>
+
+                <div class="notice" id="productNotice"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel-section hidden" data-panel="orders">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Заказы</div>
+                <h2>Обработка заказов</h2>
+              </div>
+              <select class="field status-filter" id="orderFilterSelect">
+                <option value="all">Все статусы</option>
+                <option value="new">Новые</option>
+                <option value="confirmed">Подтвержденные</option>
+                <option value="assembling">Собираются</option>
+                <option value="delivering">В пути</option>
+                <option value="done">Завершенные</option>
+                <option value="cancelled">Отмененные</option>
+              </select>
+            </div>
+
+            <div class="order-list" id="ordersList"></div>
+          </section>
+
+          <section class="panel-section hidden" data-panel="analytics">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Аналитика</div>
+                <h2>Продажи и спрос</h2>
+              </div>
+            </div>
+
+            <div class="admin-grid-two">
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Топ товаров</h3>
+                </div>
+                <div class="stack-list" id="topProductsList"></div>
+              </article>
+
+              <article class="glass-card panel-card">
+                <div class="panel-head compact">
+                  <h3>Выручка по категориям</h3>
+                </div>
+                <div class="stack-list" id="categoryRevenueList"></div>
+              </article>
+            </div>
+
+            <article class="glass-card panel-card">
+              <div class="panel-head compact">
+                <h3>Статусы заказов</h3>
+              </div>
+              <div class="status-grid" id="statusCards"></div>
+            </article>
+          </section>
+
+          <section class="panel-section hidden" data-panel="settings">
+            <div class="panel-head">
+              <div>
+                <div class="section-kicker">Настройки</div>
+                <h2>Параметры магазина</h2>
+              </div>
+            </div>
+
+            <article class="glass-card panel-card">
+              <form class="settings-form" id="settingsForm">
+                <div class="field-grid">
+                  <label class="field-wrap">
+                    <span>Название магазина</span>
+                    <input class="field" name="storeName" type="text" />
+                  </label>
+                  <label class="field-wrap">
+                    <span>Город</span>
+                    <input class="field" name="city" type="text" />
+                  </label>
+                </div>
+
+                <label class="field-wrap">
+                  <span>Заголовок</span>
+                  <input class="field" name="headline" type="text" />
+                </label>
+
+                <label class="field-wrap">
+                  <span>Подзаголовок</span>
+                  <textarea class="field textarea" name="subheadline"></textarea>
+                </label>
+
+                <label class="field-wrap">
+                  <span>Анонс</span>
+                  <textarea class="field textarea" name="announcement"></textarea>
+                </label>
+
+                <div class="field-grid">
+                  <label class="field-wrap">
+                    <span>Telegram поддержки</span>
+                    <input class="field" name="supportTelegram" type="text" />
+                  </label>
+                  <label class="field-wrap">
+                    <span>Телефон</span>
+                    <input class="field" name="supportPhone" type="text" />
+                  </label>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field-wrap">
+                    <span>Минимальный заказ</span>
+                    <input class="field" name="minOrder" type="number" min="0" step="1" />
+                  </label>
+                  <label class="field-wrap">
+                    <span>Стоимость доставки</span>
+                    <input class="field" name="deliveryPrice" type="number" min="0" step="1" />
+                  </label>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field-wrap">
+                    <span>Бесплатная доставка от</span>
+                    <input class="field" name="freeDeliveryFrom" type="number" min="0" step="1" />
+                  </label>
+                  <label class="field-wrap">
+                    <span>Часы работы</span>
+                    <input class="field" name="workingHours" type="text" />
+                  </label>
+                </div>
+
+                <label class="field-wrap">
+                  <span>Адрес самовывоза</span>
+                  <input class="field" name="pickupAddress" type="text" />
+                </label>
+
+                <div class="field-grid">
+                  <label class="field-wrap">
+                    <span>Hero badges</span>
+                    <input class="field" name="heroBadges" type="text" placeholder="через запятую" />
+                  </label>
+                  <label class="field-wrap">
+                    <span>Highlights</span>
+                    <input class="field" name="highlights" type="text" placeholder="через запятую" />
+                  </label>
+                </div>
+
+                <button class="primary-button" type="submit">Сохранить настройки</button>
+              </form>
+
+              <div class="notice" id="settingsNotice"></div>
+            </article>
+          </section>
+        </main>
       </div>
     </div>
 
