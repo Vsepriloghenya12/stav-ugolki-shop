@@ -1,4 +1,4 @@
-require('dotenv').config();
+try { require('dotenv').config(); } catch (_error) {}
 const { Telegraf, Markup } = require('telegraf');
 
 const token = process.env.BOT_TOKEN;
