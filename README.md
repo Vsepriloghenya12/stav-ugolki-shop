@@ -1,32 +1,55 @@
-# Ставь угольки — no-deps build
+# Ставь Угольки — структурированная версия
 
-Эта версия не требует `express`, `dotenv`, `jsonwebtoken` или других npm-зависимостей для запуска сервера.
+Проект разделён на 3 независимые части:
+
+- `apps/shop` — клиентская витрина для Telegram Mini App
+- `apps/owner` — страница владельца
+- `bot` — отдельный Telegram-бот
+- `server` — лёгкий API и раздача статики без npm-зависимостей
+- `data` — товары, баннеры, заказы
+- `apps/shared` — общие стили, логика, assets
+- `docs` — заметки по визуалу и дальнейшему развитию
 
 ## Запуск
 
 ```bash
+cp .env.example .env
 npm start
 ```
 
-или
+Откроется:
 
-```bash
-node server.js
-```
+- магазин: `http://localhost:3000/shop/`
+- владелец: `http://localhost:3000/owner/`
 
-## Адреса
-
-- магазин: `/`
-- владелец: `/admin.html`
-
-## Данные владельца
+## Вход владельца
 
 - логин: `owner`
 - пароль: `stavugolki2026`
 
-## Переменные окружения
+## Бот
 
-- `PORT`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-- `JWT_SECRET`
+Бот запускается отдельно:
+
+```bash
+node bot/index.js
+```
+
+Нужны переменные:
+
+- `BOT_TOKEN`
+- `MINIAPP_URL`
+
+## Где проще всего редактировать
+
+- визуал магазина: `apps/shop/css/shop.css`
+- поведение магазина: `apps/shop/js/shop.js`
+- визуал владельца: `apps/owner/css/owner.css`
+- поведение владельца: `apps/owner/js/owner.js`
+- общая тема: `apps/shared/css/theme.css`
+- данные товаров: `data/products.json`
+- данные баннеров: `data/banners.json`
+
+## Архитектурный принцип
+
+Сделано без внешних зависимостей, чтобы на Railway и простых Node-хостингах проект не падал из-за `dotenv`, `express` или других пакетов.

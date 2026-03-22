@@ -1,0 +1,31 @@
+.mobile-shell {
+  width: 100%;
+  max-width: var(--app-width);
+  min-height: 100dvh;
+  margin: 0 auto;
+  position: relative;
+  padding: 14px 14px calc(var(--nav-height) + 18px);
+}
+
+.page-title {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.section-gap {
+  margin-top: 16px;
+}
+
+.pill {
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+}

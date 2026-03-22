@@ -1,21 +1,11 @@
 {
-  "name": "stav-ugolki-analog-shop",
+  "name": "stav-ugolki-structured-shop",
   "version": "3.0.0",
-  "description": "Telegram Mini App shop for 'Ставь угольки' without external runtime dependencies.",
-  "main": "server.js",
+  "private": true,
+  "description": "Telegram Mini App shop with separate shop, owner panel and bot",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
-    "bot": "node bot.js"
-  },
-  "keywords": [
-    "telegram",
-    "mini-app",
-    "shop",
-    "admin",
-    "analytics",
-    "hookah"
-  ],
-  "author": "OpenAI",
-  "license": "MIT"
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "bot": "node bot/index.js"
+  }
 }

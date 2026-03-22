@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Ставь Угольки</title>
+  <link rel="stylesheet" href="/apps/shared/css/theme.css" />
+  <link rel="stylesheet" href="/apps/shared/css/base.css" />
+  <link rel="stylesheet" href="/apps/shop/css/shop.css" />
+</head>
+<body>
+  <main class="mobile-shell shop-shell">
+    <header class="shop-header fade-in">
+      <div class="brand">
+        <img class="brand-logo" src="/apps/shared/assets/img/logo.jpg" alt="Ставь Угольки" />
+        <div class="brand-title">СТАВЬ<br />УГОЛЬКИ</div>
+      </div>
+
+      <button class="icon-btn search-btn" id="searchToggle" type="button" aria-label="Поиск"></button>
+    </header>
+
+    <div class="search-panel hidden fade-in" id="searchPanel">
+      <input id="searchInput" class="search-input surface" type="search" placeholder="Поиск товара" autocomplete="off" />
+    </div>
+
+    <section class="banner-carousel section-gap fade-in" id="bannerCarousel"></section>
+
+    <nav class="category-row section-gap" id="categoryRow"></nav>
+
+    <section class="product-grid section-gap" id="productGrid"></section>
+
+    <div class="bottom-sheet hidden" id="productSheet">
+      <div class="sheet-backdrop" data-close-sheet></div>
+      <div class="sheet-card surface">
+        <button class="icon-btn close-sheet" data-close-sheet aria-label="Закрыть"></button>
+        <div id="sheetContent"></div>
+      </div>
+    </div>
+
+    <div class="bottom-sheet hidden" id="cartSheet">
+      <div class="sheet-backdrop" data-close-cart></div>
+      <div class="sheet-card surface cart-sheet-card">
+        <button class="icon-btn close-sheet" data-close-cart aria-label="Закрыть"></button>
+        <div class="sheet-head">
+          <div class="sheet-title">Корзина</div>
+        </div>
+        <div class="cart-list" id="cartList"></div>
+        <form class="checkout-form" id="checkoutForm">
+          <input class="surface form-input" name="name" placeholder="Имя" maxlength="80" />
+          <input class="surface form-input" name="phone" placeholder="Телефон" maxlength="40" />
+          <button class="checkout-btn" type="submit">Оформить</button>
+        </form>
+      </div>
+    </div>
+
+    <nav class="bottom-nav surface">
+      <button class="nav-item is-active" type="button" data-nav="catalog"></button>
+      <button class="nav-item" type="button" data-nav="favorites"></button>
+      <button class="nav-item" type="button" data-nav="cart">
+        <span class="nav-badge hidden" id="cartBadge">0</span>
+      </button>
+      <button class="nav-item" type="button" data-nav="filters"></button>
+      <button class="nav-item" type="button" data-nav="support"></button>
+    </nav>
+  </main>
+
+  <script src="/apps/shared/js/api.js"></script>
+  <script src="/apps/shop/js/shop.js"></script>
+</body>
+</html>
