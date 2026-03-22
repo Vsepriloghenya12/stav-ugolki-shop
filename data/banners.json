@@ -1,0 +1,29 @@
+[
+  {
+    "id": "banner_1",
+    "image": "/assets/banners/banner-1.png",
+    "link": "product_6729",
+    "active": true,
+    "sortOrder": 1,
+    "createdAt": "2026-03-20T12:00:00.000Z",
+    "updatedAt": "2026-03-22T20:00:00.000Z"
+  },
+  {
+    "id": "banner_2",
+    "image": "/assets/banners/banner-2.png",
+    "link": "product_6730",
+    "active": true,
+    "sortOrder": 2,
+    "createdAt": "2026-03-20T12:10:00.000Z",
+    "updatedAt": "2026-03-22T20:00:00.000Z"
+  },
+  {
+    "id": "banner_3",
+    "image": "/assets/banners/banner-3.png",
+    "link": "https://t.me/stavugolki",
+    "active": true,
+    "sortOrder": 3,
+    "createdAt": "2026-03-20T12:20:00.000Z",
+    "updatedAt": "2026-03-22T20:00:00.000Z"
+  }
+]

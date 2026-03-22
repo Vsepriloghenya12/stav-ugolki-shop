@@ -1,72 +1,57 @@
 const state = {
   tg: window.Telegram?.WebApp || null,
   settings: null,
+  banners: [],
+  bannerIndex: 0,
+  bannerTimer: null,
   products: [],
-  categories: [],
-  collections: {},
   query: '',
-  filter: 'all',
-  cart: loadCart(),
-  selectedProductId: null,
-  productQty: 1
+  category: '',
+  favoritesOnly: false,
+  favorites: loadJson('stav-ugolki-favorites-v1', []),
+  cart: loadJson('stav-ugolki-cart-v3', []),
+  selectedProductId: '',
+  selectedQty: 1
 };
 
 const els = {
-  headerSubtitle: document.getElementById('headerSubtitle'),
-  heroTitle: document.getElementById('heroTitle'),
-  heroSubtitle: document.getElementById('heroSubtitle'),
-  heroBadges: document.getElementById('heroBadges'),
-  announcementCard: document.getElementById('announcementCard'),
-  announcementText: document.getElementById('announcementText'),
-  minOrderLabel: document.getElementById('minOrderLabel'),
-  deliveryLabel: document.getElementById('deliveryLabel'),
-  freeDeliveryLabel: document.getElementById('freeDeliveryLabel'),
-  pickupLabel: document.getElementById('pickupLabel'),
-  supportMeta: document.getElementById('supportMeta'),
-  supportLink: document.getElementById('supportLink'),
-  searchInput: document.getElementById('searchInput'),
-  categoryFilters: document.getElementById('categoryFilters'),
-  featuredRow: document.getElementById('featuredRow'),
-  catalogCount: document.getElementById('catalogCount'),
+  brandName: document.getElementById('brandName'),
+  bannerTrack: document.getElementById('bannerTrack'),
+  bannerDots: document.getElementById('bannerDots'),
+  bannerSection: document.getElementById('bannerSection'),
+  categoryRow: document.getElementById('categoryRow'),
   productGrid: document.getElementById('productGrid'),
-  catalogEmpty: document.getElementById('catalogEmpty'),
-  cartButton: document.getElementById('cartButton'),
-  cartCounter: document.getElementById('cartCounter'),
-  stickyCartButton: document.getElementById('stickyCartButton'),
-  stickyCartSummary: document.getElementById('stickyCartSummary'),
-  productOverlay: document.getElementById('productOverlay'),
+  searchToggle: document.getElementById('searchToggle'),
+  searchSheet: document.getElementById('searchSheet'),
+  searchInput: document.getElementById('searchInput'),
   productSheet: document.getElementById('productSheet'),
-  productDetail: document.getElementById('productDetail'),
-  closeProductButton: document.getElementById('closeProductButton'),
-  cartOverlay: document.getElementById('cartOverlay'),
+  productSheetTitle: document.getElementById('productSheetTitle'),
+  productSheetBody: document.getElementById('productSheetBody'),
   cartSheet: document.getElementById('cartSheet'),
-  closeCartButton: document.getElementById('closeCartButton'),
-  clearCartButton: document.getElementById('clearCartButton'),
-  cartItems: document.getElementById('cartItems'),
-  cartEmpty: document.getElementById('cartEmpty'),
-  cartSubtotal: document.getElementById('cartSubtotal'),
-  cartDelivery: document.getElementById('cartDelivery'),
-  cartTotal: document.getElementById('cartTotal'),
+  cartList: document.getElementById('cartList'),
+  cartTotalLabel: document.getElementById('cartTotalLabel'),
   checkoutForm: document.getElementById('checkoutForm'),
   checkoutNotice: document.getElementById('checkoutNotice'),
-  resetFiltersBtn: document.getElementById('resetFiltersBtn')
+  navMenu: document.getElementById('navMenu'),
+  navFavorites: document.getElementById('navFavorites'),
+  navCart: document.getElementById('navCart'),
+  navFilters: document.getElementById('navFilters'),
+  navSupport: document.getElementById('navSupport'),
+  cartCountBadge: document.getElementById('cartCountBadge'),
+  sheetBackdrop: document.getElementById('sheetBackdrop')
 };
 
-function loadCart() {
+function loadJson(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem('stav-ugolki-cart-v2') || '[]');
+    return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
   } catch (_error) {
-    return [];
+    return fallback;
   }
 }
 
-function saveCart() {
-  localStorage.setItem('stav-ugolki-cart-v2', JSON.stringify(state.cart));
-}
-
-function formatPrice(value) {
-  const currency = state.settings?.currency || '₽';
-  return `${Number(value || 0).toLocaleString('ru-RU')} ${currency}`;
+function saveState() {
+  localStorage.setItem('stav-ugolki-favorites-v1', JSON.stringify(state.favorites));
+  localStorage.setItem('stav-ugolki-cart-v3', JSON.stringify(state.cart));
 }
 
 function escapeHtml(value) {
@@ -77,96 +62,27 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function pluralize(number, forms) {
-  const n = Math.abs(number) % 100;
-  const n1 = n % 10;
-  if (n > 10 && n < 20) return forms[2];
-  if (n1 > 1 && n1 < 5) return forms[1];
-  if (n1 === 1) return forms[0];
-  return forms[2];
+function formatPrice(value) {
+  const currency = state.settings?.currency || 'VND';
+  return `${Number(value || 0).toLocaleString('ru-RU')} ${currency}`;
 }
 
-function applyTheme(settings) {
-  const root = document.documentElement;
-  root.style.setProperty('--bg', settings.background || '#23282a');
-  root.style.setProperty('--bg-soft', settings.surface || '#2d3132');
-  root.style.setProperty('--accent', settings.accent || '#5a9b87');
-  root.style.setProperty('--text', settings.textPrimary || '#f4ead2');
-  root.style.setProperty('--muted', settings.textMuted || '#a8bbb2');
-}
-
-async function fetchJson(url, options) {
+async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Ошибка запроса');
-  }
+  if (!response.ok) throw new Error(data.error || 'Ошибка');
   return data;
 }
 
-function getDeliveryPrice() {
-  const form = els.checkoutForm;
-  const deliveryType = form.elements.deliveryType.value;
-  const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  if (deliveryType === 'Самовывоз') return 0;
-  if (state.settings?.freeDeliveryFrom && subtotal >= Number(state.settings.freeDeliveryFrom)) {
-    return 0;
-  }
-  return Number(state.settings?.deliveryPrice || 0);
-}
-
-function getCartStats() {
-  const subtotal = state.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const count = state.cart.reduce((sum, item) => sum + item.quantity, 0);
-  const delivery = count ? getDeliveryPrice() : 0;
-  return {
-    subtotal,
-    delivery,
-    total: subtotal + delivery,
-    count
-  };
-}
-
-function updateTelegramMainButton() {
-  if (!state.tg) return;
-  const stats = getCartStats();
-  const mainButton = state.tg.MainButton;
-  if (!mainButton) return;
-
-  mainButton.offClick?.(openCart);
-  if (stats.count > 0) {
-    mainButton.setText(`Корзина · ${formatPrice(stats.total)}`);
-    mainButton.show();
-    mainButton.onClick(openCart);
-  } else {
-    mainButton.hide();
-  }
-}
-
-async function loadSettings() {
-  state.settings = await fetchJson('/api/settings');
-  applyTheme(state.settings);
-
-  document.title = `${state.settings.storeName || 'Ставь угольки'} — магазин`;
-  els.headerSubtitle.textContent = state.settings.headline || 'магазин угля и аксессуаров';
-  els.heroTitle.textContent = state.settings.storeName || 'Ставь угольки';
-  els.heroSubtitle.textContent = state.settings.subheadline || state.settings.headline || '';
-  els.announcementText.textContent = state.settings.announcement || '';
-  els.announcementCard.classList.toggle('hidden', !state.settings.announcement);
-  els.minOrderLabel.textContent = formatPrice(state.settings.minOrder || 0);
-  els.deliveryLabel.textContent = formatPrice(state.settings.deliveryPrice || 0);
-  els.freeDeliveryLabel.textContent = state.settings.freeDeliveryFrom ? formatPrice(state.settings.freeDeliveryFrom) : '—';
-  els.pickupLabel.textContent = state.settings.city || 'Самовывоз';
-  els.supportMeta.textContent = `${state.settings.workingHours || 'ежедневно'} · ${state.settings.supportPhone || 'по запросу'}`;
-  els.supportLink.href = state.settings.supportTelegram?.startsWith('@')
-    ? `https://t.me/${state.settings.supportTelegram.replace('@', '')}`
-    : '#';
-  els.supportLink.style.display = els.supportLink.href === '#' ? 'none' : 'inline-flex';
-
-  els.heroBadges.innerHTML = (state.settings.heroBadges || [])
-    .map((badge) => `<span class="tag-pill">${escapeHtml(badge)}</span>`)
-    .join('');
+function applyTheme() {
+  const settings = state.settings || {};
+  const root = document.documentElement;
+  root.style.setProperty('--bg', settings.background || '#101214');
+  root.style.setProperty('--surface', settings.surface || '#171a1c');
+  root.style.setProperty('--text', settings.textPrimary || '#f3ead7');
+  root.style.setProperty('--muted', settings.textMuted || '#9ba2a8');
+  root.style.setProperty('--accent', settings.accent || '#5a9b87');
+  root.style.setProperty('--accent-warm', settings.accentWarm || '#ff3b30');
 }
 
 function initTelegram() {
@@ -182,95 +98,117 @@ function initTelegram() {
   const user = state.tg.initDataUnsafe?.user;
   if (user) {
     const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
-    if (fullName && !els.checkoutForm.elements.name.value) {
-      els.checkoutForm.elements.name.value = fullName;
-    }
-    if (user.username && !els.checkoutForm.elements.telegram.value) {
-      els.checkoutForm.elements.telegram.value = `@${user.username}`;
-    }
+    if (fullName && !els.checkoutForm.elements.name.value) els.checkoutForm.elements.name.value = fullName;
+    if (user.username && !els.checkoutForm.elements.telegram.value) els.checkoutForm.elements.telegram.value = `@${user.username}`;
   }
 }
 
-async function loadProducts() {
-  const payload = await fetchJson('/api/products?all=1');
-  state.products = payload.items || [];
-  state.categories = payload.categories || [];
-  state.collections = payload.collections || {};
-  syncCartWithProducts();
-  renderFilters();
-  renderFeatured();
+function isFavorite(id) {
+  return state.favorites.includes(id);
+}
+
+function toggleFavorite(id) {
+  if (isFavorite(id)) {
+    state.favorites = state.favorites.filter((item) => item !== id);
+  } else {
+    state.favorites.unshift(id);
+  }
+  saveState();
   renderProducts();
-}
-
-function syncCartWithProducts() {
-  state.cart = state.cart
-    .map((item) => {
-      const product = state.products.find((entry) => entry.id === item.productId);
-      if (!product || !product.inStock) return null;
-      return {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        quantity: item.quantity
-      };
-    })
-    .filter(Boolean);
-  saveCart();
-}
-
-function renderFilters() {
-  const filters = ['all', ...state.categories];
-  els.categoryFilters.innerHTML = filters
-    .map((category) => {
-      const active = state.filter === category ? 'is-active' : '';
-      const label = category === 'all' ? 'Все' : category;
-      return `<button class="filter-pill ${active}" type="button" data-category="${escapeHtml(category)}">${escapeHtml(label)}</button>`;
-    })
-    .join('');
+  updateBottomNav();
 }
 
 function getVisibleProducts() {
   return state.products.filter((product) => {
-    const matchesStock = product.inStock;
-    const matchesCategory = state.filter === 'all' || product.category === state.filter;
-    const haystack = [product.name, product.subtitle, product.description, product.category, product.brand, ...(product.tags || [])]
-      .join(' ')
-      .toLowerCase();
-    const matchesQuery = !state.query || haystack.includes(state.query.toLowerCase());
-    return matchesStock && matchesCategory && matchesQuery;
+    if (!product.inStock) return false;
+    if (state.category && product.category !== state.category) return false;
+    if (state.favoritesOnly && !isFavorite(product.id)) return false;
+    if (state.query) {
+      const haystack = [product.name, product.category, product.description, product.slug, product.deepLink].join(' ').toLowerCase();
+      if (!haystack.includes(state.query.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+
+function getCartCount() {
+  return state.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+}
+
+function getCartTotal() {
+  return state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+}
+
+function updateBottomNav() {
+  const count = getCartCount();
+  els.cartCountBadge.textContent = count;
+  els.cartCountBadge.classList.toggle('hidden', count < 1);
+  els.navFavorites.classList.toggle('is-active', state.favoritesOnly);
+}
+
+function renderBanners() {
+  const items = state.banners || [];
+  if (!items.length) {
+    els.bannerSection.classList.add('hidden');
+    return;
+  }
+  els.bannerSection.classList.remove('hidden');
+  els.bannerTrack.innerHTML = items
+    .map((banner) => `
+      <a class="banner-link" href="#" data-banner-link="${escapeHtml(banner.link || '')}">
+        <img class="banner-image" src="${escapeHtml(banner.image)}" alt="" loading="lazy" />
+      </a>
+    `)
+    .join('');
+
+  els.bannerDots.innerHTML = items
+    .map((_, index) => `<button class="banner-dot ${index === state.bannerIndex ? 'is-active' : ''}" type="button" data-banner-dot="${index}"></button>`)
+    .join('');
+
+  setBannerIndex(state.bannerIndex, false);
+  resetBannerTimer();
+}
+
+function setBannerIndex(index, animate = true) {
+  const max = Math.max((state.banners?.length || 1) - 1, 0);
+  state.bannerIndex = Math.max(0, Math.min(index, max));
+  els.bannerTrack.style.transition = animate ? 'transform 0.35s ease' : 'none';
+  els.bannerTrack.style.transform = `translateX(-${state.bannerIndex * 100}%)`;
+  Array.from(els.bannerDots.querySelectorAll('[data-banner-dot]')).forEach((button, i) => {
+    button.classList.toggle('is-active', i === state.bannerIndex);
+  });
+}
+
+function resetBannerTimer() {
+  window.clearInterval(state.bannerTimer);
+  if ((state.banners || []).length <= 1) return;
+  state.bannerTimer = window.setInterval(() => {
+    const next = (state.bannerIndex + 1) % state.banners.length;
+    setBannerIndex(next);
+  }, 4000);
+}
+
+function renderCategoryButtons() {
+  Array.from(els.categoryRow.querySelectorAll('[data-category]')).forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.category === state.category);
   });
 }
 
 function buildProductCard(product) {
-  const inCart = state.cart.find((item) => item.productId === product.id);
+  const favoriteClass = isFavorite(product.id) ? 'is-active' : '';
   return `
     <article class="product-card">
-      <div class="product-image">
-        ${product.badge ? `<span class="badge-float">${escapeHtml(product.badge)}</span>` : ''}
-        <img src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" />
+      <div class="product-image-wrap" data-open-product="${product.id}">
+        <div class="product-actions">
+          <button class="mini-action" type="button" data-share-product="${product.id}" aria-label="Поделиться"><span class="mini-icon mini-icon-share"></span></button>
+          <button class="mini-action" type="button" data-favorite-product="${product.id}" aria-label="Избранное"><span class="mini-icon mini-icon-heart ${favoriteClass}"></span></button>
+        </div>
+        <img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" />
       </div>
-      <div class="product-card-body">
-        <div class="card-topline">
-          <div>
-            <div class="eyebrow">${escapeHtml(product.category || '')}</div>
-            <h3>${escapeHtml(product.name)}</h3>
-          </div>
-          <span class="tag-pill">★ ${Number(product.rating || 4.8).toFixed(1)}</span>
-        </div>
-        <p>${escapeHtml(product.subtitle || product.description || '')}</p>
-        <div class="detail-pills">
-          ${product.pack ? `<span class="tag-pill">${escapeHtml(product.pack)}</span>` : ''}
-          ${product.heat ? `<span class="tag-pill">${escapeHtml(product.heat)}</span>` : ''}
-        </div>
-        <div class="price-row">
-          <span class="price-current">${formatPrice(product.price)}</span>
-          ${product.oldPrice ? `<span class="price-old">${formatPrice(product.oldPrice)}</span>` : ''}
-        </div>
-        <div class="card-actions">
-          <button class="secondary-button" type="button" data-open-product="${product.id}">Открыть</button>
-          <button class="primary-button" type="button" data-add-fast="${product.id}">${inCart ? 'Ещё' : 'В корзину'}</button>
-        </div>
+      <button class="product-name" type="button" data-open-product="${product.id}">${escapeHtml(product.name)}</button>
+      <div class="price-row">
+        <div class="product-price">${formatPrice(product.price)}</div>
+        <button class="cart-icon-button" type="button" data-add-product="${product.id}" aria-label="В корзину"><span class="mini-icon mini-icon-cart"></span></button>
       </div>
     </article>
   `;
@@ -278,215 +216,110 @@ function buildProductCard(product) {
 
 function renderProducts() {
   const products = getVisibleProducts();
-  els.catalogCount.textContent = `${products.length} ${pluralize(products.length, ['товар', 'товара', 'товаров'])}`;
-  els.catalogEmpty.classList.toggle('hidden', products.length > 0);
   els.productGrid.innerHTML = products.map(buildProductCard).join('');
 }
 
-function renderFeatured() {
-  const items = (state.collections.featured || []).slice(0, 6);
-  els.featuredRow.innerHTML = items
-    .map((product) => `
-      <article class="featured-card">
-        <div class="featured-cover">
-          <img src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" />
-        </div>
-        <div class="card-topline">
-          <div>
-            <div class="eyebrow">${escapeHtml(product.category || '')}</div>
-            <h3>${escapeHtml(product.name)}</h3>
-          </div>
-          ${product.badge ? `<span class="tag-pill">${escapeHtml(product.badge)}</span>` : ''}
-        </div>
-        <p>${escapeHtml(product.subtitle || product.description || '')}</p>
-        <div class="price-row">
-          <span class="price-current">${formatPrice(product.price)}</span>
-          ${product.oldPrice ? `<span class="price-old">${formatPrice(product.oldPrice)}</span>` : ''}
-        </div>
-        <div class="card-actions">
-          <button class="secondary-button" type="button" data-open-product="${product.id}">Подробнее</button>
-          <button class="primary-button" type="button" data-add-fast="${product.id}">В корзину</button>
-        </div>
-      </article>
-    `)
-    .join('');
+function openSheet(id) {
+  els.sheetBackdrop.classList.remove('hidden');
+  document.querySelectorAll('.sheet').forEach((sheet) => sheet.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
 }
 
-function setProductQuantity(nextValue) {
-  state.productQty = Math.max(1, Number(nextValue || 1));
-  const qtyLabel = document.getElementById('productQtyLabel');
-  if (qtyLabel) qtyLabel.textContent = state.productQty;
+function closeSheets() {
+  els.sheetBackdrop.classList.add('hidden');
+  document.querySelectorAll('.sheet').forEach((sheet) => sheet.classList.add('hidden'));
 }
 
-function getSelectedProduct() {
-  return state.products.find((product) => product.id === state.selectedProductId);
+function getProductById(id) {
+  return state.products.find((product) => product.id === id);
 }
 
-function openProduct(productId) {
-  state.selectedProductId = productId;
-  state.productQty = 1;
-  renderProductDetail();
-  els.productOverlay.classList.add('is-open');
-  els.productSheet.classList.add('is-open');
-}
-
-function closeProduct() {
-  els.productOverlay.classList.remove('is-open');
-  els.productSheet.classList.remove('is-open');
-}
-
-function renderProductDetail() {
-  const product = getSelectedProduct();
+function openProduct(id) {
+  const product = getProductById(id);
   if (!product) return;
+  state.selectedProductId = id;
+  state.selectedQty = 1;
+  els.productSheetTitle.textContent = product.name;
+  renderProductSheet();
+  openSheet('productSheet');
+}
 
-  const inCart = state.cart.find((item) => item.productId === product.id);
-  els.productDetail.innerHTML = `
-    <div class="product-detail-cover">
-      <img src="${product.image}" alt="${escapeHtml(product.name)}" />
-    </div>
-    <div class="product-detail-meta">
-      <div class="detail-pills">
-        ${product.badge ? `<span class="tag-pill">${escapeHtml(product.badge)}</span>` : ''}
-        <span class="tag-pill">${escapeHtml(product.category)}</span>
-        <span class="tag-pill">★ ${Number(product.rating || 4.8).toFixed(1)}</span>
+function renderProductSheet() {
+  const product = getProductById(state.selectedProductId);
+  if (!product) return;
+  els.productSheetBody.innerHTML = `
+    <img class="sheet-product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" />
+    <div class="sheet-product-price">${formatPrice(product.price)}</div>
+    <div class="qty-row">
+      <div class="qty-box">
+        <button type="button" data-qty="minus">−</button>
+        <strong id="selectedQtyLabel">${state.selectedQty}</strong>
+        <button type="button" data-qty="plus">+</button>
       </div>
-      <h2>${escapeHtml(product.name)}</h2>
-      <p>${escapeHtml(product.description || product.subtitle || '')}</p>
-      <div class="detail-pills">
-        ${product.pack ? `<span class="tag-pill">${escapeHtml(product.pack)}</span>` : ''}
-        ${product.heat ? `<span class="tag-pill">${escapeHtml(product.heat)}</span>` : ''}
-        <span class="tag-pill">Остаток: ${Number(product.stockCount || 0)} ${escapeHtml(product.unit || 'шт.')}</span>
-      </div>
-      <div class="price-row">
-        <span class="price-current">${formatPrice(product.price)}</span>
-        ${product.oldPrice ? `<span class="price-old">${formatPrice(product.oldPrice)}</span>` : ''}
-      </div>
-      <div class="qty-row">
-        <div class="qty-box">
-          <button type="button" data-product-qty="decrease">−</button>
-          <strong id="productQtyLabel">${state.productQty}</strong>
-          <button type="button" data-product-qty="increase">+</button>
-        </div>
-        <div class="muted-text">${inCart ? `Уже в корзине: ${inCart.quantity}` : 'Можно добавить несколько упаковок сразу'}</div>
-      </div>
-      <div class="card-actions">
-        <button class="secondary-button" type="button" data-product-action="buy-now">Купить сейчас</button>
-        <button class="primary-button" type="button" data-product-action="add">${inCart ? 'Добавить ещё' : 'В корзину'}</button>
-      </div>
+      <button class="submit-button" type="button" data-product-submit="${product.id}">В корзину</button>
     </div>
   `;
 }
 
 function addToCart(productId, quantity = 1) {
-  const product = state.products.find((item) => item.id === productId && item.inStock);
-  if (!product) return;
-
-  const existing = state.cart.find((item) => item.productId === productId);
-  if (existing) {
-    existing.quantity += quantity;
+  const product = getProductById(productId);
+  if (!product || !product.inStock) return;
+  const item = state.cart.find((entry) => entry.productId === productId);
+  if (item) {
+    item.quantity += quantity;
   } else {
-    state.cart.push({
+    state.cart.unshift({
       productId: product.id,
       name: product.name,
-      price: Number(product.price),
       image: product.image,
+      price: Number(product.price),
       quantity
     });
   }
-
-  saveCart();
-  renderFeatured();
-  renderProducts();
+  saveState();
   renderCart();
-  updateTelegramMainButton();
+  updateBottomNav();
 }
 
-function openCart() {
-  closeProduct();
-  els.cartOverlay.classList.add('is-open');
-  els.cartSheet.classList.add('is-open');
-}
-
-function closeCart() {
-  els.cartOverlay.classList.remove('is-open');
-  els.cartSheet.classList.remove('is-open');
-}
-
-function updateCartQuantity(productId, action) {
+function changeCart(productId, delta) {
   const item = state.cart.find((entry) => entry.productId === productId);
   if (!item) return;
-
-  if (action === 'increase') item.quantity += 1;
-  if (action === 'decrease') item.quantity -= 1;
-  if (action === 'remove' || item.quantity <= 0) {
+  item.quantity += delta;
+  if (item.quantity <= 0) {
     state.cart = state.cart.filter((entry) => entry.productId !== productId);
   }
-
-  saveCart();
-  renderProducts();
-  renderFeatured();
+  saveState();
   renderCart();
-  updateTelegramMainButton();
-}
-
-function clearCart() {
-  state.cart = [];
-  saveCart();
-  renderProducts();
-  renderFeatured();
-  renderCart();
-  updateTelegramMainButton();
+  updateBottomNav();
 }
 
 function renderCart() {
-  const stats = getCartStats();
-  els.cartCounter.textContent = stats.count;
-  els.cartSubtotal.textContent = formatPrice(stats.subtotal);
-  els.cartDelivery.textContent = formatPrice(stats.delivery);
-  els.cartTotal.textContent = formatPrice(stats.total);
-  els.stickyCartSummary.textContent = stats.count ? `${stats.count} · ${formatPrice(stats.total)}` : formatPrice(0);
-
-  const hasItems = state.cart.length > 0;
-  els.cartEmpty.classList.toggle('hidden', hasItems);
-  els.stickyCartButton.classList.toggle('hidden', !hasItems);
-
-  els.cartItems.innerHTML = state.cart
-    .map((item) => `
-      <div class="cart-item">
-        <div class="card-topline">
-          <div>
-            <div class="cart-item-title">${escapeHtml(item.name)}</div>
-            <div class="muted-text">${formatPrice(item.price)} × ${item.quantity}</div>
-          </div>
-          <strong>${formatPrice(item.price * item.quantity)}</strong>
-        </div>
-        <div class="qty-controls">
-          <button type="button" data-cart-action="decrease" data-product-id="${item.productId}">−</button>
-          <button type="button" data-cart-action="increase" data-product-id="${item.productId}">+</button>
-          <button class="secondary-button" type="button" data-cart-action="remove" data-product-id="${item.productId}">Удалить</button>
-        </div>
+  els.cartList.innerHTML = state.cart.map((item) => `
+    <div class="cart-item">
+      <img class="cart-item-image" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" />
+      <div>
+        <div class="cart-item-name">${escapeHtml(item.name)}</div>
+        <div class="cart-item-price">${formatPrice(item.price * item.quantity)}</div>
       </div>
-    `)
-    .join('');
-
-  if (!hasItems) {
-    showNotice('', '');
-  }
+      <div class="cart-item-controls">
+        <button type="button" data-cart-change="1" data-product-id="${item.productId}">+</button>
+        <button type="button" data-cart-change="-1" data-product-id="${item.productId}">−</button>
+      </div>
+    </div>
+  `).join('');
+  els.cartTotalLabel.textContent = formatPrice(getCartTotal());
 }
 
-function showNotice(message, type) {
+function setNotice(message = '', type = '') {
   els.checkoutNotice.textContent = message;
-  els.checkoutNotice.className = 'notice';
-  if (message && type) {
-    els.checkoutNotice.classList.add(type);
-  }
+  els.checkoutNotice.className = 'sheet-notice';
+  if (type) els.checkoutNotice.classList.add(type);
 }
 
 async function handleCheckout(event) {
   event.preventDefault();
-
   if (!state.cart.length) {
-    showNotice('Добавьте товары в корзину', 'error');
+    setNotice('Корзина пуста', 'error');
     return;
   }
 
@@ -503,128 +336,207 @@ async function handleCheckout(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-
-    showNotice(`Заказ ${result.order.id} оформлен. Мы скоро напишем вам.`, 'success');
-
+    setNotice(result.order.id, 'success');
     if (state.tg?.sendData) {
       state.tg.sendData(JSON.stringify(result.order));
-      state.tg.showPopup?.({
-        title: 'Заказ принят',
-        message: `Номер заказа: ${result.order.id}`,
-        buttons: [{ type: 'ok' }]
-      });
     }
-
-    clearCart();
+    state.cart = [];
+    saveState();
+    renderCart();
+    updateBottomNav();
     els.checkoutForm.reset();
-    els.checkoutForm.elements.deliveryType.value = 'Доставка';
-    closeCart();
   } catch (error) {
-    showNotice(error.message, 'error');
+    setNotice(error.message, 'error');
   }
 }
 
-function tryOpenDeepLinkedProduct() {
-  const params = new URLSearchParams(window.location.search);
-  const deepLinkValue =
-    params.get('product') ||
-    params.get('startapp') ||
-    params.get('tgWebAppStartParam') ||
-    state.tg?.initDataUnsafe?.start_param;
+async function shareProduct(productId) {
+  const product = getProductById(productId);
+  if (!product) return;
+  const sharePath = `product=${encodeURIComponent(product.deepLink || product.id)}`;
+  const url = `${window.location.origin}${window.location.pathname}?${sharePath}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: product.name, url });
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    if (state.tg?.showPopup) {
+      state.tg.showPopup({ title: 'Ссылка', message: 'Скопировано', buttons: [{ type: 'ok' }] });
+    }
+  } catch (_error) {
+    // ignore share cancellation
+  }
+}
 
-  if (!deepLinkValue) return;
-  const product = state.products.find((item) =>
-    [item.id, item.slug, item.deepLink].filter(Boolean).includes(deepLinkValue)
-  );
+function handleBannerLink(link) {
+  if (!link) return;
+  if (link.startsWith('http://') || link.startsWith('https://')) {
+    if (state.tg?.openLink) state.tg.openLink(link);
+    else window.open(link, '_blank', 'noopener');
+    return;
+  }
+  const product = state.products.find((item) => [item.id, item.deepLink, item.slug].includes(link));
   if (product) {
     openProduct(product.id);
   }
 }
 
+function openSupport() {
+  const value = state.settings?.supportTelegram || '';
+  if (!value) return;
+  const url = value.startsWith('@') ? `https://t.me/${value.replace('@', '')}` : value;
+  if (state.tg?.openTelegramLink && url.startsWith('https://t.me/')) {
+    state.tg.openTelegramLink(url);
+  } else if (state.tg?.openLink) {
+    state.tg.openLink(url);
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
+function tryOpenStartParam() {
+  const params = new URLSearchParams(window.location.search);
+  const needle = params.get('product') || params.get('startapp') || params.get('tgWebAppStartParam') || state.tg?.initDataUnsafe?.start_param;
+  if (!needle) return;
+  const product = state.products.find((item) => [item.id, item.deepLink, item.slug].includes(needle));
+  if (product) openProduct(product.id);
+}
+
 function bindEvents() {
-  els.searchInput.addEventListener('input', (event) => {
-    state.query = event.target.value.trim();
+  els.searchToggle.addEventListener('click', () => {
+    openSheet('searchSheet');
+    window.setTimeout(() => els.searchInput.focus(), 50);
+  });
+
+  els.searchInput.addEventListener('input', () => {
+    state.query = els.searchInput.value.trim();
     renderProducts();
   });
 
-  els.categoryFilters.addEventListener('click', (event) => {
+  els.categoryRow.addEventListener('click', (event) => {
     const button = event.target.closest('[data-category]');
     if (!button) return;
-    state.filter = button.dataset.category;
-    renderFilters();
+    state.category = state.category === button.dataset.category ? '' : button.dataset.category;
+    renderCategoryButtons();
     renderProducts();
   });
 
-  els.resetFiltersBtn.addEventListener('click', () => {
-    state.filter = 'all';
-    state.query = '';
-    els.searchInput.value = '';
-    renderFilters();
-    renderProducts();
+  els.bannerDots.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-banner-dot]');
+    if (!button) return;
+    setBannerIndex(Number(button.dataset.bannerDot));
+    resetBannerTimer();
+  });
+
+  els.bannerTrack.addEventListener('click', (event) => {
+    const link = event.target.closest('[data-banner-link]');
+    if (!link) return;
+    event.preventDefault();
+    handleBannerLink(link.dataset.bannerLink);
   });
 
   document.addEventListener('click', (event) => {
-    const openButton = event.target.closest('[data-open-product]');
-    const fastAddButton = event.target.closest('[data-add-fast]');
-    if (openButton) {
-      openProduct(openButton.dataset.openProduct);
+    const favoriteButton = event.target.closest('[data-favorite-product]');
+    if (favoriteButton) {
+      toggleFavorite(favoriteButton.dataset.favoriteProduct);
+      return;
     }
-    if (fastAddButton) {
-      addToCart(fastAddButton.dataset.addFast, 1);
+
+    const shareButton = event.target.closest('[data-share-product]');
+    if (shareButton) {
+      shareProduct(shareButton.dataset.shareProduct);
+      return;
+    }
+
+    const addButton = event.target.closest('[data-add-product]');
+    if (addButton) {
+      addToCart(addButton.dataset.addProduct, 1);
+      return;
+    }
+
+    const productButton = event.target.closest('[data-open-product]');
+    if (productButton) {
+      openProduct(productButton.dataset.openProduct);
+      return;
+    }
+
+    const closeButton = event.target.closest('[data-close-sheet]');
+    if (closeButton) {
+      closeSheets();
+      return;
+    }
+
+    const cartChangeButton = event.target.closest('[data-cart-change]');
+    if (cartChangeButton) {
+      changeCart(cartChangeButton.dataset.productId, Number(cartChangeButton.dataset.cartChange));
+      return;
     }
   });
 
-  els.productDetail.addEventListener('click', (event) => {
-    const qtyButton = event.target.closest('[data-product-qty]');
+  els.sheetBackdrop.addEventListener('click', closeSheets);
+
+  els.productSheetBody.addEventListener('click', (event) => {
+    const qtyButton = event.target.closest('[data-qty]');
     if (qtyButton) {
-      setProductQuantity(state.productQty + (qtyButton.dataset.productQty === 'increase' ? 1 : -1));
+      state.selectedQty += qtyButton.dataset.qty === 'plus' ? 1 : -1;
+      if (state.selectedQty < 1) state.selectedQty = 1;
+      const label = document.getElementById('selectedQtyLabel');
+      if (label) label.textContent = state.selectedQty;
+      return;
     }
 
-    const actionButton = event.target.closest('[data-product-action]');
-    if (!actionButton) return;
-
-    const product = getSelectedProduct();
-    if (!product) return;
-
-    addToCart(product.id, state.productQty);
-    if (actionButton.dataset.productAction === 'buy-now') {
-      closeProduct();
-      openCart();
-    } else {
-      renderProductDetail();
+    const submitButton = event.target.closest('[data-product-submit]');
+    if (submitButton) {
+      addToCart(submitButton.dataset.productSubmit, state.selectedQty);
+      closeSheets();
     }
   });
 
-  els.cartItems.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-cart-action]');
-    if (!button) return;
-    updateCartQuantity(button.dataset.productId, button.dataset.cartAction);
-  });
-
-  els.cartButton.addEventListener('click', openCart);
-  els.stickyCartButton.addEventListener('click', openCart);
-  els.closeCartButton.addEventListener('click', closeCart);
-  els.cartOverlay.addEventListener('click', closeCart);
-
-  els.closeProductButton.addEventListener('click', closeProduct);
-  els.productOverlay.addEventListener('click', closeProduct);
-
-  els.clearCartButton.addEventListener('click', clearCart);
   els.checkoutForm.addEventListener('submit', handleCheckout);
-  els.checkoutForm.elements.deliveryType.addEventListener('change', renderCart);
+
+  els.navMenu.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  els.navFavorites.addEventListener('click', () => {
+    state.favoritesOnly = !state.favoritesOnly;
+    renderProducts();
+    updateBottomNav();
+  });
+  els.navCart.addEventListener('click', () => {
+    setNotice('', '');
+    renderCart();
+    openSheet('cartSheet');
+  });
+  els.navFilters.addEventListener('click', () => {
+    els.categoryRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  els.navSupport.addEventListener('click', openSupport);
 }
 
 async function init() {
   try {
-    await loadSettings();
+    const [settings, banners, products] = await Promise.all([
+      fetchJson('/api/settings'),
+      fetchJson('/api/banners'),
+      fetchJson('/api/products')
+    ]);
+    state.settings = settings;
+    state.banners = banners.items || [];
+    state.products = products.items || [];
+    applyTheme();
+    els.brandName.textContent = settings.storeName || 'Ставь угольки';
+    document.title = settings.storeName || 'Ставь угольки';
     initTelegram();
-    bindEvents();
-    await loadProducts();
+    renderBanners();
+    renderCategoryButtons();
+    renderProducts();
     renderCart();
-    updateTelegramMainButton();
-    tryOpenDeepLinkedProduct();
+    updateBottomNav();
+    bindEvents();
+    tryOpenStartParam();
   } catch (error) {
-    els.productGrid.innerHTML = `<div class="empty-state"><h3>Не удалось загрузить магазин</h3><p>${escapeHtml(error.message)}</p></div>`;
+    els.productGrid.innerHTML = '';
   }
 }
 

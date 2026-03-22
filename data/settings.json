@@ -1,32 +1,18 @@
 {
   "storeName": "Ставь угольки",
-  "headline": "Мини-магазин угля и аксессуаров внутри Telegram",
-  "subheadline": "Темный hookah-style интерфейс, быстрый заказ с телефона и отдельная панель владельца с товарами, заказами и аналитикой.",
-  "announcement": "Бесплатная доставка от 2500 ₽. Открой товар по deep link и закажи за пару тапов.",
+  "currency": "VND",
   "supportTelegram": "@stavugolki",
-  "supportPhone": "+7 (900) 000-00-00",
-  "pickupAddress": "Москва, ул. Малая Почтовая, 7",
-  "workingHours": "ежедневно 12:00–23:00",
-  "minOrder": 1000,
-  "deliveryPrice": 290,
-  "freeDeliveryFrom": 2500,
-  "city": "Москва",
-  "currency": "₽",
+  "supportPhone": "+84 000 000 000",
+  "pickupAddress": "",
+  "workingHours": "",
+  "minOrder": 0,
+  "deliveryPrice": 0,
+  "freeDeliveryFrom": 0,
+  "city": "",
   "accent": "#5a9b87",
-  "background": "#23282a",
-  "surface": "#2d3132",
-  "textPrimary": "#f4ead2",
-  "textMuted": "#a8bbb2",
-  "heroBadges": [
-    "Telegram Mini App",
-    "Deep link на товар",
-    "Корзина и заказ",
-    "Панель владельца"
-  ],
-  "highlights": [
-    "Оформление за 1 минуту",
-    "Поддержка через Telegram",
-    "Удобно с телефона",
-    "Аналитика по заказам"
-  ]
+  "accentWarm": "#ff3b30",
+  "background": "#101214",
+  "surface": "#171a1c",
+  "textPrimary": "#f3ead7",
+  "textMuted": "#9ba2a8"
 }

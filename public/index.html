@@ -2,226 +2,105 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#23282a" />
-    <title>Ставь угольки — магазин</title>
-    <link rel="stylesheet" href="/assets/css/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#101214" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Ставь угольки</title>
+    <link rel="stylesheet" href="/assets/css/store.css" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body class="store-body">
-    <div class="page-noise"></div>
-
-    <div class="overlay" id="productOverlay"></div>
-    <div class="overlay" id="cartOverlay"></div>
-
-    <div class="store-shell">
-      <header class="miniapp-header glass-card">
-        <div class="brand-lockup">
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-row">
           <img class="brand-logo" src="/assets/brand/logo.jpg" alt="Ставь угольки" />
-          <div>
-            <div class="eyebrow">Telegram Mini App</div>
-            <div class="brand-title">Ставь угольки</div>
-            <div class="brand-subtitle" id="headerSubtitle">магазин угля и аксессуаров</div>
-          </div>
+          <div class="brand-name" id="brandName">Ставь угольки</div>
         </div>
-
-        <button class="circle-button" id="cartButton" type="button" aria-label="Открыть корзину">
-          <span>🛒</span>
-          <span class="counter-badge" id="cartCounter">0</span>
-        </button>
+        <button class="icon-button" id="searchToggle" type="button" aria-label="Поиск"></button>
       </header>
 
-      <main class="store-main">
-        <section class="hero-card glass-card">
-          <div class="hero-copy">
-            <span class="soft-pill">Стиль как в лого</span>
-            <h1 id="heroTitle">Ставь угольки</h1>
-            <p id="heroSubtitle">Темный мобильный магазин для Telegram с быстрым заказом.</p>
-            <div class="pill-row" id="heroBadges"></div>
-          </div>
+      <div class="banner-section" id="bannerSection">
+        <div class="banner-track" id="bannerTrack"></div>
+        <div class="banner-dots" id="bannerDots"></div>
+      </div>
 
-          <div class="hero-visual">
-            <div class="hero-logo-ring">
-              <img src="/assets/brand/logo.jpg" alt="Лого магазина" />
-            </div>
-          </div>
-        </section>
+      <div class="category-row" id="categoryRow">
+        <button class="category-button" type="button" data-category="Уголь">Уголь</button>
+        <button class="category-button" type="button" data-category="Табак">Табак</button>
+        <button class="category-button" type="button" data-category="Кальяны">Кальяны</button>
+        <button class="category-button" type="button" data-category="Прочее">Прочее</button>
+      </div>
 
-        <section class="announcement-card" id="announcementCard">
-          <span>⚡</span>
-          <p id="announcementText"></p>
-        </section>
-
-        <section class="quick-stats">
-          <article class="stat-tile glass-card">
-            <span class="stat-label">Минимум</span>
-            <strong id="minOrderLabel">—</strong>
-          </article>
-          <article class="stat-tile glass-card">
-            <span class="stat-label">Доставка</span>
-            <strong id="deliveryLabel">—</strong>
-          </article>
-          <article class="stat-tile glass-card">
-            <span class="stat-label">Бесплатно от</span>
-            <strong id="freeDeliveryLabel">—</strong>
-          </article>
-          <article class="stat-tile glass-card">
-            <span class="stat-label">Самовывоз</span>
-            <strong id="pickupLabel">—</strong>
-          </article>
-        </section>
-
-        <section class="support-banner glass-card">
-          <div>
-            <div class="section-kicker">Поддержка</div>
-            <h2>Быстрый заказ и связь без выхода из Telegram</h2>
-            <p id="supportMeta">Подскажем по углю, доставке и комплектам.</p>
-          </div>
-          <a class="secondary-button" id="supportLink" href="#" target="_blank" rel="noreferrer">Написать</a>
-        </section>
-
-        <section class="toolbar-card glass-card">
-          <label class="search-input">
-            <span>🔎</span>
-            <input id="searchInput" type="search" placeholder="Поиск по товарам" />
-          </label>
-          <div class="pill-scroll" id="categoryFilters"></div>
-        </section>
-
-        <section class="content-section">
-          <div class="section-headline">
-            <div>
-              <div class="section-kicker">Популярное</div>
-              <h2>Товары, которые чаще всего берут</h2>
-            </div>
-            <button class="ghost-button" id="resetFiltersBtn" type="button">Сбросить</button>
-          </div>
-          <div class="featured-row" id="featuredRow"></div>
-        </section>
-
-        <section class="content-section">
-          <div class="section-headline">
-            <div>
-              <div class="section-kicker">Каталог</div>
-              <h2>Все товары</h2>
-            </div>
-            <div class="muted-text" id="catalogCount">0 товаров</div>
-          </div>
-
-          <div class="product-grid" id="productGrid"></div>
-
-          <div class="empty-state hidden" id="catalogEmpty">
-            <h3>Ничего не найдено</h3>
-            <p>Попробуйте другой запрос или категорию.</p>
-          </div>
-        </section>
-
-        <section class="benefits-grid">
-          <article class="benefit-card glass-card">
-            <div class="benefit-icon">🔥</div>
-            <h3>Ровный жар</h3>
-            <p>Фокус на угле и аксессуарах для стабильной сессии без лишнего шума.</p>
-          </article>
-          <article class="benefit-card glass-card">
-            <div class="benefit-icon">📦</div>
-            <h3>Быстрая доставка</h3>
-            <p>Оформление внутри Mini App, понятная корзина и оформление в пару касаний.</p>
-          </article>
-          <article class="benefit-card glass-card">
-            <div class="benefit-icon">📲</div>
-            <h3>Deep link на товар</h3>
-            <p>При открытии ссылки магазина можно сразу показать нужную карточку товара.</p>
-          </article>
-        </section>
-      </main>
+      <main class="product-grid" id="productGrid"></main>
     </div>
 
-    <button class="sticky-cart hidden" id="stickyCartButton" type="button">
-      <span>Корзина</span>
-      <strong id="stickyCartSummary">0 ₽</strong>
-    </button>
+    <nav class="bottom-nav">
+      <button class="nav-item" id="navMenu" type="button">
+        <span class="nav-icon nav-icon-menu"></span>
+        <span class="nav-label">Меню</span>
+      </button>
+      <button class="nav-item" id="navFavorites" type="button">
+        <span class="nav-icon nav-icon-heart"></span>
+        <span class="nav-label">Избранное</span>
+      </button>
+      <button class="nav-item nav-item-cart" id="navCart" type="button">
+        <span class="nav-badge hidden" id="cartCountBadge">0</span>
+        <span class="nav-icon nav-icon-cart"></span>
+        <span class="nav-label">Корзина</span>
+      </button>
+      <button class="nav-item" id="navFilters" type="button">
+        <span class="nav-icon nav-icon-filter"></span>
+        <span class="nav-label">Фильтры</span>
+      </button>
+      <button class="nav-item" id="navSupport" type="button">
+        <span class="nav-icon nav-icon-support"></span>
+        <span class="nav-label">Поддержка</span>
+      </button>
+    </nav>
 
-    <section class="sheet product-sheet" id="productSheet" aria-hidden="true">
-      <div class="sheet-handle"></div>
-      <button class="sheet-close" id="closeProductButton" type="button" aria-label="Закрыть">✕</button>
-      <div class="product-detail" id="productDetail"></div>
+    <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
+
+    <section class="sheet hidden" id="searchSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Поиск</div>
+        <button class="sheet-close" data-close-sheet="searchSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body">
+        <input class="sheet-input" id="searchInput" type="search" placeholder="Поиск" autocomplete="off" />
+      </div>
     </section>
 
-    <aside class="sheet cart-sheet" id="cartSheet" aria-hidden="true">
-      <div class="sheet-handle"></div>
-      <button class="sheet-close" id="closeCartButton" type="button" aria-label="Закрыть">✕</button>
-
-      <div class="cart-head">
-        <div>
-          <div class="section-kicker">Корзина</div>
-          <h2>Ваш заказ</h2>
-        </div>
-        <button class="ghost-button" id="clearCartButton" type="button">Очистить</button>
+    <section class="sheet hidden" id="productSheet">
+      <div class="sheet-head">
+        <div class="sheet-title" id="productSheetTitle"></div>
+        <button class="sheet-close" data-close-sheet="productSheet" type="button">✕</button>
       </div>
+      <div class="sheet-body product-sheet-body" id="productSheetBody"></div>
+    </section>
 
-      <div class="cart-items" id="cartItems"></div>
-
-      <div class="empty-state hidden" id="cartEmpty">
-        <h3>Корзина пока пустая</h3>
-        <p>Откройте карточку товара и добавьте нужное количество.</p>
+    <section class="sheet hidden" id="cartSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Корзина</div>
+        <button class="sheet-close" data-close-sheet="cartSheet" type="button">✕</button>
       </div>
-
-      <div class="summary-card glass-card">
-        <div class="summary-line">
-          <span>Товары</span>
-          <strong id="cartSubtotal">0 ₽</strong>
-        </div>
-        <div class="summary-line">
-          <span>Доставка</span>
-          <strong id="cartDelivery">0 ₽</strong>
-        </div>
-        <div class="summary-line total">
-          <span>Итого</span>
-          <strong id="cartTotal">0 ₽</strong>
-        </div>
+      <div class="sheet-body cart-sheet-body">
+        <div class="cart-list" id="cartList"></div>
+        <form class="checkout-form" id="checkoutForm">
+          <input class="sheet-input" name="name" type="text" placeholder="Имя" required />
+          <input class="sheet-input" name="phone" type="tel" placeholder="Телефон" required />
+          <input class="sheet-input" name="telegram" type="text" placeholder="Telegram" />
+          <input class="sheet-input" name="address" type="text" placeholder="Адрес" />
+          <input type="hidden" name="deliveryType" value="Самовывоз" />
+          <textarea class="sheet-input sheet-textarea" name="comment" placeholder="Комментарий"></textarea>
+          <div class="cart-summary-row">
+            <span id="cartTotalLabel">0 VND</span>
+            <button class="submit-button" type="submit">Оформить</button>
+          </div>
+        </form>
+        <div class="sheet-notice" id="checkoutNotice"></div>
       </div>
-
-      <form class="checkout-form" id="checkoutForm">
-        <div class="field-grid">
-          <label class="field-wrap">
-            <span>Имя</span>
-            <input class="field" name="name" type="text" placeholder="Ваше имя" required />
-          </label>
-          <label class="field-wrap">
-            <span>Телефон</span>
-            <input class="field" name="phone" type="tel" placeholder="+7..." required />
-          </label>
-        </div>
-
-        <div class="field-grid">
-          <label class="field-wrap">
-            <span>Telegram</span>
-            <input class="field" name="telegram" type="text" placeholder="@username" />
-          </label>
-          <label class="field-wrap">
-            <span>Тип получения</span>
-            <select class="field" name="deliveryType">
-              <option value="Доставка">Доставка</option>
-              <option value="Самовывоз">Самовывоз</option>
-            </select>
-          </label>
-        </div>
-
-        <label class="field-wrap">
-          <span>Адрес</span>
-          <input class="field" name="address" type="text" placeholder="Адрес доставки или «Самовывоз»" />
-        </label>
-
-        <label class="field-wrap">
-          <span>Комментарий</span>
-          <textarea class="field textarea" name="comment" placeholder="Комментарий к заказу"></textarea>
-        </label>
-
-        <button class="primary-button wide-button" type="submit">Оформить заказ</button>
-      </form>
-
-      <div class="notice" id="checkoutNotice"></div>
-    </aside>
+    </section>
 
     <script src="/assets/js/store.js" defer></script>
   </body>

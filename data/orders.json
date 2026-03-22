@@ -1,166 +1,66 @@
 [
   {
-    "id": "order-260320-01",
+    "id": "order-1742562000000",
     "status": "done",
-    "createdAt": "2026-03-16T18:24:00.000Z",
-    "updatedAt": "2026-03-16T18:50:00.000Z",
+    "createdAt": "2026-03-20T13:00:00.000Z",
+    "updatedAt": "2026-03-20T13:30:00.000Z",
     "customer": {
-      "name": "Артём",
-      "phone": "+7 999 123-45-67",
-      "telegram": "@artstyle",
-      "address": "Москва, ул. Лобачика, 14",
-      "comment": "Позвонить за 10 минут",
-      "deliveryType": "Доставка"
-    },
-    "items": [
-      {
-        "productId": "product_6729",
-        "name": "Premium Coconut 72",
-        "category": "Уголь",
-        "price": 690,
-        "quantity": 2,
-        "lineTotal": 1380
-      },
-      {
-        "productId": "product_6735",
-        "name": "Long Grip Tongs",
-        "category": "Аксессуары",
-        "price": 290,
-        "quantity": 1,
-        "lineTotal": 290
-      }
-    ],
-    "subtotal": 1670,
-    "deliveryCost": 290,
-    "total": 1960,
-    "source": "telegram-mini-app"
-  },
-  {
-    "id": "order-260320-02",
-    "status": "confirmed",
-    "createdAt": "2026-03-17T14:40:00.000Z",
-    "updatedAt": "2026-03-17T15:10:00.000Z",
-    "customer": {
-      "name": "Елена",
-      "phone": "+7 926 222-88-11",
-      "telegram": "@elena_smoke",
-      "address": "Самовывоз",
-      "comment": "Заберу вечером",
+      "name": "Никита",
+      "phone": "+84 090000001",
+      "telegram": "@nikita",
+      "address": "",
+      "comment": "",
       "deliveryType": "Самовывоз"
     },
     "items": [
-      {
-        "productId": "product_6732",
-        "name": "Burner Mini 1000W",
-        "category": "Розжиг",
-        "price": 1490,
-        "quantity": 1,
-        "lineTotal": 1490
-      }
+      { "productId": "product_6730", "name": "Уголь кокосовый 1кг", "category": "Уголь", "price": 120000, "quantity": 2, "lineTotal": 240000 }
     ],
-    "subtotal": 1490,
+    "subtotal": 240000,
     "deliveryCost": 0,
-    "total": 1490,
+    "total": 240000,
     "source": "telegram-mini-app"
   },
   {
-    "id": "order-260320-03",
+    "id": "order-1742648400000",
     "status": "new",
-    "createdAt": "2026-03-19T09:05:00.000Z",
-    "updatedAt": "2026-03-19T09:05:00.000Z",
+    "createdAt": "2026-03-21T13:00:00.000Z",
+    "updatedAt": "2026-03-21T13:00:00.000Z",
     "customer": {
-      "name": "Кирилл",
-      "phone": "+7 977 502-00-91",
-      "telegram": "@kiro",
-      "address": "Санкт-Петербург, Невский пр., 52",
-      "comment": "Нужна сдача с 5000",
-      "deliveryType": "Доставка"
+      "name": "Артем",
+      "phone": "+84 090000002",
+      "telegram": "@artem",
+      "address": "",
+      "comment": "",
+      "deliveryType": "Самовывоз"
     },
     "items": [
-      {
-        "productId": "product_6731",
-        "name": "Club Box 120",
-        "category": "Уголь",
-        "price": 1290,
-        "quantity": 1,
-        "lineTotal": 1290
-      }
+      { "productId": "product_6729", "name": "Уголь 1шт", "category": "Уголь", "price": 5000, "quantity": 12, "lineTotal": 60000 },
+      { "productId": "product_6736", "name": "Щипцы pro", "category": "Прочее", "price": 45000, "quantity": 1, "lineTotal": 45000 }
     ],
-    "subtotal": 1290,
-    "deliveryCost": 290,
-    "total": 1580,
-    "source": "web"
-  },
-  {
-    "id": "order-260320-04",
-    "status": "delivering",
-    "createdAt": "2026-03-20T20:19:00.000Z",
-    "updatedAt": "2026-03-20T20:45:00.000Z",
-    "customer": {
-      "name": "Илья",
-      "phone": "+7 905 301-22-90",
-      "telegram": "@ilya_hookah",
-      "address": "Казань, ул. Спартаковская, 2",
-      "comment": "Без звонка, написать в TG",
-      "deliveryType": "Доставка"
-    },
-    "items": [
-      {
-        "productId": "product_6730",
-        "name": "Classic Cube 54",
-        "category": "Уголь",
-        "price": 520,
-        "quantity": 3,
-        "lineTotal": 1560
-      },
-      {
-        "productId": "product_6733",
-        "name": "Quick Start Tabs",
-        "category": "Розжиг",
-        "price": 350,
-        "quantity": 1,
-        "lineTotal": 350
-      }
-    ],
-    "subtotal": 1910,
-    "deliveryCost": 290,
-    "total": 2200,
+    "subtotal": 105000,
+    "deliveryCost": 0,
+    "total": 105000,
     "source": "telegram-mini-app"
   },
   {
-    "id": "order-260320-05",
-    "status": "done",
-    "createdAt": "2026-03-21T12:31:00.000Z",
-    "updatedAt": "2026-03-21T13:21:00.000Z",
+    "id": "order-1742734800000",
+    "status": "confirmed",
+    "createdAt": "2026-03-22T13:00:00.000Z",
+    "updatedAt": "2026-03-22T13:15:00.000Z",
     "customer": {
-      "name": "Марина",
-      "phone": "+7 916 444-91-91",
-      "telegram": "@mari_n",
-      "address": "Краснодар, ул. Красная, 88",
-      "comment": "Оставить у консьержа",
-      "deliveryType": "Доставка"
+      "name": "Макс",
+      "phone": "+84 090000003",
+      "telegram": "@max",
+      "address": "",
+      "comment": "",
+      "deliveryType": "Самовывоз"
     },
     "items": [
-      {
-        "productId": "product_6729",
-        "name": "Premium Coconut 72",
-        "category": "Уголь",
-        "price": 690,
-        "quantity": 1,
-        "lineTotal": 690
-      },
-      {
-        "productId": "product_6732",
-        "name": "Burner Mini 1000W",
-        "category": "Розжиг",
-        "price": 1490,
-        "quantity": 1,
-        "lineTotal": 1490
-      }
+      { "productId": "product_6734", "name": "Кальян mini black", "category": "Кальяны", "price": 890000, "quantity": 1, "lineTotal": 890000 }
     ],
-    "subtotal": 2180,
-    "deliveryCost": 290,
-    "total": 2470,
+    "subtotal": 890000,
+    "deliveryCost": 0,
+    "total": 890000,
     "source": "telegram-mini-app"
   }
 ]

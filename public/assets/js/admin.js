@@ -1,45 +1,45 @@
 const state = {
   token: localStorage.getItem('stav-ugolki-admin-token') || '',
-  username: localStorage.getItem('stav-ugolki-admin-user') || 'owner',
-  currentTab: 'dashboard',
+  currentTab: 'products',
+  categories: ['Уголь', 'Табак', 'Кальяны', 'Прочее'],
   products: [],
+  banners: [],
   orders: [],
   settings: {},
   analytics: null,
   statusMap: {},
-  editingProductId: null,
-  productQuery: '',
-  orderFilter: 'all'
+  editingProductId: '',
+  editingBannerId: '',
+  productQuery: ''
 };
 
 const els = {
-  loginView: document.getElementById('loginView'),
+  loginScreen: document.getElementById('loginScreen'),
   adminApp: document.getElementById('adminApp'),
   loginForm: document.getElementById('loginForm'),
   loginNotice: document.getElementById('loginNotice'),
-  adminUserBadge: document.getElementById('adminUserBadge'),
-  logoutButton: document.getElementById('logoutButton'),
-  navButtons: Array.from(document.querySelectorAll('.nav-button')),
-  panelSections: Array.from(document.querySelectorAll('.panel-section')),
   refreshButton: document.getElementById('refreshButton'),
-  dashboardMetrics: document.getElementById('dashboardMetrics'),
-  dashboardRevenueBars: document.getElementById('dashboardRevenueBars'),
-  dashboardRecentOrders: document.getElementById('dashboardRecentOrders'),
-  lowStockList: document.getElementById('lowStockList'),
-  sourceBreakdown: document.getElementById('sourceBreakdown'),
+  logoutButton: document.getElementById('logoutButton'),
+  tabButtons: Array.from(document.querySelectorAll('[data-tab]')),
+  panels: Array.from(document.querySelectorAll('[data-panel]')),
   productSearchInput: document.getElementById('productSearchInput'),
-  newProductButton: document.getElementById('newProductButton'),
-  adminProductList: document.getElementById('adminProductList'),
+  productList: document.getElementById('productList'),
   productForm: document.getElementById('productForm'),
-  productEditorTitle: document.getElementById('productEditorTitle'),
   productNotice: document.getElementById('productNotice'),
+  newProductButton: document.getElementById('newProductButton'),
   deleteProductButton: document.getElementById('deleteProductButton'),
   resetProductButton: document.getElementById('resetProductButton'),
-  orderFilterSelect: document.getElementById('orderFilterSelect'),
+  bannerList: document.getElementById('bannerList'),
+  bannerForm: document.getElementById('bannerForm'),
+  bannerNotice: document.getElementById('bannerNotice'),
+  newBannerButton: document.getElementById('newBannerButton'),
+  deleteBannerButton: document.getElementById('deleteBannerButton'),
+  resetBannerButton: document.getElementById('resetBannerButton'),
+  bannerPreview: document.getElementById('bannerPreview'),
   ordersList: document.getElementById('ordersList'),
+  statsGrid: document.getElementById('statsGrid'),
   topProductsList: document.getElementById('topProductsList'),
   categoryRevenueList: document.getElementById('categoryRevenueList'),
-  statusCards: document.getElementById('statusCards'),
   settingsForm: document.getElementById('settingsForm'),
   settingsNotice: document.getElementById('settingsNotice')
 };
@@ -53,61 +53,36 @@ function escapeHtml(value) {
 }
 
 function formatPrice(value) {
-  const currency = state.settings?.currency || '₽';
+  const currency = state.settings?.currency || 'VND';
   return `${Number(value || 0).toLocaleString('ru-RU')} ${currency}`;
 }
 
 async function fetchJson(url, options = {}, auth = true) {
   const headers = { ...(options.headers || {}) };
-  if (auth && state.token) {
-    headers.Authorization = `Bearer ${state.token}`;
-  }
+  if (auth && state.token) headers.Authorization = `Bearer ${state.token}`;
   const response = await fetch(url, { ...options, headers });
   const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Ошибка запроса');
-  }
+  if (!response.ok) throw new Error(data.error || 'Ошибка');
   return data;
 }
 
-function setLoginNotice(message, type) {
-  els.loginNotice.textContent = message;
-  els.loginNotice.className = 'notice';
-  if (message && type) {
-    els.loginNotice.classList.add(type);
-  }
+function setNotice(element, message = '', type = '') {
+  element.textContent = message;
+  element.className = 'notice';
+  if (type) element.classList.add(type);
 }
 
-function setProductNotice(message, type) {
-  els.productNotice.textContent = message;
-  els.productNotice.className = 'notice';
-  if (message && type) {
-    els.productNotice.classList.add(type);
-  }
-}
-
-function setSettingsNotice(message, type) {
-  els.settingsNotice.textContent = message;
-  els.settingsNotice.className = 'notice';
-  if (message && type) {
-    els.settingsNotice.classList.add(type);
-  }
-}
-
-function saveAuth(token, username) {
+function saveToken(token) {
   state.token = token;
-  state.username = username;
   localStorage.setItem('stav-ugolki-admin-token', token);
-  localStorage.setItem('stav-ugolki-admin-user', username);
 }
 
-function clearAuth() {
+function clearToken() {
   state.token = '';
   localStorage.removeItem('stav-ugolki-admin-token');
-  localStorage.removeItem('stav-ugolki-admin-user');
 }
 
-async function handleLogin(event) {
+async function login(event) {
   event.preventDefault();
   const formData = new FormData(els.loginForm);
   try {
@@ -116,219 +91,97 @@ async function handleLogin(event) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.fromEntries(formData.entries()))
     }, false);
-    saveAuth(result.token, result.username);
-    state.username = result.username;
-    await bootstrapAdmin();
+    saveToken(result.token);
+    await bootstrap();
   } catch (error) {
-    setLoginNotice(error.message, 'error');
+    setNotice(els.loginNotice, error.message, 'error');
   }
 }
 
-async function bootstrapAdmin() {
+async function bootstrap() {
   try {
     const payload = await fetchJson('/api/admin/bootstrap');
     state.products = payload.products || [];
+    state.banners = payload.banners || [];
     state.orders = payload.orders || [];
     state.settings = payload.settings || {};
     state.analytics = payload.analytics || null;
     state.statusMap = payload.statusMap || {};
-    els.adminUserBadge.textContent = state.username;
-    els.loginView.classList.add('hidden');
+    state.categories = payload.categories || state.categories;
+    fillSettingsForm();
+    renderTabs();
+    renderProducts();
+    renderBanners();
+    renderOrders();
+    renderAnalytics();
+    resetProductForm();
+    resetBannerForm();
+    els.loginScreen.classList.add('hidden');
     els.adminApp.classList.remove('hidden');
-    renderAll();
   } catch (error) {
-    clearAuth();
+    clearToken();
     els.adminApp.classList.add('hidden');
-    els.loginView.classList.remove('hidden');
-    setLoginNotice(error.message, 'error');
+    els.loginScreen.classList.remove('hidden');
+    setNotice(els.loginNotice, error.message, 'error');
   }
 }
 
-function renderAll() {
-  renderNav();
-  renderDashboard();
-  renderProducts();
-  renderOrders();
-  renderAnalytics();
-  fillSettingsForm();
-  updateProductEditor();
-}
-
-function renderNav() {
-  els.navButtons.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.tab === state.currentTab);
-  });
-  els.panelSections.forEach((section) => {
-    section.classList.toggle('hidden', section.dataset.panel !== state.currentTab);
-  });
-}
-
-function renderDashboard() {
-  const analytics = state.analytics;
-  if (!analytics) return;
-  const metrics = [
-    { label: 'Выручка', value: analytics.metrics.revenueLabel },
-    { label: 'Средний чек', value: analytics.metrics.averageCheckLabel },
-    { label: 'Заказы', value: String(analytics.metrics.orders) },
-    { label: 'Новые заказы', value: String(analytics.metrics.newOrders) },
-    { label: 'Товары', value: String(analytics.metrics.products) },
-    { label: 'Хиты', value: String(analytics.metrics.featuredProducts) },
-    { label: 'Низкий остаток', value: String(analytics.metrics.lowStock) },
-    { label: 'Завершено', value: String(analytics.metrics.doneOrders) }
-  ];
-
-  els.dashboardMetrics.innerHTML = metrics
-    .map((item) => `
-      <article class="metric-card">
-        <span class="muted-text">${escapeHtml(item.label)}</span>
-        <strong>${escapeHtml(item.value)}</strong>
-      </article>
-    `)
-    .join('');
-
-  const dailyRevenue = analytics.dailyRevenue || [];
-  const maxRevenue = Math.max(...dailyRevenue.map((item) => item.revenue), 1);
-  els.dashboardRevenueBars.innerHTML = dailyRevenue
-    .map((item) => {
-      const height = Math.max(8, Math.round((item.revenue / maxRevenue) * 170));
-      return `
-        <div class="chart-bar-item">
-          <div class="chart-bar" style="height:${height}px"></div>
-          <div class="chart-bar-label">${escapeHtml(item.label)}</div>
-        </div>
-      `;
-    })
-    .join('');
-
-  els.dashboardRecentOrders.innerHTML = (analytics.recentOrders || [])
-    .map((order) => `
-      <article class="stack-item">
-        <div class="stack-item-head">
-          <div>
-            <strong>${escapeHtml(order.id)}</strong>
-            <p>${escapeHtml(order.customer?.name || 'Клиент')}</p>
-          </div>
-          <span class="order-status-pill">${escapeHtml(state.statusMap[order.status] || order.status)}</span>
-        </div>
-        <p>${formatPrice(order.total)} · ${new Date(order.createdAt).toLocaleString('ru-RU')}</p>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Заказов пока нет</div>';
-
-  els.lowStockList.innerHTML = (analytics.lowStockProducts || [])
-    .map((product) => `
-      <article class="stack-item">
-        <div class="stack-item-head">
-          <div>
-            <strong>${escapeHtml(product.name)}</strong>
-            <p>${escapeHtml(product.category || '')}</p>
-          </div>
-          <span class="order-status-pill">${Number(product.stockCount || 0)} ${escapeHtml(product.unit || 'шт.')}</span>
-        </div>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Все остатки в норме</div>';
-
-  const totalSources = (analytics.sources || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
-  els.sourceBreakdown.innerHTML = (analytics.sources || [])
-    .map((source) => {
-      const percent = totalSources ? Math.round((Number(source.value || 0) / totalSources) * 100) : 0;
-      return `
-        <article class="source-item">
-          <strong>${escapeHtml(source.name)}</strong>
-          <span>${percent}%</span>
-          <div class="source-track"><div class="source-fill" style="width:${percent}%"></div></div>
-        </article>
-      `;
-    })
-    .join('') || '<div class="muted-text">Источники появятся после заказов</div>';
+function renderTabs() {
+  els.tabButtons.forEach((button) => button.classList.toggle('is-active', button.dataset.tab === state.currentTab));
+  els.panels.forEach((panel) => panel.classList.toggle('hidden', panel.dataset.panel !== state.currentTab));
 }
 
 function getFilteredProducts() {
-  const query = state.productQuery.trim().toLowerCase();
+  const q = state.productQuery.trim().toLowerCase();
   return [...state.products]
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'))
-    .filter((product) => {
-      if (!query) return true;
-      const haystack = [product.name, product.subtitle, product.category, product.brand, ...(product.tags || [])]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-}
-
-function resetProductForm() {
-  state.editingProductId = null;
-  els.productForm.reset();
-  els.productForm.elements.id.value = '';
-  els.productForm.elements.inStock.checked = true;
-  els.productForm.elements.featured.checked = false;
-  els.productEditorTitle.textContent = 'Новый товар';
-  setProductNotice('', '');
-  renderProducts();
-}
-
-function updateProductEditor() {
-  const product = state.products.find((item) => item.id === state.editingProductId);
-  if (!product) {
-    resetProductForm();
-    return;
-  }
-
-  els.productEditorTitle.textContent = `Редактирование: ${product.name}`;
-  const form = els.productForm;
-  form.elements.id.value = product.id || '';
-  form.elements.name.value = product.name || '';
-  form.elements.subtitle.value = product.subtitle || '';
-  form.elements.category.value = product.category || '';
-  form.elements.brand.value = product.brand || '';
-  form.elements.price.value = product.price || 0;
-  form.elements.oldPrice.value = product.oldPrice || 0;
-  form.elements.stockCount.value = product.stockCount || 0;
-  form.elements.unit.value = product.unit || '';
-  form.elements.badge.value = product.badge || '';
-  form.elements.rating.value = product.rating || 4.8;
-  form.elements.pack.value = product.pack || '';
-  form.elements.heat.value = product.heat || '';
-  form.elements.image.value = product.image || '';
-  form.elements.slug.value = product.slug || '';
-  form.elements.deepLink.value = product.deepLink || '';
-  form.elements.tags.value = Array.isArray(product.tags) ? product.tags.join(', ') : '';
-  form.elements.description.value = product.description || '';
-  form.elements.inStock.checked = Boolean(product.inStock);
-  form.elements.featured.checked = Boolean(product.featured);
-  setProductNotice('', '');
-}
-
-function selectProduct(productId) {
-  state.editingProductId = productId;
-  updateProductEditor();
-  renderProducts();
+    .filter((product) => !q || [product.name, product.category, product.deepLink, product.slug].join(' ').toLowerCase().includes(q));
 }
 
 function renderProducts() {
   const items = getFilteredProducts();
-  els.adminProductList.innerHTML = items
-    .map((product) => `
-      <article class="product-admin-item ${state.editingProductId === product.id ? 'is-active' : ''}" data-product-id="${product.id}">
-        <div class="product-admin-head">
-          <div>
-            <strong>${escapeHtml(product.name)}</strong>
-            <div class="muted-text">${escapeHtml(product.category || '')} · ${formatPrice(product.price)}</div>
-          </div>
-          <span class="admin-chip">${product.inStock ? `Остаток ${Number(product.stockCount || 0)}` : 'Нет в наличии'}</span>
-        </div>
-        <div class="detail-pills">
-          ${product.featured ? '<span class="tag-pill">Хит</span>' : ''}
-          ${product.badge ? `<span class="tag-pill">${escapeHtml(product.badge)}</span>` : ''}
-          ${product.deepLink ? `<span class="tag-pill">${escapeHtml(product.deepLink)}</span>` : ''}
-        </div>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Товары не найдены</div>';
+  els.productList.innerHTML = items.map((product) => `
+    <button class="item-card ${product.id === state.editingProductId ? 'is-active' : ''}" type="button" data-edit-product="${product.id}">
+      <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" />
+      <div>
+        <div class="item-card-title">${escapeHtml(product.name)}</div>
+        <div class="item-card-subtitle">${escapeHtml(product.category)}</div>
+      </div>
+      <div class="item-card-price">${formatPrice(product.price)}</div>
+    </button>
+  `).join('');
 }
 
-async function handleProductSubmit(event) {
+function resetProductForm() {
+  state.editingProductId = '';
+  els.productForm.reset();
+  els.productForm.elements.id.value = '';
+  els.productForm.elements.category.value = state.categories[0] || 'Уголь';
+  els.productForm.elements.inStock.checked = true;
+  els.productForm.elements.featured.checked = false;
+  setNotice(els.productNotice, '');
+  renderProducts();
+}
+
+function fillProductForm(product) {
+  state.editingProductId = product.id;
+  const form = els.productForm;
+  form.elements.id.value = product.id || '';
+  form.elements.name.value = product.name || '';
+  form.elements.category.value = product.category || 'Прочее';
+  form.elements.price.value = product.price || 0;
+  form.elements.image.value = product.image || '';
+  form.elements.deepLink.value = product.deepLink || '';
+  form.elements.slug.value = product.slug || '';
+  form.elements.stockCount.value = product.stockCount || 0;
+  form.elements.unit.value = product.unit || '';
+  form.elements.description.value = product.description || '';
+  form.elements.inStock.checked = Boolean(product.inStock);
+  form.elements.featured.checked = Boolean(product.featured);
+  renderProducts();
+}
+
+async function saveProduct(event) {
   event.preventDefault();
   const formData = new FormData(els.productForm);
   const payload = Object.fromEntries(formData.entries());
@@ -339,234 +192,248 @@ async function handleProductSubmit(event) {
     let result;
     if (state.editingProductId) {
       result = await fetchJson(`/api/admin/products/${state.editingProductId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       state.products = state.products.map((item) => item.id === result.id ? result : item);
-      setProductNotice('Товар сохранен', 'success');
     } else {
       result = await fetchJson('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
       });
       state.products.unshift(result);
       state.editingProductId = result.id;
-      setProductNotice('Товар создан', 'success');
     }
-    refreshAnalytics();
+    fillProductForm(result);
     renderProducts();
-    updateProductEditor();
+    setNotice(els.productNotice, 'Сохранено', 'success');
+    await refreshAnalytics();
   } catch (error) {
-    setProductNotice(error.message, 'error');
+    setNotice(els.productNotice, error.message, 'error');
   }
 }
 
-async function handleDeleteProduct() {
-  if (!state.editingProductId) {
-    setProductNotice('Сначала выберите товар', 'error');
-    return;
-  }
-  if (!window.confirm('Удалить выбранный товар?')) return;
-
+async function deleteProduct() {
+  if (!state.editingProductId) return;
   try {
     await fetchJson(`/api/admin/products/${state.editingProductId}`, { method: 'DELETE' });
     state.products = state.products.filter((item) => item.id !== state.editingProductId);
     resetProductForm();
-    refreshAnalytics();
-    renderProducts();
-    setProductNotice('Товар удален', 'success');
+    await refreshAnalytics();
   } catch (error) {
-    setProductNotice(error.message, 'error');
+    setNotice(els.productNotice, error.message, 'error');
   }
 }
 
-function getFilteredOrders() {
-  return state.orders.filter((order) => state.orderFilter === 'all' || order.status === state.orderFilter);
+function renderBanners() {
+  const items = [...state.banners].sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+  els.bannerList.innerHTML = items.map((banner) => `
+    <button class="item-card ${banner.id === state.editingBannerId ? 'is-active' : ''}" type="button" data-edit-banner="${banner.id}">
+      <img src="${escapeHtml(banner.image)}" alt="Баннер" />
+      <div>
+        <div class="item-card-title">${escapeHtml(banner.id)}</div>
+        <div class="item-card-subtitle">${banner.active ? 'Активен' : 'Скрыт'}</div>
+      </div>
+      <div class="item-card-price">${Number(banner.sortOrder || 0)}</div>
+    </button>
+  `).join('');
+}
+
+function resetBannerForm() {
+  state.editingBannerId = '';
+  els.bannerForm.reset();
+  els.bannerForm.elements.id.value = '';
+  els.bannerForm.elements.active.checked = true;
+  els.bannerPreview.removeAttribute('src');
+  setNotice(els.bannerNotice, '');
+  renderBanners();
+}
+
+function fillBannerForm(banner) {
+  state.editingBannerId = banner.id;
+  const form = els.bannerForm;
+  form.elements.id.value = banner.id || '';
+  form.elements.image.value = banner.image || '';
+  form.elements.link.value = banner.link || '';
+  form.elements.sortOrder.value = banner.sortOrder || 0;
+  form.elements.active.checked = Boolean(banner.active);
+  els.bannerPreview.src = banner.image || '';
+  renderBanners();
+}
+
+async function saveBanner(event) {
+  event.preventDefault();
+  const formData = new FormData(els.bannerForm);
+  const payload = Object.fromEntries(formData.entries());
+  payload.active = els.bannerForm.elements.active.checked;
+
+  try {
+    let result;
+    if (state.editingBannerId) {
+      result = await fetchJson(`/api/admin/banners/${state.editingBannerId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      state.banners = state.banners.map((item) => item.id === result.id ? result : item);
+    } else {
+      result = await fetchJson('/api/admin/banners', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      state.banners.unshift(result);
+      state.editingBannerId = result.id;
+    }
+    fillBannerForm(result);
+    renderBanners();
+    setNotice(els.bannerNotice, 'Сохранено', 'success');
+    await refreshAnalytics();
+  } catch (error) {
+    setNotice(els.bannerNotice, error.message, 'error');
+  }
+}
+
+async function deleteBanner() {
+  if (!state.editingBannerId) return;
+  try {
+    await fetchJson(`/api/admin/banners/${state.editingBannerId}`, { method: 'DELETE' });
+    state.banners = state.banners.filter((item) => item.id !== state.editingBannerId);
+    resetBannerForm();
+    await refreshAnalytics();
+  } catch (error) {
+    setNotice(els.bannerNotice, error.message, 'error');
+  }
 }
 
 function renderOrders() {
-  const orders = getFilteredOrders();
-  els.ordersList.innerHTML = orders
-    .map((order) => `
-      <article class="order-card">
-        <div class="order-card-head">
-          <div>
-            <h3>${escapeHtml(order.id)}</h3>
-            <div class="muted-text">${escapeHtml(order.customer?.name || 'Клиент')} · ${escapeHtml(order.customer?.phone || '')}</div>
-          </div>
-          <span class="order-status-pill">${escapeHtml(state.statusMap[order.status] || order.status)}</span>
-        </div>
-
-        <p class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')} · ${escapeHtml(order.customer?.deliveryType || 'Доставка')}</p>
-        <p>${escapeHtml(order.customer?.address || 'Адрес не указан')}</p>
-
-        <ul class="order-items-list">
-          ${(order.items || [])
-            .map((item) => `<li>${escapeHtml(item.name)} × ${Number(item.quantity || 0)} — ${formatPrice(item.lineTotal || 0)}</li>`)
-            .join('')}
-        </ul>
-
-        <div class="order-actions">
-          <strong>${formatPrice(order.total)}</strong>
-          <select class="field" data-order-status="${order.id}">
-            ${Object.entries(state.statusMap)
-              .map(([value, label]) => `<option value="${value}" ${order.status === value ? 'selected' : ''}>${escapeHtml(label)}</option>`)
-              .join('')}
-          </select>
-        </div>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Нет заказов под выбранный фильтр</div>';
-}
-
-async function handleOrderStatusChange(orderId, status) {
-  try {
-    const updated = await fetchJson(`/api/admin/orders/${orderId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    state.orders = state.orders.map((order) => order.id === updated.id ? updated : order);
-    await refreshAnalytics();
-    renderOrders();
-    renderDashboard();
-    renderAnalytics();
-  } catch (error) {
-    window.alert(error.message);
-  }
+  els.ordersList.innerHTML = state.orders.map((order) => `
+    <div class="item-card">
+      <div>
+        <div class="item-card-title">${escapeHtml(order.id)}</div>
+        <div class="item-card-subtitle">${escapeHtml(order.customer?.name || '')} · ${formatPrice(order.total)}</div>
+      </div>
+      <select class="status-select" data-order-id="${order.id}">
+        ${Object.entries(state.statusMap).map(([value, label]) => `<option value="${value}" ${order.status === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+      </select>
+    </div>
+  `).join('');
 }
 
 function renderAnalytics() {
   const analytics = state.analytics;
   if (!analytics) return;
+  const stats = [
+    ['Выручка', analytics.metrics.revenueLabel],
+    ['Средний чек', analytics.metrics.averageCheckLabel],
+    ['Заказы', String(analytics.metrics.orders || 0)],
+    ['Товары', String(analytics.metrics.products || 0)],
+    ['Баннеры', String(analytics.metrics.banners || 0)]
+  ];
 
-  els.topProductsList.innerHTML = (analytics.topProducts || [])
-    .map((item) => `
-      <article class="stack-item">
-        <div class="stack-item-head">
-          <div>
-            <strong>${escapeHtml(item.name)}</strong>
-            <p>${Number(item.quantity || 0)} ${Number(item.quantity || 0) === 1 ? 'ед.' : 'ед.'}</p>
-          </div>
-          <strong>${formatPrice(item.revenue || 0)}</strong>
-        </div>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Статистика появится после заказов</div>';
+  els.statsGrid.innerHTML = stats.map(([label, value]) => `
+    <div class="stat-card">
+      <div class="stat-card-label">${escapeHtml(label)}</div>
+      <div class="stat-card-value">${escapeHtml(value)}</div>
+    </div>
+  `).join('');
 
-  els.categoryRevenueList.innerHTML = (analytics.categoryRevenue || [])
-    .map((item) => `
-      <article class="stack-item">
-        <div class="stack-item-head">
-          <div>
-            <strong>${escapeHtml(item.name)}</strong>
-            <p>${Number(item.quantity || 0)} продано</p>
-          </div>
-          <strong>${formatPrice(item.revenue || 0)}</strong>
-        </div>
-      </article>
-    `)
-    .join('') || '<div class="muted-text">Пока нет данных</div>';
+  els.topProductsList.innerHTML = (analytics.topProducts || []).map((item) => `
+    <div class="metric-line"><strong>${escapeHtml(item.name)}</strong><span>${formatPrice(item.revenue)}</span></div>
+  `).join('') || '<div class="item-card-subtitle">Пока нет данных</div>';
 
-  els.statusCards.innerHTML = Object.entries(analytics.statusCounts || {})
-    .map(([status, count]) => `
-      <article class="status-card">
-        <span class="muted-text">${escapeHtml(state.statusMap[status] || status)}</span>
-        <strong>${Number(count || 0)}</strong>
-      </article>
-    `)
-    .join('');
+  els.categoryRevenueList.innerHTML = (analytics.categoryRevenue || []).map((item) => `
+    <div class="metric-line"><strong>${escapeHtml(item.name)}</strong><span>${formatPrice(item.revenue)}</span></div>
+  `).join('') || '<div class="item-card-subtitle">Пока нет данных</div>';
 }
 
 function fillSettingsForm() {
-  const form = els.settingsForm;
   Object.entries(state.settings || {}).forEach(([key, value]) => {
-    if (!form.elements[key]) return;
-    if (Array.isArray(value)) {
-      form.elements[key].value = value.join(', ');
-    } else {
-      form.elements[key].value = value ?? '';
+    if (els.settingsForm.elements[key]) {
+      els.settingsForm.elements[key].value = value ?? '';
     }
   });
 }
 
-async function handleSettingsSubmit(event) {
+async function saveSettings(event) {
   event.preventDefault();
   const payload = Object.fromEntries(new FormData(els.settingsForm).entries());
-
   try {
-    const result = await fetchJson('/api/admin/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    state.settings = await fetchJson('/api/admin/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
-    state.settings = result;
-    await refreshAnalytics();
     fillSettingsForm();
-    setSettingsNotice('Настройки сохранены', 'success');
+    setNotice(els.settingsNotice, 'Сохранено', 'success');
+    await refreshAnalytics();
   } catch (error) {
-    setSettingsNotice(error.message, 'error');
+    setNotice(els.settingsNotice, error.message, 'error');
+  }
+}
+
+async function updateOrderStatus(orderId, status) {
+  try {
+    const result = await fetchJson(`/api/admin/orders/${orderId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
+    });
+    state.orders = state.orders.map((item) => item.id === result.id ? result : item);
+    renderOrders();
+    await refreshAnalytics();
+  } catch (_error) {
+    await bootstrap();
   }
 }
 
 async function refreshAnalytics() {
-  const analytics = await fetchJson('/api/admin/analytics');
-  state.analytics = analytics;
+  state.analytics = await fetchJson('/api/admin/analytics');
+  renderAnalytics();
 }
 
 function bindEvents() {
-  els.loginForm.addEventListener('submit', handleLogin);
+  els.loginForm.addEventListener('submit', login);
+  els.refreshButton.addEventListener('click', bootstrap);
   els.logoutButton.addEventListener('click', () => {
-    clearAuth();
-    window.location.reload();
+    clearToken();
+    location.reload();
   });
 
-  els.navButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      state.currentTab = button.dataset.tab;
-      renderNav();
-    });
-  });
+  els.tabButtons.forEach((button) => button.addEventListener('click', () => {
+    state.currentTab = button.dataset.tab;
+    renderTabs();
+  }));
 
-  els.refreshButton.addEventListener('click', bootstrapAdmin);
-
-  els.productSearchInput.addEventListener('input', (event) => {
-    state.productQuery = event.target.value;
+  els.productSearchInput.addEventListener('input', () => {
+    state.productQuery = els.productSearchInput.value || '';
     renderProducts();
   });
-
+  els.productList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-edit-product]');
+    if (!button) return;
+    const product = state.products.find((item) => item.id === button.dataset.editProduct);
+    if (product) fillProductForm(product);
+  });
   els.newProductButton.addEventListener('click', resetProductForm);
   els.resetProductButton.addEventListener('click', resetProductForm);
-  els.deleteProductButton.addEventListener('click', handleDeleteProduct);
-  els.productForm.addEventListener('submit', handleProductSubmit);
+  els.deleteProductButton.addEventListener('click', deleteProduct);
+  els.productForm.addEventListener('submit', saveProduct);
 
-  els.adminProductList.addEventListener('click', (event) => {
-    const item = event.target.closest('[data-product-id]');
-    if (!item) return;
-    selectProduct(item.dataset.productId);
+  els.bannerList.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-edit-banner]');
+    if (!button) return;
+    const banner = state.banners.find((item) => item.id === button.dataset.editBanner);
+    if (banner) fillBannerForm(banner);
   });
-
-  els.orderFilterSelect.addEventListener('change', (event) => {
-    state.orderFilter = event.target.value;
-    renderOrders();
+  els.newBannerButton.addEventListener('click', resetBannerForm);
+  els.resetBannerButton.addEventListener('click', resetBannerForm);
+  els.deleteBannerButton.addEventListener('click', deleteBanner);
+  els.bannerForm.addEventListener('submit', saveBanner);
+  els.bannerForm.elements.image.addEventListener('input', () => {
+    els.bannerPreview.src = els.bannerForm.elements.image.value || '';
   });
 
   els.ordersList.addEventListener('change', (event) => {
-    const select = event.target.closest('[data-order-status]');
+    const select = event.target.closest('[data-order-id]');
     if (!select) return;
-    handleOrderStatusChange(select.dataset.orderStatus, select.value);
+    updateOrderStatus(select.dataset.orderId, select.value);
   });
 
-  els.settingsForm.addEventListener('submit', handleSettingsSubmit);
+  els.settingsForm.addEventListener('submit', saveSettings);
 }
 
-async function init() {
-  bindEvents();
-  if (state.token) {
-    await bootstrapAdmin();
-  }
+bindEvents();
+if (state.token) {
+  bootstrap();
 }
-
-init();
