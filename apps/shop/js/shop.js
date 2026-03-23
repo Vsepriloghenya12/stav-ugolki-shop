@@ -1,8 +1,8 @@
 (function () {
   const STORAGE_KEYS = {
     likes: 'stav:likes',
-    cart: 'stav:cart:v19',
-    selectedVariants: 'stav:selectedVariants:v19'
+    cart: 'stav:cart:v21',
+    selectedVariants: 'stav:selectedVariants:v21'
   };
 
   const state = {
@@ -586,42 +586,49 @@ function syncBanner(index, offsetPx = 0) {
   }
 
   
+
 function animateToCart(product, sourceNode) {
   const cartTarget = el.navCart?.querySelector?.('.nav-icon') || el.navCart;
   if (!sourceNode || !cartTarget) return;
 
   const sourceRect = sourceNode.getBoundingClientRect();
   const targetRect = cartTarget.getBoundingClientRect();
-  if (sourceRect.width < 16 || sourceRect.height < 16) return;
+  if (sourceRect.width < 12 || sourceRect.height < 12 || targetRect.width < 12 || targetRect.height < 12) return;
 
   const clone = document.createElement('div');
   clone.className = 'fly-clone-media';
+
+  const fromImage = sourceNode.querySelector?.('img, video, .product-fallback, .fallback-art');
+  if (fromImage && fromImage.tagName === 'IMG') {
+    const img = document.createElement('img');
+    img.className = 'fly-clone-image';
+    img.src = fromImage.currentSrc || fromImage.src;
+    img.alt = product?.name || '';
+    clone.appendChild(img);
+  } else if (fromImage && fromImage.tagName === 'VIDEO') {
+    const poster = document.createElement('div');
+    poster.className = 'fly-clone-fallback';
+    poster.textContent = product?.name || '';
+    clone.appendChild(poster);
+  } else if (product?.image) {
+    const img = document.createElement('img');
+    img.className = 'fly-clone-image';
+    img.src = product.image;
+    img.alt = product?.name || '';
+    clone.appendChild(img);
+  } else {
+    const fallback = document.createElement('div');
+    fallback.className = 'fly-clone-fallback';
+    fallback.textContent = product?.name || '';
+    clone.appendChild(fallback);
+  }
+
   clone.style.left = `${sourceRect.left}px`;
   clone.style.top = `${sourceRect.top}px`;
   clone.style.width = `${sourceRect.width}px`;
   clone.style.height = `${sourceRect.height}px`;
-
-  if (product.image) {
-    const kind = mediaKind(product.image);
-    if (kind === 'video') {
-      const fallback = document.createElement('div');
-      fallback.className = 'fly-clone-fallback';
-      fallback.textContent = product.name || '';
-      clone.appendChild(fallback);
-    } else {
-      const image = document.createElement('img');
-      image.className = 'fly-clone-image';
-      image.src = product.image;
-      image.alt = product.name || '';
-      clone.appendChild(image);
-    }
-  } else {
-    const fallback = document.createElement('div');
-    fallback.className = 'fly-clone-fallback';
-    fallback.textContent = product.name || '';
-    clone.appendChild(fallback);
-  }
-
+  clone.style.opacity = '1';
+  clone.style.transform = 'translate3d(0,0,0) scale(1)';
   document.body.appendChild(clone);
 
   const startX = sourceRect.left + sourceRect.width / 2;
@@ -631,7 +638,20 @@ function animateToCart(product, sourceNode) {
   const dx = endX - startX;
   const dy = endY - startY;
   const midX = dx * 0.58;
-  const midY = Math.min(-36, dy * 0.26) - 26;
+  const midY = Math.min(-56, dy * 0.28) - 24;
+  const finalScale = Math.max(0.14, Math.min(0.24, 56 / Math.max(sourceRect.width, sourceRect.height)));
+
+  clone.style.transition = 'transform 760ms cubic-bezier(.18,.86,.2,1), opacity 760ms ease, filter 760ms ease';
+
+  requestAnimationFrame(() => {
+    clone.style.transform = `translate3d(${midX}px, ${midY}px, 0) scale(.62) rotate(-7deg)`;
+    clone.style.filter = 'blur(.15px)';
+    setTimeout(() => {
+      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${finalScale}) rotate(-14deg)`;
+      clone.style.opacity = '.06';
+      clone.style.filter = 'blur(1px)';
+    }, 260);
+  });
 
   const finish = () => {
     clone.remove();
@@ -639,28 +659,7 @@ function animateToCart(product, sourceNode) {
     pulseHaptic('light');
     window.setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
   };
-
-  if (clone.animate) {
-    const anim = clone.animate([
-      { transform: 'translate3d(0,0,0) scale(1)', opacity: 1, filter: 'blur(0px)' },
-      { offset: 0.56, transform: `translate3d(${midX}px, ${midY}px, 0) scale(.58) rotate(-7deg)`, opacity: .96, filter: 'blur(.2px)' },
-      { transform: `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-14deg)`, opacity: .08, filter: 'blur(1px)' }
-    ], {
-      duration: 820,
-      easing: 'cubic-bezier(.16,.88,.18,1)',
-      fill: 'forwards'
-    });
-    anim.onfinish = finish;
-    return;
-  }
-
-  clone.style.transition = 'transform 820ms cubic-bezier(.16,.88,.18,1), opacity 820ms ease, filter 820ms ease';
-  requestAnimationFrame(() => {
-    clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-14deg)`;
-    clone.style.opacity = '.08';
-    clone.style.filter = 'blur(1px)';
-  });
-  window.setTimeout(finish, 840);
+  window.setTimeout(finish, 820);
 }
 
 async function shareProduct(productId) {
