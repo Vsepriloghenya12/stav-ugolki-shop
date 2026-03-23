@@ -282,7 +282,10 @@
         <button class="cart-stepper-button" type="button" data-cart-plus="${productId}" aria-label="Увеличить">+</button>
       </div>`;
     }
-    return `<button class="${isSheet ? 'sheet-add-button' : 'cart-icon-button'}" type="button" data-add-to-cart="${productId}" aria-label="Добавить в корзину">${isSheet ? '' : icon('cart')}</button>`;
+    if (isSheet) {
+      return `<button class="sheet-add-button" type="button" data-add-to-cart="${productId}" aria-label="Добавить в корзину"><span class="mini-icon mini-icon-cart"></span><span class="sheet-add-label">В корзину</span></button>`;
+    }
+    return `<button class="cart-icon-button" type="button" data-add-to-cart="${productId}" aria-label="Добавить в корзину">${icon('cart')}</button>`;
   }
 
   function renderProducts() {
@@ -363,17 +366,22 @@
     state.activeProductId = productId;
     el.productSheetTitle.textContent = product.name;
     el.productSheetBody.innerHTML = `
-      <div class="product-sheet-media product-image-wrap theme-${product.accent || 'coal'}">
-        ${product.image
-          ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
-          : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
-      </div>
-      <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
-      <div class="product-sheet-description">${escapeHtml(product.description || 'Описание пока не заполнено')}</div>
-      <div class="product-sheet-meta">${escapeHtml(product.category)} • остаток ${Number(product.stock || 0)}</div>
-      <div class="product-sheet-price-row">
-        <div class="product-sheet-price">${money(product.price)}</div>
-        ${priceControlHtml(product.id, true)}
+      <div class="product-sheet-card">
+        <div class="product-sheet-media theme-${product.accent || 'coal'}">
+          ${product.image
+            ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
+            : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
+        </div>
+        <div class="product-sheet-content">
+          <div class="product-sheet-name">${escapeHtml(product.name)}</div>
+          <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
+          <div class="product-sheet-description">${escapeHtml(product.description || 'Описание пока не заполнено')}</div>
+          <div class="product-sheet-meta">${escapeHtml(product.category)} • остаток ${Number(product.stock || 0)}</div>
+          <div class="product-sheet-price-row">
+            <div class="product-sheet-price">${money(product.price)}</div>
+            ${priceControlHtml(product.id, true)}
+          </div>
+        </div>
       </div>
     `;
     if (shouldOpen) openSheet(el.productSheet);
