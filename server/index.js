@@ -335,7 +335,7 @@ const server = http.createServer(async (req, res) => {
 
     const staticPath = (pathname === '/shop' || pathname === '/shop/')
       ? '/apps/shop/'
-      : (pathname === '/owner' || pathname === '/owner/')
+      : (pathname === '/owner' || pathname === '/owner/' || pathname === '/admin' || pathname === '/admin/' || pathname === '/admin.html')
         ? '/apps/owner/'
         : pathname;
 

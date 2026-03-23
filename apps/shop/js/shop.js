@@ -123,6 +123,26 @@
     el.sheetBackdrop.classList.add('hidden');
   }
 
+  function cartQty(productId) {
+    const entry = state.cart.find(item => item.id === productId);
+    return entry ? Number(entry.qty || 0) : 0;
+  }
+
+  function setCartQty(productId, qty) {
+    const nextQty = Math.max(0, Number(qty || 0));
+    const index = state.cart.findIndex(item => item.id === productId);
+    if (index === -1 && nextQty > 0) {
+      state.cart.push({ id: productId, qty: nextQty });
+    } else if (index !== -1 && nextQty > 0) {
+      state.cart[index].qty = nextQty;
+    } else if (index !== -1 && nextQty === 0) {
+      state.cart.splice(index, 1);
+    }
+    save(STORAGE_KEYS.cart, state.cart);
+    renderCart();
+    renderProducts();
+  }
+
   function activeProducts() {
     let list = [...state.products];
     if (state.category !== 'all') {
@@ -200,6 +220,14 @@
 
     el.productGrid.innerHTML = products.map(product => {
       const isFavorite = state.favorites.includes(product.id);
+      const qty = cartQty(product.id);
+      const cartControl = qty > 0
+        ? `<div class="cart-stepper" data-cart-stepper="${product.id}">
+            <button class="cart-stepper-button" type="button" data-cart-minus="${product.id}" aria-label="Уменьшить">−</button>
+            <span class="cart-stepper-value">${qty}</span>
+            <button class="cart-stepper-button" type="button" data-cart-plus="${product.id}" aria-label="Увеличить">+</button>
+          </div>`
+        : `<button class="cart-icon-button" type="button" data-add-to-cart="${product.id}" aria-label="Добавить в корзину">${icon('cart')}</button>`;
       return `
         <article class="product-card" data-product-id="${product.id}">
           <div class="product-image-wrap theme-${product.accent || 'coal'}" data-open-product="${product.id}">
@@ -214,7 +242,7 @@
           <div class="product-name">${escapeHtml(product.name)}</div>
           <div class="price-row">
             <div class="product-price">${money(product.price)}</div>
-            <button class="cart-icon-button" type="button" data-add-to-cart="${product.id}">${icon('cart')}</button>
+            ${cartControl}
           </div>
         </article>
       `;
@@ -287,14 +315,7 @@
   }
 
   function addToCart(productId) {
-    const existing = state.cart.find(item => item.id === productId);
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      state.cart.push({ id: productId, qty: 1 });
-    }
-    save(STORAGE_KEYS.cart, state.cart);
-    renderCart();
+    setCartQty(productId, cartQty(productId) + 1);
   }
 
   function animateToCart(sourceNode) {
@@ -421,6 +442,23 @@
       if (favoriteBtn) {
         event.stopPropagation();
         toggleFavorite(favoriteBtn.dataset.favorite);
+        return;
+      }
+
+      const minusBtn = event.target.closest('[data-cart-minus]');
+      if (minusBtn) {
+        event.stopPropagation();
+        setCartQty(minusBtn.dataset.cartMinus, cartQty(minusBtn.dataset.cartMinus) - 1);
+        return;
+      }
+
+      const plusBtn = event.target.closest('[data-cart-plus]');
+      if (plusBtn) {
+        event.stopPropagation();
+        const card = plusBtn.closest('.product-card');
+        const flyNode = card?.querySelector('.product-image-wrap') || card;
+        addToCart(plusBtn.dataset.cartPlus);
+        animateToCart(flyNode);
         return;
       }
 

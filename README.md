@@ -21,6 +21,7 @@ npm start
 
 - магазин: `http://localhost:3000/shop/`
 - владелец: `http://localhost:3000/owner/`
+- также работает короткий адрес: `http://localhost:3000/admin/`
 
 ## Вход владельца
 
