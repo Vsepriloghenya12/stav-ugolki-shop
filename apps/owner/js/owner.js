@@ -96,7 +96,12 @@
   function renderProductsTable() {
     el.productsBody.innerHTML = state.products.map(item => `
       <tr>
-        <td>${escapeHtml(item.name)}</td>
+        <td>
+          <div class="product-mini">
+            ${item.image ? `<img class="product-thumb" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" />` : '<div class="product-thumb"></div>'}
+            <span>${escapeHtml(item.name)}</span>
+          </div>
+        </td>
         <td>${escapeHtml(item.category)}</td>
         <td>${money(item.price)}</td>
         <td>${item.stock}</td>
@@ -115,7 +120,7 @@
       <tr>
         <td>${escapeHtml(item.id)}</td>
         <td>${escapeHtml(item.theme)}</td>
-        <td>${escapeHtml(item.link || '')}</td>
+        <td><span class="banner-link-cut">${escapeHtml(item.link || '')}</span></td>
         <td>${item.active ? 'Да' : 'Нет'}</td>
         <td>
           <div class="table-actions">
@@ -148,6 +153,73 @@
     `).join('');
   }
 
+
+  function mediaPreview(src, alt) {
+    return src
+      ? `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" /></div>`
+      : '<div class="preview-card"><div class="preview-empty">Фото пока не загружено</div></div>';
+  }
+
+  function compressImage(file, maxWidth, maxHeight, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = image;
+          const ratio = Math.min(1, maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(image, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        image.onerror = () => reject(new Error('Не удалось прочитать изображение'));
+        image.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function getProductImagePayload() {
+    const fileInput = el.productForm.querySelector('input[name="imageFile"]');
+    const imageField = el.productForm.querySelector('input[name="image"]');
+    const file = fileInput?.files?.[0];
+    if (file) return compressImage(file, 1200, 1200, 0.82);
+    return imageField?.value || '';
+  }
+
+  async function getBannerImagePayload() {
+    const fileInput = el.bannerForm.querySelector('input[name="imageFile"]');
+    const imageField = el.bannerForm.querySelector('input[name="image"]');
+    const file = fileInput?.files?.[0];
+    if (file) return compressImage(file, 1600, 900, 0.84);
+    return imageField?.value || '';
+  }
+
+  async function updatePreview(form, targetName) {
+    const fileInput = form.querySelector('input[name="imageFile"]');
+    const imageField = form.querySelector('input[name="image"]');
+    const preview = form.querySelector('[data-preview]');
+    if (!preview) return;
+    const file = fileInput?.files?.[0];
+    if (file) {
+      try {
+        const src = await compressImage(file, targetName === 'banner' ? 1600 : 1200, targetName === 'banner' ? 900 : 1200, 0.82);
+        imageField.value = src;
+        preview.innerHTML = mediaPreview(src, targetName === 'banner' ? 'Баннер' : 'Товар');
+      } catch (error) {
+        alert(error.message);
+      }
+      return;
+    }
+    preview.innerHTML = mediaPreview(imageField?.value || '', targetName === 'banner' ? 'Баннер' : 'Товар');
+  }
+
   function productFormTemplate(product = {}) {
     return `
       <input type="hidden" name="id" value="${escapeHtml(product.id || '')}" />
@@ -164,10 +236,16 @@
         <input name="price" type="number" placeholder="Цена" value="${Number(product.price || 0)}" />
         <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
       </div>
-      <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
+      <div class="media-uploader">
+        <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
+        <input class="file-input" name="imageFile" type="file" accept="image/*" />
+        <div class="helper-text">Можно вставить ссылку или загрузить фото с устройства. Загруженное фото автоматически сжимается.</div>
+        <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
+      </div>
       <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
       <div class="form-actions">
         <button class="owner-btn" type="submit">Сохранить</button>
+        <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
       </div>
     `;
   }
@@ -176,7 +254,12 @@
     return `
       <input type="hidden" name="id" value="${escapeHtml(banner.id || '')}" />
       <input name="link" placeholder="Ссылка" value="${escapeHtml(banner.link || '')}" />
-      <input name="image" placeholder="URL изображения" value="${escapeHtml(banner.image || '')}" />
+      <div class="media-uploader">
+        <input name="image" placeholder="URL изображения" value="${escapeHtml(banner.image || '')}" />
+        <input class="file-input" name="imageFile" type="file" accept="image/*" />
+        <div class="helper-text">Для баннера лучше горизонтальное фото. Можно дать ссылку или загрузить файл.</div>
+        <div data-preview>${mediaPreview(banner.image || '', 'Баннер')}</div>
+      </div>
       <div class="form-grid-2">
         <select name="theme">
           ${['ember', 'mint', 'coal'].map(value => `<option value="${value}" ${value === banner.theme ? 'selected' : ''}>${value}</option>`).join('')}
@@ -188,6 +271,7 @@
       </div>
       <div class="form-actions">
         <button class="owner-btn" type="submit">Сохранить</button>
+        <button class="secondary-btn" type="button" data-clear-banner-image>Очистить фото</button>
       </div>
     `;
   }
@@ -308,6 +392,38 @@
       }
     });
 
+    el.productForm.addEventListener('change', async event => {
+      if (event.target.matches('input[name="imageFile"], input[name="image"]')) {
+        await updatePreview(el.productForm, 'product');
+      }
+    });
+
+    el.bannerForm.addEventListener('change', async event => {
+      if (event.target.matches('input[name="imageFile"], input[name="image"]')) {
+        await updatePreview(el.bannerForm, 'banner');
+      }
+    });
+
+    el.productForm.addEventListener('click', event => {
+      const clearBtn = event.target.closest('[data-clear-product-image]');
+      if (!clearBtn) return;
+      const fileInput = el.productForm.querySelector('input[name="imageFile"]');
+      const imageField = el.productForm.querySelector('input[name="image"]');
+      if (fileInput) fileInput.value = '';
+      if (imageField) imageField.value = '';
+      updatePreview(el.productForm, 'product');
+    });
+
+    el.bannerForm.addEventListener('click', event => {
+      const clearBtn = event.target.closest('[data-clear-banner-image]');
+      if (!clearBtn) return;
+      const fileInput = el.bannerForm.querySelector('input[name="imageFile"]');
+      const imageField = el.bannerForm.querySelector('input[name="image"]');
+      if (fileInput) fileInput.value = '';
+      if (imageField) imageField.value = '';
+      updatePreview(el.bannerForm, 'banner');
+    });
+
     el.productForm.addEventListener('submit', async event => {
       event.preventDefault();
       const formData = new FormData(el.productForm);
@@ -318,7 +434,7 @@
         accent: formData.get('accent') || 'ember',
         price: Number(formData.get('price') || 0),
         stock: Number(formData.get('stock') || 0),
-        image: formData.get('image') || '',
+        image: await getProductImagePayload(),
         favorite: formData.get('favorite') === 'on'
       };
       try {
@@ -335,7 +451,7 @@
       const payload = {
         id: formData.get('id') || '',
         link: formData.get('link') || '',
-        image: formData.get('image') || '',
+        image: await getBannerImagePayload(),
         theme: formData.get('theme') || 'ember',
         active: formData.get('active') === 'true'
       };
