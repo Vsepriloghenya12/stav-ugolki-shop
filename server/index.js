@@ -558,10 +558,13 @@ const server = http.createServer(async (req, res) => {
       return await handleApi(req, res, pathname);
     }
 
-    if (pathname === '/' || pathname === '') {
-      res.writeHead(302, { Location: '/shop/' });
-      res.end();
+    if (pathname === '/health' || pathname === '/_health') {
+      sendText(res, 200, 'ok');
       return;
+    }
+
+    if (pathname === '/' || pathname === '') {
+      return serveStatic(res, '/apps/shop/');
     }
 
     const staticPath = (pathname === '/shop' || pathname === '/shop/')
@@ -577,6 +580,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
   console.log(`Ставь Угольки запущен на порту ${port}`);
 });
