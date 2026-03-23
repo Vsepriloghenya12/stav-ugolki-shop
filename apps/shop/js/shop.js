@@ -81,6 +81,22 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  function isPhoneLike() {
+    return window.matchMedia?.('(hover: none), (pointer: coarse)').matches || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  }
+
+  function pulseHaptic(kind = 'light') {
+    if (!isPhoneLike()) return;
+    try {
+      const haptic = window.Telegram?.WebApp?.HapticFeedback;
+      if (haptic?.impactOccurred) {
+        haptic.impactOccurred(kind);
+        return;
+      }
+    } catch {}
+    if (navigator.vibrate) navigator.vibrate(kind === 'medium' ? [18, 22, 18] : [14]);
+  }
+
   function money(value) {
     return `${Number(value || 0).toLocaleString('ru-RU')} VND`;
   }
@@ -174,8 +190,9 @@
     let list = [...state.products];
 
     if (state.view === 'favorites') {
-      list = list.filter(item => state.favorites.includes(item.id));
+      return list.filter(item => state.favorites.includes(item.id));
     }
+
     if (state.filters.category !== 'all') {
       list = list.filter(item => item.category === state.filters.category);
     }
@@ -380,7 +397,7 @@
             </div>
           </div>
           <div class="product-name">${escapeHtml(product.name)}</div>
-          ${product.category === 'табак' ? variantChipsHtml(product) : ''}
+          ${product.category === 'табак' ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
           <div class="price-row">
             <div>
               <div class="product-price">${money(price)}</div>
@@ -506,6 +523,7 @@
   }
 
   function toggleFavorite(productId) {
+    pulseHaptic('light');
     if (state.favorites.includes(productId)) {
       state.favorites = state.favorites.filter(id => id !== productId);
     } else {
@@ -537,11 +555,13 @@
       || sourceNode?.closest?.('[data-open-product]')?.querySelector?.('.product-image-wrap')
       || sourceNode;
 
-    animateToCart(product, flightSource);
-
     const variant = selectedVariantForProduct(product, variantId);
     if (variant) rememberVariant(product.id, variant.id);
-    setCartQty(product, cartQty(product.id, variant?.id || '') + 1, variant);
+    pulseHaptic('medium');
+    animateToCart(product, flightSource);
+    window.setTimeout(() => {
+      setCartQty(product, cartQty(product.id, variant?.id || '') + 1, variant);
+    }, 18);
   }
 
   function animateToCart(product, sourceNode) {
@@ -550,25 +570,21 @@
 
     const sourceRect = sourceNode.getBoundingClientRect();
     const targetRect = cartTarget.getBoundingClientRect();
-    if (sourceRect.width < 28 || sourceRect.height < 28) return;
+    if (sourceRect.width < 24 || sourceRect.height < 24) return;
 
     const clone = document.createElement('div');
-    clone.className = 'fly-clone fly-clone-media';
+    clone.className = 'fly-clone fly-clone-media is-running';
 
-    const sourceImg = sourceNode.querySelector?.('img');
-    if (sourceImg?.src) {
-      clone.innerHTML = `<img class="fly-clone-image" src="${sourceImg.src}" alt="" />`;
-    } else if (product?.image) {
-      clone.innerHTML = `<img class="fly-clone-image" src="${product.image}" alt="" />`;
-    } else {
-      const label = escapeHtml((product?.brand || product?.name || '').slice(0, 18));
-      clone.innerHTML = `<div class="fly-clone-fallback"><span>${label}</span></div>`;
-    }
+    const visual = sourceNode.cloneNode(true);
+    visual.querySelectorAll?.('.product-actions, .mini-action, .sheet-add-button, .cart-stepper, button, .variant-row, .product-sheet-content').forEach(node => node.remove());
+    clone.appendChild(visual);
 
     clone.style.left = `${sourceRect.left}px`;
     clone.style.top = `${sourceRect.top}px`;
     clone.style.width = `${sourceRect.width}px`;
     clone.style.height = `${sourceRect.height}px`;
+    clone.style.opacity = '1';
+    clone.style.transform = 'translate3d(0, 0, 0) scale(1)';
     document.body.appendChild(clone);
 
     const startX = sourceRect.left + sourceRect.width / 2;
@@ -578,58 +594,28 @@
     const dx = endX - startX;
     const dy = endY - startY;
     const arcX = dx * 0.62;
-    const arcY = dy * 0.22 - Math.min(70, Math.abs(dx) * 0.06);
+    const arcY = dy * 0.18 - Math.min(84, Math.abs(dx) * 0.09) - 14;
 
-    if (typeof clone.animate === 'function') {
-      const animation = clone.animate([
-        {
-          transform: 'translate3d(0, 0, 0) scale(1) rotate(0deg)',
-          opacity: 1,
-          filter: 'blur(0px) saturate(1.02)',
-          borderRadius: '18px'
-        },
-        {
-          transform: `translate3d(${arcX}px, ${arcY}px, 0) scale(.78) rotate(-7deg)`,
-          opacity: .96,
-          filter: 'blur(.15px) saturate(1.08)',
-          offset: .56,
-          borderRadius: '20px'
-        },
-        {
-          transform: `translate3d(${dx}px, ${dy}px, 0) scale(.16) rotate(-14deg)`,
-          opacity: .14,
-          filter: 'blur(.9px) saturate(1.18)',
-          borderRadius: '999px'
-        }
-      ], {
-        duration: 820,
-        easing: 'cubic-bezier(.2,.86,.18,1)',
-        fill: 'forwards'
-      });
-
-      animation.finished.catch(() => null).finally(() => {
-        clone.remove();
-        el.navCart.classList.add('cart-pulse');
-        setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
-      });
-      return;
-    }
-
-    clone.style.transition = 'transform 820ms cubic-bezier(.2,.86,.18,1), opacity 820ms ease, filter 820ms ease';
-    clone.style.transform = 'translate3d(0,0,0) scale(1) rotate(0deg)';
-    clone.style.opacity = '1';
-    clone.style.filter = 'blur(0px) saturate(1.02)';
+    clone.getBoundingClientRect();
     requestAnimationFrame(() => {
-      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.16) rotate(-14deg)`;
-      clone.style.opacity = '.14';
-      clone.style.filter = 'blur(.9px) saturate(1.18)';
+      clone.style.transition = 'transform 820ms cubic-bezier(.16,.88,.18,1), opacity 820ms ease, filter 820ms ease';
+      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-13deg)`;
+      clone.style.opacity = '.08';
+      clone.style.filter = 'blur(1px) saturate(1.14)';
       clone.style.borderRadius = '999px';
+      clone.style.setProperty('--fly-mid-x', `${arcX}px`);
+      clone.style.setProperty('--fly-mid-y', `${arcY}px`);
+      clone.style.setProperty('--fly-dx', `${dx}px`);
+      clone.style.setProperty('--fly-dy', `${dy}px`);
+      clone.classList.add('fly-arc');
     });
-    setTimeout(() => {
+
+    window.setTimeout(() => {
       clone.remove();
       el.navCart.classList.add('cart-pulse');
-      setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
-    }, 840);
+      pulseHaptic('light');
+      window.setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
+    }, 860);
   }
 
   async function shareProduct(productId) {
@@ -815,12 +801,14 @@
     el.categoryRow.addEventListener('click', event => {
       const btn = event.target.closest('[data-category]');
       if (!btn) return;
+      pulseHaptic('light');
       setCategory(btn.dataset.category);
     });
 
     el.brandSubfilters.addEventListener('click', event => {
       const btn = event.target.closest('[data-sub-brand]');
       if (!btn) return;
+      pulseHaptic('light');
       state.filters.brand = state.filters.brand === btn.dataset.subBrand ? 'all' : btn.dataset.subBrand;
       renderCategories();
       renderFilterOptions();
@@ -992,8 +980,10 @@
 
     el.navMenu.addEventListener('click', () => openSheet(el.menuSheet, 'menu'));
     el.navFavorites.addEventListener('click', () => {
-      switchView(state.view === 'favorites' ? 'catalog' : 'favorites');
+      pulseHaptic('light');
+      const nextView = state.view === 'favorites' ? 'catalog' : 'favorites';
       closeAllSheets();
+      switchView(nextView);
     });
     el.navCart.addEventListener('click', () => openSheet(el.cartSheet, 'cart'));
     el.navFilters.addEventListener('click', () => openSheet(el.filterSheet, 'filters'));
@@ -1024,8 +1014,11 @@
       renderSupport();
       renderCart();
       renderBottomNav('menu');
+      document.body.classList.toggle('desktop-mode', window.matchMedia('(min-width: 900px)').matches);
+      window.addEventListener('resize', () => document.body.classList.toggle('desktop-mode', window.matchMedia('(min-width: 900px)').matches));
       startBannerAutoplay();
       handleStartApp();
+      window.setTimeout(() => pulseHaptic('light'), 180);
     } catch (error) {
       el.productGrid.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
     }
