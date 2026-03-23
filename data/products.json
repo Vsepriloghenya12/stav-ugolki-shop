@@ -11,8 +11,16 @@
     "image": "",
     "accent": "tiffany",
     "variants": [
-      { "id": "bb-25", "label": "25 г", "price": 65000 },
-      { "id": "bb-100", "label": "100 г", "price": 220000 }
+      {
+        "id": "bb-25",
+        "label": "25 г",
+        "price": 65000
+      },
+      {
+        "id": "bb-100",
+        "label": "100 г",
+        "price": 220000
+      }
     ]
   },
   {
@@ -27,8 +35,16 @@
     "image": "",
     "accent": "tiffany",
     "variants": [
-      { "id": "bbi-25", "label": "25 г", "price": 68000 },
-      { "id": "bbi-100", "label": "100 г", "price": 228000 }
+      {
+        "id": "bbi-25",
+        "label": "25 г",
+        "price": 68000
+      },
+      {
+        "id": "bbi-100",
+        "label": "100 г",
+        "price": 228000
+      }
     ]
   },
   {
@@ -43,8 +59,16 @@
     "image": "",
     "accent": "coal",
     "variants": [
-      { "id": "ds-30", "label": "30 г", "price": 72000 },
-      { "id": "ds-120", "label": "120 г", "price": 250000 }
+      {
+        "id": "ds-30",
+        "label": "30 г",
+        "price": 72000
+      },
+      {
+        "id": "ds-120",
+        "label": "120 г",
+        "price": 250000
+      }
     ]
   },
   {
@@ -57,7 +81,19 @@
     "favorite": false,
     "stock": 48,
     "image": "",
-    "accent": "ember"
+    "accent": "ember",
+    "variants": [
+      {
+        "id": "prod-char-001-05",
+        "label": "0.5 кг",
+        "price": 69600
+      },
+      {
+        "id": "prod-char-001-10",
+        "label": "1 кг",
+        "price": 120000
+      }
+    ]
   },
   {
     "id": "prod-char-002",
@@ -69,7 +105,19 @@
     "favorite": true,
     "stock": 67,
     "image": "",
-    "accent": "coal"
+    "accent": "coal",
+    "variants": [
+      {
+        "id": "prod-char-002-05",
+        "label": "0.5 кг",
+        "price": 65000
+      },
+      {
+        "id": "prod-char-002-10",
+        "label": "1 кг",
+        "price": 120250
+      }
+    ]
   },
   {
     "id": "prod-hook-001",

@@ -1,8 +1,8 @@
 (function () {
   const STORAGE_KEYS = {
     likes: 'stav:likes',
-    cart: 'stav:cart:v16',
-    selectedVariants: 'stav:selectedVariants:v16'
+    cart: 'stav:cart:v19',
+    selectedVariants: 'stav:selectedVariants:v19'
   };
 
   const state = {
@@ -101,15 +101,28 @@
     return `${Number(value || 0).toLocaleString('ru-RU')} VND`;
   }
 
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;');
-  }
+  
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
 
-  function categories() {
+function mediaKind(src = '') {
+  const value = String(src || '').toLowerCase();
+  if (value.startsWith('data:video/') || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(value)) return 'video';
+  if (value.startsWith('data:image/gif') || /\.gif(\?|$)/i.test(value)) return 'gif';
+  return 'image';
+}
+
+function productSupportsVariants(product) {
+  return ['табак', 'уголь'].includes(product.category) && Array.isArray(product.variants) && product.variants.length > 0;
+}
+
+function categories() {
+
     return [
       { value: 'all', label: 'Все' },
       { value: 'табак', label: 'Табак' },
@@ -281,21 +294,29 @@
     el.priceMaxInput.value = state.filters.priceMax;
   }
 
-  function renderBanners() {
-    const slides = state.banners.length ? state.banners : [{ id: 'fallback', theme: 'tiffany', image: '', title: '', subtitle: '' }];
-    el.bannerTrack.innerHTML = slides.map(item => `
-      <button class="banner-link" type="button" data-banner-id="${item.id}">
-        <div class="banner-card theme-${item.theme || 'tiffany'}">
-          ${item.image ? `<img class="banner-image" src="${item.image}" alt="Баннер" />` : `<div class="banner-art"><span class="banner-glow"></span><span class="banner-glow-2"></span></div>`}
-        </div>
-      </button>
-    `).join('');
+  
+function renderBanners() {
+  const slides = state.banners.length ? state.banners : [{ id: 'fallback', theme: 'tiffany', image: '', title: '', subtitle: '' }];
+  el.bannerTrack.innerHTML = slides.map(item => {
+    const kind = mediaKind(item.image || '');
+    const media = item.image
+      ? (kind === 'video'
+          ? `<video class="banner-video" src="${escapeHtml(item.image)}" autoplay muted loop playsinline preload="metadata"></video>`
+          : `<img class="banner-image" src="${escapeHtml(item.image)}" alt="Баннер" loading="eager" decoding="async" />`)
+      : `<div class="banner-art"><span class="banner-glow"></span><span class="banner-glow-2"></span></div>`;
+    return `
+    <button class="banner-link" type="button" data-banner-id="${item.id}">
+      <div class="banner-card theme-${item.theme || 'tiffany'}">
+        ${media}
+      </div>
+    </button>`;
+  }).join('');
 
-    el.bannerDots.innerHTML = slides.map((_, index) => `<span class="banner-dot ${index === state.activeBanner ? 'is-active' : ''}"></span>`).join('');
-    syncBanner(state.activeBanner);
-  }
+  el.bannerDots.innerHTML = slides.map((_, index) => `<span class="banner-dot ${index === state.activeBanner ? 'is-active' : ''}"></span>`).join('');
+  syncBanner(state.activeBanner);
+}
 
-  function syncBanner(index, offsetPx = 0) {
+function syncBanner(index, offsetPx = 0) {
     const count = Math.max(state.banners.length || 1, 1);
     state.activeBanner = ((index % count) + count) % count;
     const width = el.bannerSection?.clientWidth || 0;
@@ -386,10 +407,10 @@
       const variant = currentVariant(product);
       const price = variant?.price ?? product.price;
       return `
-        <article class="product-card" data-open-product="${product.id}">
+        <article class="product-card" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
           <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
             ${product.image
-              ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
+              ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" />`
               : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
             <div class="product-actions">
               <button class="mini-action" type="button" data-share="${product.id}">${icon('share')}</button>
@@ -397,7 +418,7 @@
             </div>
           </div>
           <div class="product-name">${escapeHtml(product.name)}</div>
-          ${product.category === 'табак' ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
+          ${productSupportsVariants(product) ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
           <div class="price-row">
             <div>
               <div class="product-price">${money(price)}</div>
@@ -466,13 +487,13 @@
       <div class="product-sheet-card">
         <div class="product-sheet-media theme-${product.accent || 'tiffany'}">
           ${product.image
-            ? `<img class="product-sheet-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
+            ? `<img class="product-sheet-image" src="${product.image}" alt="${escapeHtml(product.name)}" loading="eager" decoding="async" />`
             : `<div class="product-fallback product-fallback-sheet">${fallbackVisual(product)}</div>`}
         </div>
         <div class="product-sheet-content">
           <div class="product-sheet-name">${escapeHtml(product.name)}</div>
           <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
-          ${product.category === 'табак' ? variantChipsHtml(product, true) : ''}
+          ${productSupportsVariants(product) ? variantChipsHtml(product, true) : ''}
           <div class="product-sheet-description">${escapeHtml(product.description || 'Описание пока не заполнено')}</div>
           <div class="product-sheet-meta">${escapeHtml(product.category)} • остаток ${Number(product.stock || 0)}</div>
           <div class="product-sheet-price-row">
@@ -564,61 +585,85 @@
     }, 18);
   }
 
-  function animateToCart(product, sourceNode) {
-    const cartTarget = el.navCart?.querySelector?.('.nav-icon') || el.navCart;
-    if (!sourceNode || !cartTarget) return;
+  
+function animateToCart(product, sourceNode) {
+  const cartTarget = el.navCart?.querySelector?.('.nav-icon') || el.navCart;
+  if (!sourceNode || !cartTarget) return;
 
-    const sourceRect = sourceNode.getBoundingClientRect();
-    const targetRect = cartTarget.getBoundingClientRect();
-    if (sourceRect.width < 24 || sourceRect.height < 24) return;
+  const sourceRect = sourceNode.getBoundingClientRect();
+  const targetRect = cartTarget.getBoundingClientRect();
+  if (sourceRect.width < 16 || sourceRect.height < 16) return;
 
-    const clone = document.createElement('div');
-    clone.className = 'fly-clone fly-clone-media is-running';
+  const clone = document.createElement('div');
+  clone.className = 'fly-clone-media';
+  clone.style.left = `${sourceRect.left}px`;
+  clone.style.top = `${sourceRect.top}px`;
+  clone.style.width = `${sourceRect.width}px`;
+  clone.style.height = `${sourceRect.height}px`;
 
-    const visual = sourceNode.cloneNode(true);
-    visual.querySelectorAll?.('.product-actions, .mini-action, .sheet-add-button, .cart-stepper, button, .variant-row, .product-sheet-content').forEach(node => node.remove());
-    clone.appendChild(visual);
-
-    clone.style.left = `${sourceRect.left}px`;
-    clone.style.top = `${sourceRect.top}px`;
-    clone.style.width = `${sourceRect.width}px`;
-    clone.style.height = `${sourceRect.height}px`;
-    clone.style.opacity = '1';
-    clone.style.transform = 'translate3d(0, 0, 0) scale(1)';
-    document.body.appendChild(clone);
-
-    const startX = sourceRect.left + sourceRect.width / 2;
-    const startY = sourceRect.top + sourceRect.height / 2;
-    const endX = targetRect.left + targetRect.width / 2;
-    const endY = targetRect.top + targetRect.height / 2;
-    const dx = endX - startX;
-    const dy = endY - startY;
-    const arcX = dx * 0.62;
-    const arcY = dy * 0.18 - Math.min(84, Math.abs(dx) * 0.09) - 14;
-
-    clone.getBoundingClientRect();
-    requestAnimationFrame(() => {
-      clone.style.transition = 'transform 820ms cubic-bezier(.16,.88,.18,1), opacity 820ms ease, filter 820ms ease';
-      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-13deg)`;
-      clone.style.opacity = '.08';
-      clone.style.filter = 'blur(1px) saturate(1.14)';
-      clone.style.borderRadius = '999px';
-      clone.style.setProperty('--fly-mid-x', `${arcX}px`);
-      clone.style.setProperty('--fly-mid-y', `${arcY}px`);
-      clone.style.setProperty('--fly-dx', `${dx}px`);
-      clone.style.setProperty('--fly-dy', `${dy}px`);
-      clone.classList.add('fly-arc');
-    });
-
-    window.setTimeout(() => {
-      clone.remove();
-      el.navCart.classList.add('cart-pulse');
-      pulseHaptic('light');
-      window.setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
-    }, 860);
+  if (product.image) {
+    const kind = mediaKind(product.image);
+    if (kind === 'video') {
+      const fallback = document.createElement('div');
+      fallback.className = 'fly-clone-fallback';
+      fallback.textContent = product.name || '';
+      clone.appendChild(fallback);
+    } else {
+      const image = document.createElement('img');
+      image.className = 'fly-clone-image';
+      image.src = product.image;
+      image.alt = product.name || '';
+      clone.appendChild(image);
+    }
+  } else {
+    const fallback = document.createElement('div');
+    fallback.className = 'fly-clone-fallback';
+    fallback.textContent = product.name || '';
+    clone.appendChild(fallback);
   }
 
-  async function shareProduct(productId) {
+  document.body.appendChild(clone);
+
+  const startX = sourceRect.left + sourceRect.width / 2;
+  const startY = sourceRect.top + sourceRect.height / 2;
+  const endX = targetRect.left + targetRect.width / 2;
+  const endY = targetRect.top + targetRect.height / 2;
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const midX = dx * 0.58;
+  const midY = Math.min(-36, dy * 0.26) - 26;
+
+  const finish = () => {
+    clone.remove();
+    el.navCart.classList.add('cart-pulse');
+    pulseHaptic('light');
+    window.setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
+  };
+
+  if (clone.animate) {
+    const anim = clone.animate([
+      { transform: 'translate3d(0,0,0) scale(1)', opacity: 1, filter: 'blur(0px)' },
+      { offset: 0.56, transform: `translate3d(${midX}px, ${midY}px, 0) scale(.58) rotate(-7deg)`, opacity: .96, filter: 'blur(.2px)' },
+      { transform: `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-14deg)`, opacity: .08, filter: 'blur(1px)' }
+    ], {
+      duration: 820,
+      easing: 'cubic-bezier(.16,.88,.18,1)',
+      fill: 'forwards'
+    });
+    anim.onfinish = finish;
+    return;
+  }
+
+  clone.style.transition = 'transform 820ms cubic-bezier(.16,.88,.18,1), opacity 820ms ease, filter 820ms ease';
+  requestAnimationFrame(() => {
+    clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-14deg)`;
+    clone.style.opacity = '.08';
+    clone.style.filter = 'blur(1px)';
+  });
+  window.setTimeout(finish, 840);
+}
+
+async function shareProduct(productId) {
     const product = productById(productId);
     if (!product) return;
     const url = `${location.origin}/shop/?startapp=product_${productId}`;

@@ -1,4 +1,4 @@
-const CACHE = 'stav-ugolki-v17';
+const CACHE = 'stav-ugolki-v19';
 const ASSETS = [
   '/shop/',
   '/apps/shop/index.html',
@@ -21,8 +21,12 @@ self.addEventListener('activate', event => {
   );
 });
 
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/media/')) return;
+  if (!ASSETS.includes(url.pathname) && !url.pathname.startsWith('/apps/')) return;
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
       const clone = response.clone();

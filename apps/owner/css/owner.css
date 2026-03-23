@@ -412,3 +412,39 @@ body {
     font-size: 28px;
   }
 }
+
+
+.owner-form select {
+  color-scheme: dark;
+}
+
+.owner-form select option {
+  background: #ffffff;
+  color: #111417;
+}
+
+.owner-note-inline {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 1px dashed rgba(129,216,208,0.18);
+  color: var(--muted);
+  background: rgba(255,255,255,0.02);
+  font-size: 12px;
+}
+
+.field-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.preview-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}

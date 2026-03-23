@@ -34,8 +34,16 @@ function ensureSeedFile(name) {
   return destination;
 }
 
+
+function uploadsDir() {
+  const dir = path.join(dataDir, 'uploads');
+  ensureDir(dir);
+  return dir;
+}
+
 function initializeDataStore() {
   ensureDir(dataDir);
+  uploadsDir();
   seedFiles.forEach(ensureSeedFile);
 }
 
@@ -66,4 +74,4 @@ function getDataDir() {
 
 initializeDataStore();
 
-module.exports = { readJson, writeJson, nextId, getDataDir, initializeDataStore };
+module.exports = { readJson, writeJson, nextId, getDataDir, initializeDataStore, uploadsDir, ensureDir };

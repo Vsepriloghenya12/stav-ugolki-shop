@@ -76,45 +76,75 @@
     return (Array.isArray(variants) ? variants : []).map(item => `${item.label}|${item.price}`).join('\n');
   }
 
-  async function resizeImage(file, maxSize = 1400, quality = 0.86) {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  
+async function resizeImage(file, maxSize = 1080, quality = 0.8) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
-    const image = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = dataUrl;
-    });
+  const image = await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 
-    const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * ratio));
-    const height = Math.max(1, Math.round(image.height * ratio));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(image, 0, 0, width, height);
-    return canvas.toDataURL('image/jpeg', quality);
+  const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * ratio));
+  const height = Math.max(1, Math.round(image.height * ratio));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+async function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function looksLikeVideo(src = '') {
+  const value = String(src || '').toLowerCase();
+  return value.startsWith('data:video/') || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(value);
+}
+
+function looksLikeGif(src = '') {
+  const value = String(src || '').toLowerCase();
+  return value.startsWith('data:image/gif') || /\.gif(\?|$)/i.test(value);
+}
+
+async function mediaFieldValue(form) {
+  const urlField = form.querySelector('input[name="image"]');
+  const fileField = form.querySelector('input[name="imageFile"]');
+  if (fileField?.files?.[0]) {
+    const file = fileField.files[0];
+    const type = String(file.type || '').toLowerCase();
+    if (type.startsWith('video/') || type === 'image/gif') return fileToDataUrl(file);
+    if (type.startsWith('image/')) return resizeImage(file);
+    return fileToDataUrl(file);
   }
+  return String(urlField?.value || '').trim();
+}
 
-  async function mediaFieldValue(form) {
-    const urlField = form.querySelector('input[name="image"]');
-    const fileField = form.querySelector('input[name="imageFile"]');
-    if (fileField?.files?.[0]) return resizeImage(fileField.files[0]);
-    return String(urlField?.value || '').trim();
+function mediaPreview(src, alt = 'Изображение') {
+  if (!src) return '<div class="preview-card empty">Изображение не выбрано</div>';
+  if (looksLikeVideo(src)) {
+    return `<div class="preview-card"><video src="${escapeHtml(src)}" playsinline muted loop controls preload="metadata"></video></div>`;
   }
+  return `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></div>`;
+}
 
-  function mediaPreview(src, alt = 'Изображение') {
-    if (!src) return '<div class="preview-card empty">Изображение не выбрано</div>';
-    return `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" /></div>`;
-  }
+function statsData() {
 
-  function statsData() {
     const s = state.summary || {};
     return [
       ['Выручка', money(s.revenue || 0)],
@@ -177,7 +207,7 @@
   function renderBannersTable() {
     el.bannersBody.innerHTML = state.banners.map(item => `
       <tr>
-        <td>${item.image ? '<span class="thumb-badge">Фото</span>' : 'Без фото'}</td>
+        <td>${item.image ? `<span class="thumb-badge">${looksLikeVideo(item.image) ? 'Видео' : looksLikeGif(item.image) ? 'GIF' : 'Фото'}</span>` : 'Без медиа'}</td>
         <td>${escapeHtml(bannerTargetLabel(item))}</td>
         <td>${item.active ? 'Активен' : 'Выключен'}</td>
         <td>
@@ -254,78 +284,97 @@
     el.telegramState.innerHTML = chips.map(item => `<span class="state-chip ${item[1] ? 'ok' : 'warn'}">${item[0]}</span>`).join('');
   }
 
-  function productFormTemplate(product = {}) {
-    return `
-      <input type="hidden" name="id" value="${escapeHtml(product.id || '')}" />
-      <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
-      <div class="form-grid-2">
-        <input name="brand" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" />
-        <select name="category">
-          ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === product.category ? 'selected' : ''}>${value}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-grid-2">
-        <select name="accent">
-          ${['tiffany', 'ember', 'coal'].map(value => `<option value="${value}" ${value === product.accent ? 'selected' : ''}>${value}</option>`).join('')}
-        </select>
-        <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
-      </div>
-      <div class="form-grid-2">
-        <input name="price" type="number" placeholder="Базовая цена" value="${Number(product.price || 0)}" />
-        <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
-      </div>
-      <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
-      <textarea name="variantsText" placeholder="Граммовки для табака: одна строка = label|price">${escapeHtml(variantsText(product.variants))}</textarea>
-      <div class="helper-text">Пример: 25 г|65000</div>
-      <div class="media-uploader">
-        <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
-        <input class="file-input" name="imageFile" type="file" accept="image/*" />
-        <div class="helper-text">Можно вставить ссылку или загрузить фото с устройства.</div>
-        <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
-      </div>
-      <div class="form-actions">
-        <button class="owner-btn" type="submit">Сохранить</button>
-        <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
-      </div>
-    `;
+  
+function categoryVariantMeta(category) {
+  if (category === 'табак') {
+    return {
+      title: 'Граммовки табака и цена',
+      helper: 'Каждая строка: 25 г|65000 или 100 г|220000'
+    };
   }
-
-  function bannerFormTemplate(banner = {}) {
-    return `
-      <input type="hidden" name="id" value="${escapeHtml(banner.id || '')}" />
-      <div class="form-grid-2">
-        <select name="theme">
-          ${['tiffany', 'ember', 'coal'].map(value => `<option value="${value}" ${value === banner.theme ? 'selected' : ''}>${value}</option>`).join('')}
-        </select>
-        <select name="active">
-          <option value="true" ${banner.active !== false ? 'selected' : ''}>Активен</option>
-          <option value="false" ${banner.active === false ? 'selected' : ''}>Выключен</option>
-        </select>
-      </div>
-      <div class="form-grid-2">
-        <select name="targetCategory">
-          ${['all', 'табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === (banner.targetCategory || 'all') ? 'selected' : ''}>${value === 'all' ? 'Все категории' : value}</option>`).join('')}
-        </select>
-        <input name="targetBrand" placeholder="Бренд или all" value="${escapeHtml(banner.targetBrand || 'all')}" />
-      </div>
-      <div class="form-grid-2">
-        <input name="targetPriceMin" type="number" placeholder="Цена от" value="${escapeHtml(banner.targetPriceMin || '')}" />
-        <input name="targetPriceMax" type="number" placeholder="Цена до" value="${escapeHtml(banner.targetPriceMax || '')}" />
-      </div>
-      <div class="media-uploader">
-        <input name="image" placeholder="URL изображения" value="${escapeHtml(banner.image || '')}" />
-        <input class="file-input" name="imageFile" type="file" accept="image/*" />
-        <div class="helper-text">При нажатии на баннер клиенту откроется подборка по указанным фильтрам.</div>
-        <div data-preview>${mediaPreview(banner.image || '', 'Баннер')}</div>
-      </div>
-      <div class="form-actions">
-        <button class="owner-btn" type="submit">Сохранить</button>
-        <button class="secondary-btn" type="button" data-clear-banner-image>Очистить фото</button>
-      </div>
-    `;
+  if (category === 'уголь') {
+    return {
+      title: 'Фасовка угля и цена',
+      helper: 'Каждая строка: 0.5 кг|65000 или 1 кг|120000'
+    };
   }
+  return {
+    title: 'Варианты и цена',
+    helper: 'Если у товара нет вариантов, поле можно оставить пустым'
+  };
+}
 
-  function supportFormTemplate(contact = {}) {
+function productFormTemplate(product = {}) {
+  const category = product.category || 'табак';
+  const variantsMeta = categoryVariantMeta(category);
+  return `
+    <input type="hidden" name="id" value="${escapeHtml(product.id || '')}" />
+    <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
+    <div class="form-grid-2">
+      <input name="brand" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" />
+      <select name="category">
+        ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === category ? 'selected' : ''}>${value}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-grid-2">
+      <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
+      <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
+    </div>
+    <div class="form-grid-2">
+      <input name="price" type="number" placeholder="Базовая цена" value="${Number(product.price || 0)}" />
+      <div class="owner-note-inline">Оформление карточки подставляется автоматически</div>
+    </div>
+    <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
+    <div class="field-title">${variantsMeta.title}</div>
+    <textarea name="variantsText" placeholder="${escapeHtml(variantsMeta.helper)}">${escapeHtml(variantsText(product.variants))}</textarea>
+    <div class="helper-text">${escapeHtml(variantsMeta.helper)}</div>
+    <div class="media-uploader">
+      <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
+      <input class="file-input" name="imageFile" type="file" accept="image/*,.gif" />
+      <div class="helper-text">Фото автоматически сжимается, чтобы каталог грузился быстрее.</div>
+      <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
+    </div>
+    <div class="form-actions">
+      <button class="owner-btn" type="submit">Сохранить</button>
+      <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
+    </div>
+  `;
+}
+
+function bannerFormTemplate(banner = {}) {
+  return `
+    <input type="hidden" name="id" value="${escapeHtml(banner.id || '')}" />
+    <div class="form-grid-2">
+      <select name="active">
+        <option value="true" ${banner.active !== false ? 'selected' : ''}>Активен</option>
+        <option value="false" ${banner.active === false ? 'selected' : ''}>Выключен</option>
+      </select>
+      <select name="targetCategory">
+        ${['all', 'табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === (banner.targetCategory || 'all') ? 'selected' : ''}>${value === 'all' ? 'Все категории' : value}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-grid-2">
+      <input name="targetBrand" placeholder="Бренд или all" value="${escapeHtml(banner.targetBrand || 'all')}" />
+      <input name="targetPriceMin" type="number" placeholder="Цена от" value="${escapeHtml(banner.targetPriceMin || '')}" />
+    </div>
+    <div class="form-grid-2">
+      <input name="targetPriceMax" type="number" placeholder="Цена до" value="${escapeHtml(banner.targetPriceMax || '')}" />
+      <div class="owner-note-inline">Баннер открывает подборку по этим фильтрам</div>
+    </div>
+    <div class="media-uploader">
+      <input name="image" placeholder="URL изображения / gif / видео" value="${escapeHtml(banner.image || '')}" />
+      <input class="file-input" name="imageFile" type="file" accept="image/*,video/*,.gif,.webm,.mp4" />
+      <div class="helper-text">Поддерживаются фото, gif и короткое видео.</div>
+      <div data-preview>${mediaPreview(banner.image || '', 'Баннер')}</div>
+    </div>
+    <div class="form-actions">
+      <button class="owner-btn" type="submit">Сохранить</button>
+      <button class="secondary-btn" type="button" data-clear-banner-image>Очистить медиа</button>
+    </div>
+  `;
+}
+
+function supportFormTemplate(contact = {}) {
     return `
       <input type="hidden" name="id" value="${escapeHtml(contact.id || '')}" />
       <input name="title" placeholder="Название контакта" value="${escapeHtml(contact.title || '')}" required />
@@ -526,6 +575,26 @@
       updatePreview(el.productForm, 'Товар');
     });
 
+
+el.productForm.addEventListener('change', event => {
+  const categorySelect = event.target.closest('select[name="category"]');
+  if (!categorySelect) return;
+  const current = Object.fromEntries(new FormData(el.productForm).entries());
+  const existingId = current.id || state.editProductId || '';
+  const oldProduct = state.products.find(item => item.id === existingId) || {};
+  const nextDraft = {
+    ...oldProduct,
+    ...current,
+    id: existingId,
+    category: categorySelect.value || 'табак',
+    favorite: current.favorite === 'on',
+    stock: Number(current.stock || oldProduct.stock || 0),
+    price: Number(current.price || oldProduct.price || 0),
+    variants: parseVariantsText(current.variantsText || '')
+  };
+  el.productForm.innerHTML = productFormTemplate(nextDraft);
+});
+
     el.bannerForm.addEventListener('click', event => {
       if (!event.target.closest('[data-clear-banner-image]')) return;
       clearImageFields(el.bannerForm);
@@ -540,7 +609,7 @@
         name: formData.get('name') || '',
         brand: formData.get('brand') || '',
         category: formData.get('category') || 'прочее',
-        accent: formData.get('accent') || 'tiffany',
+        accent: (formData.get('category') === 'уголь' ? 'ember' : formData.get('category') === 'кальяны' ? 'coal' : 'tiffany'),
         price: Number(formData.get('price') || 0),
         stock: Number(formData.get('stock') || 0),
         description: formData.get('description') || '',
@@ -563,7 +632,7 @@
       const payload = {
         id: formData.get('id') || '',
         image: await mediaFieldValue(el.bannerForm),
-        theme: formData.get('theme') || 'tiffany',
+        theme: 'tiffany',
         active: formData.get('active') === 'true',
         targetCategory: formData.get('targetCategory') || 'all',
         targetBrand: formData.get('targetBrand') || 'all',

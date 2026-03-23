@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 const { getMimeType } = require('./lib/mime');
-const { readJson, writeJson, nextId, getDataDir, initializeDataStore } = require('./lib/store');
+const { readJson, writeJson, nextId, getDataDir, initializeDataStore, uploadsDir } = require('./lib/store');
 const { createToken, verifyToken, extractBearer } = require('./lib/auth');
 
 loadEnv();
@@ -121,6 +121,41 @@ function safeFilePath(urlPath) {
   return normalized;
 }
 
+
+function mediaExtensionFromMime(mime = '') {
+  const value = String(mime || '').toLowerCase();
+  if (value.includes('jpeg')) return 'jpg';
+  if (value.includes('png')) return 'png';
+  if (value.includes('gif')) return 'gif';
+  if (value.includes('webp')) return 'webp';
+  if (value.includes('mp4')) return 'mp4';
+  if (value.includes('webm')) return 'webm';
+  if (value.includes('quicktime')) return 'mov';
+  if (value.includes('x-m4v')) return 'm4v';
+  return 'bin';
+}
+
+async function persistMediaAsset(input, prefix = 'media') {
+  const value = String(input || '').trim();
+  if (!value) return '';
+  if (!value.startsWith('data:')) return value;
+  const file = dataUriToFile(value, prefix);
+  if (!file) return value;
+  const ext = mediaExtensionFromMime(file.mime);
+  const name = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  const destination = path.join(uploadsDir(), name);
+  const arrayBuffer = await file.blob.arrayBuffer();
+  fs.writeFileSync(destination, Buffer.from(arrayBuffer));
+  return `/media/${name}`;
+}
+
+function mediaTypeFromValue(input = '') {
+  const value = String(input || '').toLowerCase();
+  if (value.startsWith('data:video/') || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(value)) return 'video';
+  if (value.startsWith('data:image/gif') || /\.gif(\?|$)/i.test(value)) return 'gif';
+  return 'image';
+}
+
 function serveStatic(res, relativePath) {
   const cleanPath = safeFilePath(relativePath);
   let filePath = path.join(rootDir, cleanPath);
@@ -188,9 +223,22 @@ async function sendTelegramMessage(chatId, text) {
   return telegramRequest('sendMessage', { chat_id: chatId, text });
 }
 
+
 async function sendTelegramPhoto(chatId, text, image) {
   if (!image) return sendTelegramMessage(chatId, text);
-  if (/^https?:\/\//i.test(image)) {
+  const mediaType = mediaTypeFromValue(image);
+  const remote = /^https?:\/\//i.test(image);
+  if (mediaType === 'video') {
+    if (remote) return telegramRequest('sendVideo', { chat_id: chatId, video: image, caption: text });
+    const file = dataUriToFile(image, 'post-video');
+    if (!file) return sendTelegramMessage(chatId, text);
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('caption', text);
+    form.append('video', file.blob, file.name);
+    return telegramRequest('sendVideo', form, true);
+  }
+  if (remote) {
     return telegramRequest('sendPhoto', {
       chat_id: chatId,
       photo: image,
@@ -205,6 +253,7 @@ async function sendTelegramPhoto(chatId, text, image) {
   form.append('photo', file.blob, file.name);
   return telegramRequest('sendPhoto', form, true);
 }
+
 
 async function publishOwnerPost(payload) {
   const target = String(payload.target || 'group');
@@ -351,7 +400,7 @@ async function handleApi(req, res, pathname) {
         price: Number(body.price || 0),
         favorite: Boolean(body.favorite),
         stock: Number(body.stock || 0),
-        image: String(body.image || ''),
+        image: await persistMediaAsset(body.image, 'product'),
         accent: String(body.accent || 'tiffany'),
         variants: normalizeVariants(body.variants)
       };
@@ -380,7 +429,7 @@ async function handleApi(req, res, pathname) {
         price: Number(body.price ?? current[index].price),
         favorite: Boolean(body.favorite),
         stock: Number(body.stock ?? current[index].stock),
-        image: String(body.image ?? current[index].image),
+        image: body.image !== undefined ? await persistMediaAsset(body.image, 'product') : current[index].image,
         accent: String(body.accent || current[index].accent || 'tiffany'),
         variants: normalizeVariants(body.variants ?? current[index].variants)
       };
@@ -408,7 +457,7 @@ async function handleApi(req, res, pathname) {
         id: nextId('banner'),
         title: String(body.title || ''),
         subtitle: String(body.subtitle || ''),
-        image: String(body.image || ''),
+        image: await persistMediaAsset(body.image, 'banner'),
         theme: String(body.theme || 'tiffany'),
         active: Boolean(body.active ?? true),
         targetCategory: String(body.targetCategory || 'all'),
@@ -436,7 +485,7 @@ async function handleApi(req, res, pathname) {
         ...current[index],
         title: String(body.title ?? current[index].title),
         subtitle: String(body.subtitle ?? current[index].subtitle),
-        image: String(body.image ?? current[index].image),
+        image: body.image !== undefined ? await persistMediaAsset(body.image, 'banner') : current[index].image,
         theme: String(body.theme || current[index].theme),
         active: typeof body.active === 'boolean' ? body.active : Boolean(current[index].active),
         targetCategory: String(body.targetCategory ?? current[index].targetCategory ?? 'all'),
@@ -536,7 +585,7 @@ async function handleApi(req, res, pathname) {
         createdAt: new Date().toISOString(),
         target: String(body.target || 'group'),
         text: text.slice(0, 4000),
-        image: String(body.image || '')
+        image: await persistMediaAsset(body.image, 'post')
       };
       current.unshift(entry);
       writeJson('posts.json', current);
@@ -560,6 +609,18 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/health' || pathname === '/_health') {
       sendText(res, 200, 'ok');
+      return;
+    }
+
+    if (pathname.startsWith('/media/')) {
+      const fileName = path.basename(pathname);
+      const mediaPath = path.join(uploadsDir(), fileName);
+      if (!fs.existsSync(mediaPath)) {
+        sendText(res, 404, 'Not found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': getMimeType(mediaPath), 'Cache-Control': 'public, max-age=31536000, immutable' });
+      fs.createReadStream(mediaPath).pipe(res);
       return;
     }
 
