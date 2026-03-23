@@ -1,189 +1,130 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <title>Ставь угольки — владелец</title>
-    <link rel="stylesheet" href="/apps/shared/css/theme.css" />
-    <link rel="stylesheet" href="/apps/shared/css/base.css" />
-    <link rel="stylesheet" href="/apps/owner/css/owner.css" />
-  </head>
-  <body>
-    <div class="owner-login surface" id="ownerLogin">
-      <div class="login-title">Вход владельца</div>
-      <form class="login-form" id="loginForm">
-        <input class="owner-input" name="login" type="text" placeholder="Логин" required />
-        <input class="owner-input" name="password" type="password" placeholder="Пароль" required />
-        <button class="owner-btn" type="submit">Войти</button>
-      </form>
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Ставь Угольки — владелец</title>
+  <link rel="stylesheet" href="/apps/shared/css/theme.css" />
+  <link rel="stylesheet" href="/apps/owner/css/owner.css" />
+</head>
+<body>
+  <div class="owner-layout">
+    <aside class="owner-sidebar surface">
+      <div class="owner-brand">
+        <img src="/apps/shared/assets/img/logo.jpg" alt="Ставь Угольки" />
+        <div>
+          <div class="owner-brand-title">Ставь Угольки</div>
+          <div class="owner-brand-sub">owner panel</div>
+        </div>
+      </div>
+      <nav class="owner-nav" id="ownerNav">
+        <button class="owner-nav-item is-active" data-section="dashboard">Аналитика</button>
+        <button class="owner-nav-item" data-section="products">Товары</button>
+        <button class="owner-nav-item" data-section="banners">Баннеры</button>
+        <button class="owner-nav-item" data-section="orders">Заказы</button>
+      </nav>
+      <button class="logout-btn" id="logoutBtn" type="button">Выйти</button>
+    </aside>
 
-    <div class="owner-layout hidden" id="ownerApp">
-      <aside class="owner-sidebar surface">
-        <div class="owner-brand">
-          <img src="/apps/shared/assets/img/logo-ember.png" alt="Ставь угольки" />
+    <main class="owner-main">
+      <section class="owner-login surface" id="loginCard">
+        <div class="login-title">Вход владельца</div>
+        <form id="loginForm" class="login-form">
+          <input class="owner-input" type="text" name="login" placeholder="Логин" required />
+          <input class="owner-input" type="password" name="password" placeholder="Пароль" required />
+          <button class="owner-btn" type="submit">Войти</button>
+        </form>
+      </section>
+
+      <section class="owner-app hidden" id="ownerApp">
+        <header class="owner-header">
           <div>
-            <div class="owner-brand-title">Ставь угольки</div>
-            <div class="owner-brand-sub">Владелец</div>
+            <h1>Управление магазином</h1>
+            <p>Отдельная зона для товаров, баннеров, заказов и аналитики.</p>
           </div>
-        </div>
+        </header>
 
-        <nav class="owner-nav" id="ownerNav">
-          <button class="owner-nav-item is-active" data-section="dashboard" type="button">Аналитика</button>
-          <button class="owner-nav-item" data-section="products" type="button">Товары</button>
-          <button class="owner-nav-item" data-section="banners" type="button">Баннеры</button>
-          <button class="owner-nav-item" data-section="support" type="button">Поддержка</button>
-          <button class="owner-nav-item" data-section="orders" type="button">Заказы</button>
-          <button class="owner-nav-item" data-section="posts" type="button">Посты бота</button>
-        </nav>
-
-        <button class="logout-btn" id="logoutBtn" type="button">Выйти</button>
-      </aside>
-
-      <main class="owner-main">
-        <div class="owner-app">
-          <section class="owner-header">
-            <h1>Кабинет владельца</h1>
-            <p>Товары, баннеры, заказы, поддержка и посты в Telegram.</p>
-          </section>
-
-          <section class="owner-section" data-section-panel="dashboard">
-            <div class="stats-grid" id="statsGrid"></div>
-            <div class="owner-panels two-col">
-              <div class="panel surface">
-                <div class="panel-head">
-                  <div class="panel-title">Топ товаров</div>
-                </div>
-                <div id="topProducts"></div>
-              </div>
-              <div class="panel surface">
-                <div class="panel-head">
-                  <div class="panel-title">Последние заказы</div>
-                </div>
-                <div id="lastOrders"></div>
-              </div>
-            </div>
-          </section>
-
-          <section class="owner-section hidden" data-section-panel="products">
+        <section class="owner-section" data-section-panel="dashboard">
+          <div class="stats-grid" id="statsGrid"></div>
+          <div class="owner-panels two-col">
             <div class="panel surface">
-              <div class="panel-head">
-                <div class="panel-title">Товары</div>
-                <button class="owner-btn" id="newProductBtn" type="button">Новый товар</button>
-              </div>
-              <div class="table-wrap">
-                <table class="owner-table">
-                  <thead>
-                    <tr>
-                      <th>Название</th>
-                      <th>Категория</th>
-                      <th>Бренд</th>
-                      <th>Цена</th>
-                      <th>Остаток</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="productsBody"></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="panel surface form-panel">
-              <div class="panel-head"><div class="panel-title">Редактор товара</div></div>
-              <form class="owner-form" id="productForm"></form>
-            </div>
-          </section>
-
-          <section class="owner-section hidden" data-section-panel="banners">
-            <div class="panel surface">
-              <div class="panel-head">
-                <div class="panel-title">Баннеры</div>
-                <button class="owner-btn" id="newBannerBtn" type="button">Новый баннер</button>
-              </div>
-              <div class="table-wrap">
-                <table class="owner-table">
-                  <thead>
-                    <tr>
-                      <th>Баннер</th>
-                      <th>Фильтр</th>
-                      <th>Статус</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="bannersBody"></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="panel surface form-panel">
-              <div class="panel-head"><div class="panel-title">Редактор баннера</div></div>
-              <form class="owner-form" id="bannerForm"></form>
-            </div>
-          </section>
-
-          <section class="owner-section hidden" data-section-panel="support">
-            <div class="panel surface">
-              <div class="panel-head">
-                <div class="panel-title">Контакты поддержки</div>
-                <button class="owner-btn" id="newSupportBtn" type="button">Новый контакт</button>
-              </div>
-              <div class="table-wrap">
-                <table class="owner-table">
-                  <thead>
-                    <tr>
-                      <th>Название</th>
-                      <th>Значение</th>
-                      <th>Ссылка</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="supportBody"></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="panel surface form-panel">
-              <div class="panel-head"><div class="panel-title">Редактор контакта</div></div>
-              <form class="owner-form" id="supportForm"></form>
-            </div>
-          </section>
-
-          <section class="owner-section hidden" data-section-panel="orders">
-            <div class="panel surface">
-              <div class="panel-head"><div class="panel-title">Заказы</div></div>
-              <div class="orders-list" id="ordersList"></div>
-            </div>
-          </section>
-
-          <section class="owner-section hidden" data-section-panel="posts">
-            <div class="panel surface">
-              <div class="panel-head"><div class="panel-title">Пост в канал / группу</div></div>
-              <div class="telegram-state" id="telegramState"></div>
-              <form class="owner-form" id="postForm">
-                <select name="target">
-                  <option value="group">В группу</option>
-                  <option value="channel">В канал</option>
-                  <option value="both">В канал и группу</option>
-                </select>
-                <textarea name="text" placeholder="Текст поста"></textarea>
-                <div class="media-uploader">
-                  <input name="image" placeholder="URL изображения" />
-                  <input class="file-input" name="imageFile" type="file" accept="image/*" />
-                  <div class="helper-text">Можно дать ссылку или загрузить картинку с устройства.</div>
-                  <div data-preview class="preview-card empty">Картинка не выбрана</div>
-                </div>
-                <div class="form-actions">
-                  <button class="owner-btn" type="submit">Отправить пост</button>
-                </div>
-              </form>
+              <div class="panel-title">Топ товары</div>
+              <div id="topProducts"></div>
             </div>
             <div class="panel surface">
-              <div class="panel-head"><div class="panel-title">Последние посты</div></div>
-              <div class="post-history" id="postsHistory"></div>
+              <div class="panel-title">Последние заказы</div>
+              <div id="lastOrders"></div>
             </div>
-          </section>
-        </div>
-      </main>
-    </div>
+          </div>
+        </section>
 
-    <script src="/apps/shared/js/api.js"></script>
-    <script src="/apps/owner/js/owner.js"></script>
-  </body>
+        <section class="owner-section hidden" data-section-panel="products">
+          <div class="panel surface">
+            <div class="panel-head">
+              <div class="panel-title">Товары</div>
+              <button class="owner-btn" type="button" id="newProductBtn">Новый товар</button>
+            </div>
+            <div class="table-wrap">
+              <table class="owner-table">
+                <thead>
+                  <tr>
+                    <th>Название</th>
+                    <th>Категория</th>
+                    <th>Цена</th>
+                    <th>Остаток</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="productsBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel surface form-panel">
+            <div class="panel-title">Редактор товара</div>
+            <form id="productForm" class="owner-form"></form>
+          </div>
+        </section>
+
+        <section class="owner-section hidden" data-section-panel="banners">
+          <div class="panel surface">
+            <div class="panel-head">
+              <div class="panel-title">Баннеры</div>
+              <button class="owner-btn" type="button" id="newBannerBtn">Новый баннер</button>
+            </div>
+            <div class="table-wrap">
+              <table class="owner-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Тема</th>
+                    <th>Ссылка</th>
+                    <th>Активен</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="bannersBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel surface form-panel">
+            <div class="panel-title">Редактор баннера</div>
+            <form id="bannerForm" class="owner-form"></form>
+          </div>
+        </section>
+
+        <section class="owner-section hidden" data-section-panel="orders">
+          <div class="panel surface">
+            <div class="panel-title">Заказы</div>
+            <div id="ordersList" class="orders-list"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/apps/shared/js/api.js"></script>
+  <script src="/apps/owner/js/owner.js"></script>
+</body>
 </html>

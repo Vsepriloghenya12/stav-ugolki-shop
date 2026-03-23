@@ -3,36 +3,27 @@
     "id": "banner-1",
     "title": "",
     "subtitle": "",
+    "link": "https://t.me/your_channel",
     "image": "",
-    "theme": "tiffany",
-    "active": true,
-    "targetCategory": "табак",
-    "targetBrand": "Black Burn",
-    "targetPriceMin": "",
-    "targetPriceMax": ""
+    "theme": "ember",
+    "active": true
   },
   {
     "id": "banner-2",
     "title": "",
     "subtitle": "",
+    "link": "https://t.me/your_channel",
     "image": "",
-    "theme": "ember",
-    "active": true,
-    "targetCategory": "уголь",
-    "targetBrand": "all",
-    "targetPriceMin": "",
-    "targetPriceMax": ""
+    "theme": "mint",
+    "active": true
   },
   {
     "id": "banner-3",
     "title": "",
     "subtitle": "",
+    "link": "https://t.me/your_channel",
     "image": "",
     "theme": "coal",
-    "active": true,
-    "targetCategory": "кальяны",
-    "targetBrand": "all",
-    "targetPriceMin": "",
-    "targetPriceMax": ""
+    "active": true
   }
 ]
