@@ -1,4 +1,4 @@
-const CACHE = 'stav-ugolki-v21';
+const CACHE = 'stav-ugolki-v22';
 const ASSETS = [
   '/shop/',
   '/apps/shop/index.html',
@@ -8,7 +8,8 @@ const ASSETS = [
   '/apps/shared/css/base.css',
   '/apps/shared/js/api.js',
   '/apps/shared/assets/img/logo-ember.png',
-  '/apps/shared/assets/img/header-logo.png'
+  '/apps/shared/assets/img/header-logo.png',
+  '/apps/shared/assets/img/header-coals.png'
 ];
 
 self.addEventListener('install', event => {
