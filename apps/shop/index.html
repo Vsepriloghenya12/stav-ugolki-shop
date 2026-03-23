@@ -1,72 +1,160 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Ставь Угольки</title>
-  <link rel="stylesheet" href="/apps/shared/css/theme.css" />
-  <link rel="stylesheet" href="/apps/shared/css/base.css" />
-  <link rel="stylesheet" href="/apps/shop/css/shop.css" />
-</head>
-<body>
-  <main class="mobile-shell shop-shell">
-    <header class="shop-header fade-in">
-      <div class="brand">
-        <img class="brand-logo" src="/apps/shared/assets/img/logo.jpg" alt="Ставь Угольки" />
-        <div class="brand-title">СТАВЬ<br />УГОЛЬКИ</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d171a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ставь угольки" />
+    <link rel="manifest" href="/apps/shop/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apps/shared/assets/img/logo-ember.png" />
+    <title>Ставь угольки</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/apps/shared/css/theme.css" />
+    <link rel="stylesheet" href="/apps/shared/css/base.css" />
+    <link rel="stylesheet" href="/apps/shop/css/shop.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-spacer" aria-hidden="true"></div>
+        <button class="hero-logo-button" id="heroLogoButton" type="button" aria-label="Ставь угольки">
+          <span class="hero-logo-embers" aria-hidden="true"></span>
+          <img class="hero-logo" src="/apps/shared/assets/img/header-logo.png" alt="Ставь угольки" />
+        </button>
+        <button class="icon-button" id="searchToggle" type="button" aria-label="Поиск"></button>
+      </header>
+
+      <div class="banner-section" id="bannerSection">
+        <div class="banner-track" id="bannerTrack"></div>
+        <div class="banner-dots" id="bannerDots"></div>
       </div>
 
-      <button class="icon-btn search-btn" id="searchToggle" type="button" aria-label="Поиск"></button>
-    </header>
+      <div class="category-row" id="categoryRow"></div>
+      <div class="brand-subfilters hidden" id="brandSubfilters"></div>
 
-    <div class="search-panel hidden fade-in" id="searchPanel">
-      <input id="searchInput" class="search-input surface" type="search" placeholder="Поиск товара" autocomplete="off" />
+      <main class="product-grid" id="productGrid"></main>
     </div>
 
-    <section class="banner-carousel section-gap fade-in" id="bannerCarousel"></section>
+    <nav class="bottom-nav">
+      <button class="nav-item is-active" id="navMenu" data-nav="menu" type="button">
+        <span class="nav-icon nav-icon-menu"></span>
+        <span class="nav-label">Меню</span>
+      </button>
+      <button class="nav-item" id="navFavorites" data-nav="favorites" type="button">
+        <span class="nav-icon nav-icon-heart"></span>
+        <span class="nav-label">Избранное</span>
+      </button>
+      <button class="nav-item nav-item-cart" id="navCart" data-nav="cart" type="button">
+        <span class="nav-badge hidden" id="cartCountBadge">0</span>
+        <span class="nav-icon nav-icon-cart"></span>
+        <span class="nav-label">Корзина</span>
+      </button>
+      <button class="nav-item" id="navFilters" data-nav="filters" type="button">
+        <span class="nav-icon nav-icon-filter"></span>
+        <span class="nav-label">Фильтры</span>
+      </button>
+      <button class="nav-item" id="navSupport" data-nav="support" type="button">
+        <span class="nav-icon nav-icon-support"></span>
+        <span class="nav-label">Поддержка</span>
+      </button>
+    </nav>
 
-    <nav class="category-row section-gap" id="categoryRow"></nav>
+    <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
 
-    <section class="product-grid section-gap" id="productGrid"></section>
-
-    <div class="bottom-sheet hidden" id="productSheet">
-      <div class="sheet-backdrop" data-close-sheet></div>
-      <div class="sheet-card surface">
-        <button class="icon-btn close-sheet" data-close-sheet aria-label="Закрыть"></button>
-        <div id="sheetContent"></div>
+    <section class="sheet hidden" id="menuSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Меню</div>
+        <button class="sheet-close" data-close-sheet="menuSheet" type="button">✕</button>
       </div>
-    </div>
+      <div class="sheet-body menu-sheet-body">
+        <button class="menu-action" id="menuCatalogBtn" type="button">Каталог</button>
+        <button class="menu-action hidden" id="installAppBtn" type="button">Установить на телефон</button>
+      </div>
+    </section>
 
-    <div class="bottom-sheet hidden" id="cartSheet">
-      <div class="sheet-backdrop" data-close-cart></div>
-      <div class="sheet-card surface cart-sheet-card">
-        <button class="icon-btn close-sheet" data-close-cart aria-label="Закрыть"></button>
-        <div class="sheet-head">
-          <div class="sheet-title">Корзина</div>
+    <section class="sheet hidden" id="searchSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Поиск</div>
+        <button class="sheet-close" data-close-sheet="searchSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body">
+        <input class="sheet-input" id="searchInput" type="search" placeholder="Поиск" autocomplete="off" />
+      </div>
+    </section>
+
+    <section class="sheet hidden" id="filterSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Фильтры</div>
+        <button class="sheet-close" data-close-sheet="filterSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body filter-sheet-body">
+        <div class="filter-section">
+          <div class="filter-section-title">Категория</div>
+          <div class="filter-grid" id="filterCategoryGrid"></div>
         </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Бренд</div>
+          <div class="filter-grid" id="filterBrandGrid"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Цена</div>
+          <div class="filter-price-row">
+            <input class="sheet-input" id="priceMinInput" type="number" inputmode="numeric" placeholder="От" />
+            <input class="sheet-input" id="priceMaxInput" type="number" inputmode="numeric" placeholder="До" />
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="ghost-sheet-button" id="resetFiltersBtn" type="button">Сбросить</button>
+          <button class="submit-button" id="applyFiltersBtn" type="button">Применить</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sheet hidden" id="productSheet">
+      <div class="sheet-head">
+        <div class="sheet-title" id="productSheetTitle"></div>
+        <button class="sheet-close" data-close-sheet="productSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body product-sheet-body" id="productSheetBody"></div>
+    </section>
+
+    <section class="sheet hidden" id="cartSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Корзина</div>
+        <button class="sheet-close" data-close-sheet="cartSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body cart-sheet-body">
         <div class="cart-list" id="cartList"></div>
         <form class="checkout-form" id="checkoutForm">
-          <input class="surface form-input" name="name" placeholder="Имя" maxlength="80" />
-          <input class="surface form-input" name="phone" placeholder="Телефон" maxlength="40" />
-          <button class="checkout-btn" type="submit">Оформить</button>
+          <input class="sheet-input" name="name" type="text" placeholder="Имя" required />
+          <input class="sheet-input" name="phone" type="tel" placeholder="Телефон" />
+          <input class="sheet-input" name="telegram" type="text" placeholder="Ссылка на Telegram или @username" />
+          <div class="auth-help">Для оформления заказа укажите телефон или Telegram.</div>
+          <div class="cart-summary-row">
+            <span id="cartTotalLabel">0 VND</span>
+            <button class="submit-button" type="submit">Оформить</button>
+          </div>
         </form>
+        <div class="sheet-notice" id="checkoutNotice"></div>
       </div>
-    </div>
+    </section>
 
-    <nav class="bottom-nav surface">
-      <button class="nav-item is-active" type="button" data-nav="catalog"></button>
-      <button class="nav-item" type="button" data-nav="favorites"></button>
-      <button class="nav-item" type="button" data-nav="cart">
-        <span class="nav-badge hidden" id="cartBadge">0</span>
-      </button>
-      <button class="nav-item" type="button" data-nav="filters"></button>
-      <button class="nav-item" type="button" data-nav="support"></button>
-    </nav>
-  </main>
+    <section class="sheet hidden" id="supportSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Поддержка</div>
+        <button class="sheet-close" data-close-sheet="supportSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="support-list" id="supportList"></div>
+      </div>
+    </section>
 
-  <script src="/apps/shared/js/api.js"></script>
-  <script src="/apps/shop/js/shop.js"></script>
-</body>
+    <script src="/apps/shared/js/api.js"></script>
+    <script src="/apps/shop/js/shop.js"></script>
+  </body>
 </html>

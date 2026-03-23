@@ -1,8 +1,9 @@
 window.AppApi = {
   async getShopBootstrap() {
     const response = await fetch('/api/shop/bootstrap');
-    if (!response.ok) throw new Error('Не удалось загрузить магазин');
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить магазин');
+    return data;
   },
 
   async createOrder(payload) {
@@ -84,6 +85,30 @@ window.AppApi = {
     return data;
   },
 
+  async ownerSaveSupportContact(token, contact, isNew) {
+    const response = await fetch(isNew ? '/api/owner/support-contacts' : `/api/owner/support-contacts/${contact.id}`, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(contact)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить контакт');
+    return data;
+  },
+
+  async ownerDeleteSupportContact(token, id) {
+    const response = await fetch(`/api/owner/support-contacts/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить контакт');
+    return data;
+  },
+
   async ownerUpdateOrderStatus(token, id, status) {
     const response = await fetch(`/api/owner/orders/${id}`, {
       method: 'PUT',
@@ -95,6 +120,20 @@ window.AppApi = {
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Не удалось обновить заказ');
+    return data;
+  },
+
+  async ownerCreatePost(token, post) {
+    const response = await fetch('/api/owner/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(post)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось отправить пост');
     return data;
   }
 };

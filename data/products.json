@@ -1,7 +1,57 @@
 [
   {
+    "id": "prod-tab-blackburn-lemon",
+    "name": "Black Burn Lemon Sweets",
+    "brand": "Black Burn",
+    "description": "Яркий сладкий лимон с плотным вкусом и хорошей жаростойкостью. Подходит для соло-покура и цитрусовых миксов.",
+    "category": "табак",
+    "price": 65000,
+    "favorite": true,
+    "stock": 32,
+    "image": "",
+    "accent": "tiffany",
+    "variants": [
+      { "id": "bb-25", "label": "25 г", "price": 65000 },
+      { "id": "bb-100", "label": "100 г", "price": 220000 }
+    ]
+  },
+  {
+    "id": "prod-tab-blackburn-ice",
+    "name": "Black Burn Ice Baby",
+    "brand": "Black Burn",
+    "description": "Холодный профиль с мощным освежающим эффектом и чистым послевкусием.",
+    "category": "табак",
+    "price": 68000,
+    "favorite": false,
+    "stock": 28,
+    "image": "",
+    "accent": "tiffany",
+    "variants": [
+      { "id": "bbi-25", "label": "25 г", "price": 68000 },
+      { "id": "bbi-100", "label": "100 г", "price": 228000 }
+    ]
+  },
+  {
+    "id": "prod-tab-darkside-berry",
+    "name": "Darkside Berry Pulse",
+    "brand": "Darkside",
+    "description": "Плотный ягодный микс с насыщенным вкусом и хорошей отдачей в чаше.",
+    "category": "табак",
+    "price": 72000,
+    "favorite": false,
+    "stock": 18,
+    "image": "",
+    "accent": "coal",
+    "variants": [
+      { "id": "ds-30", "label": "30 г", "price": 72000 },
+      { "id": "ds-120", "label": "120 г", "price": 250000 }
+    ]
+  },
+  {
     "id": "prod-char-001",
     "name": "Уголь кокосовый 1 кг",
+    "brand": "Coco Heat",
+    "description": "Кокосовый уголь для кальяна. Ровный жар, стабильное тление и чистый вкус без лишнего запаха.",
     "category": "уголь",
     "price": 120000,
     "favorite": false,
@@ -12,6 +62,8 @@
   {
     "id": "prod-char-002",
     "name": "Уголь 25 мм",
+    "brand": "Black Cube",
+    "description": "Компактный уголь 25 мм для быстрых забивок и небольших чаш. Удобен для домашнего использования.",
     "category": "уголь",
     "price": 65000,
     "favorite": true,
@@ -20,58 +72,22 @@
     "accent": "coal"
   },
   {
-    "id": "prod-char-003",
-    "name": "Уголь кубик premium",
-    "category": "уголь",
-    "price": 85000,
-    "favorite": false,
-    "stock": 32,
-    "image": "",
-    "accent": "mint"
-  },
-  {
-    "id": "prod-tab-001",
-    "name": "Табак Ice Mint",
-    "category": "табак",
-    "price": 110000,
-    "favorite": false,
-    "stock": 21,
-    "image": "",
-    "accent": "mint"
-  },
-  {
-    "id": "prod-tab-002",
-    "name": "Табак Berry Mix",
-    "category": "табак",
-    "price": 115000,
-    "favorite": false,
-    "stock": 17,
-    "image": "",
-    "accent": "ember"
-  },
-  {
     "id": "prod-hook-001",
     "name": "Кальян mini black",
+    "brand": "Noir Hookah",
+    "description": "Компактный черный кальян для дома и поездок. Устойчивое основание и легкая тяга.",
     "category": "кальяны",
     "price": 850000,
     "favorite": true,
     "stock": 6,
     "image": "",
-    "accent": "coal"
-  },
-  {
-    "id": "prod-hook-002",
-    "name": "Чаша phunnel",
-    "category": "прочее",
-    "price": 170000,
-    "favorite": false,
-    "stock": 14,
-    "image": "",
-    "accent": "mint"
+    "accent": "tiffany"
   },
   {
     "id": "prod-other-001",
     "name": "Щипцы steel",
+    "brand": "Steel Grip",
+    "description": "Длинные стальные щипцы для угля с удобным хватом.",
     "category": "прочее",
     "price": 90000,
     "favorite": false,
