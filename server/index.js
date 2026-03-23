@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 const { getMimeType } = require('./lib/mime');
-const { readJson, writeJson, nextId } = require('./lib/store');
+const { readJson, writeJson, nextId, getDataDir, initializeDataStore } = require('./lib/store');
 const { createToken, verifyToken, extractBearer } = require('./lib/auth');
 
 loadEnv();
+initializeDataStore();
 
 const rootDir = path.join(__dirname, '..');
 const port = Number(process.env.PORT || 3000);
@@ -251,7 +252,7 @@ async function handleApi(req, res, pathname) {
   const posts = () => readJson('posts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
-    return sendJson(res, 200, { ok: true, name: 'stav-ugolki' });
+    return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir() });
   }
 
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
