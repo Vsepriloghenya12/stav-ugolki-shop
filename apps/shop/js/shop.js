@@ -7,15 +7,21 @@
   const state = {
     products: [],
     banners: [],
-    supportUrl: '',
-    category: 'all',
+    supportContacts: [],
+    filters: {
+      category: 'all',
+      brand: 'all',
+      priceMin: '',
+      priceMax: ''
+    },
     search: '',
     favorites: load(STORAGE_KEYS.likes, []),
     likesHydrated: localStorage.getItem(STORAGE_KEYS.likes) !== null,
     cart: load(STORAGE_KEYS.cart, []),
     view: 'catalog',
     activeBanner: 0,
-    bannerTimer: null
+    bannerTimer: null,
+    activeProductId: ''
   };
 
   const el = {
@@ -28,11 +34,18 @@
     filterSheet: document.getElementById('filterSheet'),
     productSheet: document.getElementById('productSheet'),
     cartSheet: document.getElementById('cartSheet'),
+    supportSheet: document.getElementById('supportSheet'),
     searchToggle: document.getElementById('searchToggle'),
     searchInput: document.getElementById('searchInput'),
-    filterGrid: document.getElementById('filterGrid'),
+    filterCategoryGrid: document.getElementById('filterCategoryGrid'),
+    filterBrandGrid: document.getElementById('filterBrandGrid'),
+    priceMinInput: document.getElementById('priceMinInput'),
+    priceMaxInput: document.getElementById('priceMaxInput'),
+    applyFiltersBtn: document.getElementById('applyFiltersBtn'),
+    resetFiltersBtn: document.getElementById('resetFiltersBtn'),
     productSheetTitle: document.getElementById('productSheetTitle'),
     productSheetBody: document.getElementById('productSheetBody'),
+    supportList: document.getElementById('supportList'),
     cartList: document.getElementById('cartList'),
     cartTotalLabel: document.getElementById('cartTotalLabel'),
     cartCountBadge: document.getElementById('cartCountBadge'),
@@ -73,11 +86,28 @@
 
   function categories() {
     return [
+      { value: 'all', label: 'Все' },
       { value: 'уголь', label: 'Уголь' },
       { value: 'табак', label: 'Табак' },
       { value: 'кальяны', label: 'Кальяны' },
       { value: 'прочее', label: 'Прочее' }
     ];
+  }
+
+  function quickCategories() {
+    return categories().filter(item => item.value !== 'all');
+  }
+
+  function brandOptions() {
+    const seen = new Set();
+    const values = [];
+    state.products.forEach(item => {
+      const brand = String(item.brand || '').trim();
+      if (!brand || seen.has(brand)) return;
+      seen.add(brand);
+      values.push(brand);
+    });
+    return values;
   }
 
   function seededFavorites(products) {
@@ -100,6 +130,10 @@
     return '<div class="bowl-line"></div>';
   }
 
+  function getSheets() {
+    return [el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet];
+  }
+
   function openSheet(sheet) {
     closeAllSheets();
     el.sheetBackdrop.classList.remove('hidden');
@@ -110,13 +144,12 @@
   function closeSheet(sheet) {
     sheet.classList.remove('is-open');
     setTimeout(() => sheet.classList.add('hidden'), 220);
-    if (![el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet].some(node => node.classList.contains('is-open'))) {
-      el.sheetBackdrop.classList.add('hidden');
-    }
+    const hasOpen = getSheets().some(node => node.classList.contains('is-open'));
+    if (!hasOpen) el.sheetBackdrop.classList.add('hidden');
   }
 
   function closeAllSheets() {
-    [el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet].forEach(sheet => {
+    getSheets().forEach(sheet => {
       sheet.classList.remove('is-open');
       sheet.classList.add('hidden');
     });
@@ -126,6 +159,15 @@
   function cartQty(productId) {
     const entry = state.cart.find(item => item.id === productId);
     return entry ? Number(entry.qty || 0) : 0;
+  }
+
+  function refreshAfterCartChange() {
+    save(STORAGE_KEYS.cart, state.cart);
+    renderCart();
+    renderProducts();
+    if (state.activeProductId && !el.productSheet.classList.contains('hidden')) {
+      renderProductSheet(state.activeProductId, false);
+    }
   }
 
   function setCartQty(productId, qty) {
@@ -138,19 +180,28 @@
     } else if (index !== -1 && nextQty === 0) {
       state.cart.splice(index, 1);
     }
-    save(STORAGE_KEYS.cart, state.cart);
-    renderCart();
-    renderProducts();
+    refreshAfterCartChange();
   }
 
   function activeProducts() {
     let list = [...state.products];
-    if (state.category !== 'all') {
-      list = list.filter(item => item.category === state.category);
+    const { category, brand, priceMin, priceMax } = state.filters;
+
+    if (category !== 'all') {
+      list = list.filter(item => item.category === category);
+    }
+    if (brand !== 'all') {
+      list = list.filter(item => String(item.brand || '').trim() === brand);
+    }
+    if (priceMin !== '') {
+      list = list.filter(item => Number(item.price || 0) >= Number(priceMin || 0));
+    }
+    if (priceMax !== '') {
+      list = list.filter(item => Number(item.price || 0) <= Number(priceMax || 0));
     }
     if (state.search.trim()) {
       const q = state.search.trim().toLowerCase();
-      list = list.filter(item => item.name.toLowerCase().includes(q));
+      list = list.filter(item => [item.name, item.brand, item.description].some(value => String(value || '').toLowerCase().includes(q)));
     }
     if (state.view === 'favorites') {
       list = list.filter(item => state.favorites.includes(item.id));
@@ -170,16 +221,26 @@
   }
 
   function renderCategories() {
-    const items = categories();
-    el.categoryRow.innerHTML = items.map(item => `
-      <button class="category-button ${state.category === item.value ? 'is-active' : ''}" type="button" data-category="${item.value}">${item.label}</button>
+    el.categoryRow.innerHTML = quickCategories().map(item => `
+      <button class="category-button ${state.filters.category === item.value ? 'is-active' : ''}" type="button" data-category="${item.value}">${item.label}</button>
     `).join('');
   }
 
   function renderFilterOptions() {
-    el.filterGrid.innerHTML = categories().map(item => `
-      <button class="filter-option ${state.category === item.value ? 'is-active' : ''}" type="button" data-filter-category="${item.value}">${item.label}</button>
+    const selectedCategory = state.filters.category;
+    el.filterCategoryGrid.innerHTML = categories().map(item => `
+      <button class="filter-option ${selectedCategory === item.value ? 'is-active' : ''}" type="button" data-filter-category="${item.value}">${item.label}</button>
     `).join('');
+
+    const brands = ['all', ...brandOptions()];
+    el.filterBrandGrid.innerHTML = brands.map(item => {
+      const label = item === 'all' ? 'Все' : item;
+      const active = state.filters.brand === item;
+      return `<button class="filter-option ${active ? 'is-active' : ''}" type="button" data-filter-brand="${escapeHtml(item)}">${escapeHtml(label)}</button>`;
+    }).join('');
+
+    el.priceMinInput.value = state.filters.priceMin;
+    el.priceMaxInput.value = state.filters.priceMax;
   }
 
   function renderBanners() {
@@ -211,6 +272,19 @@
     state.bannerTimer = setInterval(() => syncBanner(state.activeBanner + 1), 4200);
   }
 
+  function priceControlHtml(productId, isSheet = false) {
+    const qty = cartQty(productId);
+    const sizeClass = isSheet ? ' cart-stepper-sheet' : '';
+    if (qty > 0) {
+      return `<div class="cart-stepper${sizeClass}" data-cart-stepper="${productId}">
+        <button class="cart-stepper-button" type="button" data-cart-minus="${productId}" aria-label="Уменьшить">−</button>
+        <span class="cart-stepper-value">${qty}</span>
+        <button class="cart-stepper-button" type="button" data-cart-plus="${productId}" aria-label="Увеличить">+</button>
+      </div>`;
+    }
+    return `<button class="${isSheet ? 'sheet-add-button' : 'cart-icon-button'}" type="button" data-add-to-cart="${productId}" aria-label="Добавить в корзину">${isSheet ? '' : icon('cart')}</button>`;
+  }
+
   function renderProducts() {
     const products = activeProducts();
     if (!products.length) {
@@ -220,17 +294,9 @@
 
     el.productGrid.innerHTML = products.map(product => {
       const isFavorite = state.favorites.includes(product.id);
-      const qty = cartQty(product.id);
-      const cartControl = qty > 0
-        ? `<div class="cart-stepper" data-cart-stepper="${product.id}">
-            <button class="cart-stepper-button" type="button" data-cart-minus="${product.id}" aria-label="Уменьшить">−</button>
-            <span class="cart-stepper-value">${qty}</span>
-            <button class="cart-stepper-button" type="button" data-cart-plus="${product.id}" aria-label="Увеличить">+</button>
-          </div>`
-        : `<button class="cart-icon-button" type="button" data-add-to-cart="${product.id}" aria-label="Добавить в корзину">${icon('cart')}</button>`;
       return `
-        <article class="product-card" data-product-id="${product.id}">
-          <div class="product-image-wrap theme-${product.accent || 'coal'}" data-open-product="${product.id}">
+        <article class="product-card" data-open-product="${product.id}">
+          <div class="product-image-wrap theme-${product.accent || 'coal'}">
             ${product.image
               ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
               : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
@@ -242,7 +308,7 @@
           <div class="product-name">${escapeHtml(product.name)}</div>
           <div class="price-row">
             <div class="product-price">${money(product.price)}</div>
-            ${cartControl}
+            ${priceControlHtml(product.id)}
           </div>
         </article>
       `;
@@ -278,9 +344,23 @@
     `).join('');
   }
 
-  function renderProductSheet(productId) {
+  function renderSupport() {
+    if (!state.supportContacts.length) {
+      el.supportList.innerHTML = '<div class="empty-state">Контакты пока не добавлены</div>';
+      return;
+    }
+    el.supportList.innerHTML = state.supportContacts.map(item => `
+      <button class="support-item" type="button" data-contact-link="${escapeHtml(item.link || '')}">
+        <span class="support-item-title">${escapeHtml(item.title || 'Контакт')}</span>
+        <span class="support-item-value">${escapeHtml(item.value || item.link || '')}</span>
+      </button>
+    `).join('');
+  }
+
+  function renderProductSheet(productId, shouldOpen = true) {
     const product = state.products.find(item => item.id === productId);
     if (!product) return;
+    state.activeProductId = productId;
     el.productSheetTitle.textContent = product.name;
     el.productSheetBody.innerHTML = `
       <div class="product-sheet-media product-image-wrap theme-${product.accent || 'coal'}">
@@ -288,17 +368,41 @@
           ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" />`
           : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
       </div>
+      <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
+      <div class="product-sheet-description">${escapeHtml(product.description || 'Описание пока не заполнено')}</div>
       <div class="product-sheet-meta">${escapeHtml(product.category)} • остаток ${Number(product.stock || 0)}</div>
       <div class="product-sheet-price-row">
         <div class="product-sheet-price">${money(product.price)}</div>
-        <button class="sheet-add-button" type="button" data-sheet-add="${product.id}" aria-label="Добавить в корзину"></button>
+        ${priceControlHtml(product.id, true)}
       </div>
     `;
-    openSheet(el.productSheet);
+    if (shouldOpen) openSheet(el.productSheet);
   }
 
   function setCategory(category) {
-    state.category = category;
+    state.filters.category = category;
+    renderCategories();
+    renderFilterOptions();
+    renderProducts();
+  }
+
+  function applyFilters() {
+    state.filters.priceMin = String(el.priceMinInput.value || '').trim();
+    state.filters.priceMax = String(el.priceMaxInput.value || '').trim();
+    renderCategories();
+    renderFilterOptions();
+    renderProducts();
+    switchView(state.view === 'favorites' ? 'favorites' : 'catalog');
+    closeSheet(el.filterSheet);
+  }
+
+  function resetFilters() {
+    state.filters = {
+      category: 'all',
+      brand: 'all',
+      priceMin: '',
+      priceMax: ''
+    };
     renderCategories();
     renderFilterOptions();
     renderProducts();
@@ -312,6 +416,9 @@
     }
     save(STORAGE_KEYS.likes, state.favorites);
     renderProducts();
+    if (state.activeProductId === productId && !el.productSheet.classList.contains('hidden')) {
+      renderProductSheet(productId, false);
+    }
   }
 
   function addToCart(productId) {
@@ -371,13 +478,13 @@
     renderProducts();
   }
 
-  function openSupport() {
-    const url = state.supportUrl || 'https://t.me/your_support';
-    if (window.Telegram?.WebApp?.openTelegramLink) {
+  function openSupportContact(url) {
+    if (!url) return;
+    if (window.Telegram?.WebApp?.openTelegramLink && url.startsWith('https://t.me/')) {
       window.Telegram.WebApp.openTelegramLink(url);
-    } else {
-      window.open(url, '_blank', 'noreferrer');
+      return;
     }
+    window.open(url, '_blank', 'noreferrer');
   }
 
   function currentCartPayload() {
@@ -423,11 +530,23 @@
       switchView('catalog');
     });
 
-    el.filterGrid.addEventListener('click', event => {
+    el.filterCategoryGrid.addEventListener('click', event => {
       const btn = event.target.closest('[data-filter-category]');
       if (!btn) return;
-      setCategory(btn.dataset.filterCategory);
-      switchView('catalog');
+      state.filters.category = btn.dataset.filterCategory;
+      renderFilterOptions();
+    });
+
+    el.filterBrandGrid.addEventListener('click', event => {
+      const btn = event.target.closest('[data-filter-brand]');
+      if (!btn) return;
+      state.filters.brand = btn.dataset.filterBrand;
+      renderFilterOptions();
+    });
+
+    el.applyFiltersBtn.addEventListener('click', applyFilters);
+    el.resetFiltersBtn.addEventListener('click', () => {
+      resetFilters();
       closeSheet(el.filterSheet);
     });
 
@@ -480,11 +599,30 @@
     });
 
     el.productSheet.addEventListener('click', event => {
-      const addBtn = event.target.closest('[data-sheet-add]');
-      if (!addBtn) return;
-      const flyNode = el.productSheet.querySelector('.product-sheet-media');
-      animateToCart(flyNode);
-      addToCart(addBtn.dataset.sheetAdd);
+      const minusBtn = event.target.closest('[data-cart-minus]');
+      if (minusBtn) {
+        setCartQty(minusBtn.dataset.cartMinus, cartQty(minusBtn.dataset.cartMinus) - 1);
+        return;
+      }
+      const plusBtn = event.target.closest('[data-cart-plus]');
+      if (plusBtn) {
+        const flyNode = el.productSheet.querySelector('.product-sheet-media');
+        animateToCart(flyNode);
+        addToCart(plusBtn.dataset.cartPlus);
+        return;
+      }
+      const addBtn = event.target.closest('[data-add-to-cart]');
+      if (addBtn) {
+        const flyNode = el.productSheet.querySelector('.product-sheet-media');
+        animateToCart(flyNode);
+        addToCart(addBtn.dataset.addToCart);
+      }
+    });
+
+    el.supportList.addEventListener('click', event => {
+      const item = event.target.closest('[data-contact-link]');
+      if (!item) return;
+      openSupportContact(item.dataset.contactLink);
     });
 
     el.bottomNav.addEventListener('click', event => {
@@ -494,7 +632,10 @@
       if (nav === 'catalog') {
         state.search = '';
         el.searchInput.value = '';
-        state.category = 'all';
+        state.filters.category = 'all';
+        state.filters.brand = 'all';
+        state.filters.priceMin = '';
+        state.filters.priceMax = '';
         switchView('catalog');
         renderCategories();
         renderFilterOptions();
@@ -519,7 +660,8 @@
         return;
       }
       if (nav === 'support') {
-        openSupport();
+        renderSupport();
+        openSheet(el.supportSheet);
       }
     });
 
@@ -539,8 +681,7 @@
           total
         });
         state.cart = [];
-        save(STORAGE_KEYS.cart, state.cart);
-        renderCart();
+        refreshAfterCartChange();
         el.checkoutForm.reset();
         el.checkoutNotice.textContent = 'Заказ отправлен';
         closeSheet(el.cartSheet);
@@ -574,14 +715,17 @@
     renderCategories();
     renderFilterOptions();
     renderCart();
+    renderSupport();
 
     try {
       const data = await window.AppApi.getShopBootstrap();
       state.products = data.products || [];
       state.banners = data.banners || [];
-      state.supportUrl = data.supportUrl || '';
+      state.supportContacts = data.supportContacts || [];
       seededFavorites(state.products);
       renderBanners();
+      renderFilterOptions();
+      renderSupport();
       renderProducts();
       renderCart();
       syncBanner(0);

@@ -2,6 +2,8 @@
   {
     "id": "prod-char-001",
     "name": "Уголь кокосовый 1 кг",
+    "brand": "Coconut Charcoal",
+    "description": "Кокосовый уголь для кальяна. Ровный жар, стабильное тление и чистый вкус без лишнего запаха.",
     "category": "уголь",
     "price": 120000,
     "favorite": false,
@@ -12,6 +14,8 @@
   {
     "id": "prod-char-002",
     "name": "Уголь 25 мм",
+    "brand": "Black Cube",
+    "description": "Компактный уголь 25 мм для быстрых забивок и небольших чаш. Удобен для домашнего использования.",
     "category": "уголь",
     "price": 65000,
     "favorite": true,
@@ -22,6 +26,8 @@
   {
     "id": "prod-char-003",
     "name": "Уголь кубик premium",
+    "brand": "Ember Gold",
+    "description": "Плотный премиальный кубик с долгим временем работы. Для насыщенных и длительных сессий.",
     "category": "уголь",
     "price": 85000,
     "favorite": false,
@@ -32,6 +38,8 @@
   {
     "id": "prod-tab-001",
     "name": "Табак Ice Mint",
+    "brand": "Frost Leaf",
+    "description": "Освежающий мятный вкус с холодком. Подходит для соло-покура и миксов.",
     "category": "табак",
     "price": 110000,
     "favorite": false,
@@ -42,6 +50,8 @@
   {
     "id": "prod-tab-002",
     "name": "Табак Berry Mix",
+    "brand": "Berry Cloud",
+    "description": "Яркий ягодный микс со сладким ароматом и мягкой тягой.",
     "category": "табак",
     "price": 115000,
     "favorite": false,
@@ -52,6 +62,8 @@
   {
     "id": "prod-hook-001",
     "name": "Кальян mini black",
+    "brand": "Noir Hookah",
+    "description": "Компактный черный кальян для дома и поездок. Устойчивое основание и легкая тяга.",
     "category": "кальяны",
     "price": 850000,
     "favorite": true,
@@ -62,6 +74,8 @@
   {
     "id": "prod-hook-002",
     "name": "Чаша phunnel",
+    "brand": "Clay Flow",
+    "description": "Фанел для сиропистых табаков. Стабильно держит жар и раскрывает вкус.",
     "category": "прочее",
     "price": 170000,
     "favorite": false,
@@ -72,6 +86,8 @@
   {
     "id": "prod-other-001",
     "name": "Щипцы steel",
+    "brand": "Steel Grip",
+    "description": "Длинные стальные щипцы для угля с удобным хватом.",
     "category": "прочее",
     "price": 90000,
     "favorite": false,

@@ -176,7 +176,8 @@ body {
 
 .owner-panels.two-col,
 .owner-section[data-section-panel="products"],
-.owner-section[data-section-panel="banners"] {
+.owner-section[data-section-panel="banners"],
+.owner-section[data-section-panel="support"] {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 16px;
@@ -311,7 +312,8 @@ body {
   .owner-layout,
   .owner-panels.two-col,
   .owner-section[data-section-panel="products"],
-  .owner-section[data-section-panel="banners"] {
+  .owner-section[data-section-panel="banners"],
+  .owner-section[data-section-panel="support"] {
     grid-template-columns: 1fr;
   }
 
@@ -434,4 +436,20 @@ body {
   .owner-form .form-grid-2 {
     grid-template-columns: 1fr;
   }
+}
+
+
+.form-media-preview {
+  width: 100%;
+  min-height: 180px;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+}
+
+.form-media-preview.empty {
+  display: block;
+  background: rgba(255,255,255,0.03);
 }

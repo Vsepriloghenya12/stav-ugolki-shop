@@ -32,12 +32,7 @@
         <div class="banner-dots" id="bannerDots"></div>
       </div>
 
-      <div class="category-row" id="categoryRow">
-        <button class="category-button" type="button" data-category="уголь">Уголь</button>
-        <button class="category-button" type="button" data-category="табак">Табак</button>
-        <button class="category-button" type="button" data-category="кальяны">Кальяны</button>
-        <button class="category-button" type="button" data-category="прочее">Прочее</button>
-      </div>
+      <div class="category-row" id="categoryRow"></div>
 
       <main class="product-grid" id="productGrid"></main>
     </div>
@@ -83,8 +78,26 @@
         <div class="sheet-title">Фильтры</div>
         <button class="sheet-close" data-close-sheet="filterSheet" type="button">✕</button>
       </div>
-      <div class="sheet-body">
-        <div class="filter-grid" id="filterGrid"></div>
+      <div class="sheet-body filter-sheet-body">
+        <div class="filter-section">
+          <div class="filter-section-title">Категория</div>
+          <div class="filter-grid" id="filterCategoryGrid"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Бренд</div>
+          <div class="filter-grid" id="filterBrandGrid"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Цена</div>
+          <div class="filter-price-row">
+            <input class="sheet-input" id="priceMinInput" type="number" inputmode="numeric" placeholder="От" />
+            <input class="sheet-input" id="priceMaxInput" type="number" inputmode="numeric" placeholder="До" />
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="ghost-sheet-button" id="resetFiltersBtn" type="button">Сбросить</button>
+          <button class="submit-button" id="applyFiltersBtn" type="button">Применить</button>
+        </div>
       </div>
     </section>
 
@@ -112,6 +125,16 @@
           </div>
         </form>
         <div class="sheet-notice" id="checkoutNotice"></div>
+      </div>
+    </section>
+
+    <section class="sheet hidden" id="supportSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Поддержка</div>
+        <button class="sheet-close" data-close-sheet="supportSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="support-list" id="supportList"></div>
       </div>
     </section>
 

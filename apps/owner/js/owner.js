@@ -4,11 +4,13 @@
     token: localStorage.getItem(tokenKey) || '',
     products: [],
     banners: [],
+    supportContacts: [],
     orders: [],
     summary: null,
     activeSection: 'dashboard',
     editProductId: '',
-    editBannerId: ''
+    editBannerId: '',
+    editSupportId: ''
   };
 
   const el = {
@@ -26,6 +28,9 @@
     bannersBody: document.getElementById('bannersBody'),
     bannerForm: document.getElementById('bannerForm'),
     newBannerBtn: document.getElementById('newBannerBtn'),
+    supportBody: document.getElementById('supportBody'),
+    supportForm: document.getElementById('supportForm'),
+    newSupportBtn: document.getElementById('newSupportBtn'),
     ordersList: document.getElementById('ordersList')
   };
 
@@ -44,6 +49,12 @@
   function showApp(isAuth) {
     el.loginCard.classList.toggle('hidden', isAuth);
     el.ownerApp.classList.toggle('hidden', !isAuth);
+  }
+
+  function mediaPreview(src, alt) {
+    return src
+      ? `<img class="form-media-preview" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" />`
+      : '<div class="form-media-preview empty"></div>';
   }
 
   function renderStats() {
@@ -73,7 +84,10 @@
     el.topProducts.innerHTML = items.length
       ? `<div class="list-lines">${items.map(item => `
           <div class="list-line">
-            <div>${escapeHtml(item.name)}</div>
+            <div>
+              <div>${escapeHtml(item.name)}</div>
+              <div class="order-meta">${escapeHtml(item.brand || 'Без бренда')}</div>
+            </div>
             <div>${item.sold} шт.</div>
           </div>`).join('')}</div>`
       : '<div class="order-meta">Пока нет данных</div>';
@@ -102,6 +116,7 @@
             <span>${escapeHtml(item.name)}</span>
           </div>
         </td>
+        <td>${escapeHtml(item.brand || '—')}</td>
         <td>${escapeHtml(item.category)}</td>
         <td>${money(item.price)}</td>
         <td>${item.stock}</td>
@@ -132,45 +147,55 @@
     `).join('');
   }
 
-  function renderOrders() {
-    el.ordersList.innerHTML = state.orders.map(order => `
-      <article class="order-card">
-        <div class="order-head">
-          <div>
-            <div class="order-id">${escapeHtml(order.id)}</div>
-            <div class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')}</div>
+  function renderSupportTable() {
+    el.supportBody.innerHTML = state.supportContacts.map(item => `
+      <tr>
+        <td>${escapeHtml(item.title || 'Контакт')}</td>
+        <td>${escapeHtml(item.value || '')}</td>
+        <td><span class="banner-link-cut">${escapeHtml(item.link || '')}</span></td>
+        <td>
+          <div class="table-actions">
+            <button class="ghost-btn" data-edit-support="${item.id}" type="button">Изменить</button>
+            <button class="danger-btn" data-delete-support="${item.id}" type="button">Удалить</button>
           </div>
-          <div>${money(order.total)}</div>
-        </div>
-        <div class="order-meta">${escapeHtml(order.customer?.name || '')} • ${escapeHtml(order.customer?.phone || '')}</div>
-        <div class="order-items">${order.items.map(item => `${escapeHtml(item.name)} × ${item.qty}`).join('<br />')}</div>
-        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <select class="status-select" data-order-status-id="${order.id}">
-            ${['new', 'paid', 'done', 'cancelled'].map(status => `<option value="${status}" ${status === order.status ? 'selected' : ''}>${status}</option>`).join('')}
-          </select>
-        </div>
-      </article>
+        </td>
+      </tr>
     `).join('');
   }
 
-
-  function mediaPreview(src, alt) {
-    return src
-      ? `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" /></div>`
-      : '<div class="preview-card"><div class="preview-empty">Фото пока не загружено</div></div>';
+  function renderOrders() {
+    el.ordersList.innerHTML = state.orders.length ? state.orders.map(order => `
+      <div class="order-card">
+        <div class="order-head">
+          <div>
+            <div class="order-id">${escapeHtml(order.id)}</div>
+            <div class="order-meta">${escapeHtml(order.customer?.name || '')} • ${escapeHtml(order.customer?.phone || '')}</div>
+          </div>
+          <div>
+            <select class="status-select" data-order-status-id="${order.id}">
+              ${['new', 'paid', 'done', 'cancelled'].map(status => `<option value="${status}" ${status === order.status ? 'selected' : ''}>${status}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="order-items">${order.items.map(item => `${escapeHtml(item.name)} × ${item.qty}`).join('<br />')}</div>
+        <div class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')}</div>
+        <div class="order-id">${money(order.total)}</div>
+      </div>
+    `).join('') : '<div class="order-meta">Пока нет заказов</div>';
   }
 
-  function compressImage(file, maxWidth, maxHeight, quality = 0.82) {
+  function compressImage(file, maxWidth, maxHeight, quality) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const image = new Image();
         image.onload = () => {
-          const canvas = document.createElement('canvas');
-          let { width, height } = image;
-          const ratio = Math.min(1, maxWidth / width, maxHeight / height);
+          let width = image.width;
+          let height = image.height;
+          const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
           width = Math.round(width * ratio);
           height = Math.round(height * ratio);
+          const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
@@ -189,7 +214,7 @@
     const fileInput = el.productForm.querySelector('input[name="imageFile"]');
     const imageField = el.productForm.querySelector('input[name="image"]');
     const file = fileInput?.files?.[0];
-    if (file) return compressImage(file, 1200, 1200, 0.82);
+    if (file) return compressImage(file, 1200, 1200, 0.84);
     return imageField?.value || '';
   }
 
@@ -209,7 +234,7 @@
     const file = fileInput?.files?.[0];
     if (file) {
       try {
-        const src = await compressImage(file, targetName === 'banner' ? 1600 : 1200, targetName === 'banner' ? 900 : 1200, 0.82);
+        const src = await compressImage(file, targetName === 'banner' ? 1600 : 1200, targetName === 'banner' ? 900 : 1200, 0.84);
         imageField.value = src;
         preview.innerHTML = mediaPreview(src, targetName === 'banner' ? 'Баннер' : 'Товар');
       } catch (error) {
@@ -225,24 +250,28 @@
       <input type="hidden" name="id" value="${escapeHtml(product.id || '')}" />
       <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
       <div class="form-grid-2">
+        <input name="brand" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" />
         <select name="category">
           ${['уголь', 'табак', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === product.category ? 'selected' : ''}>${value}</option>`).join('')}
         </select>
+      </div>
+      <div class="form-grid-2">
         <select name="accent">
           ${['ember', 'mint', 'coal'].map(value => `<option value="${value}" ${value === product.accent ? 'selected' : ''}>${value}</option>`).join('')}
         </select>
+        <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
       </div>
       <div class="form-grid-2">
         <input name="price" type="number" placeholder="Цена" value="${Number(product.price || 0)}" />
-        <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
+        <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
       </div>
+      <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
       <div class="media-uploader">
         <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
         <input class="file-input" name="imageFile" type="file" accept="image/*" />
         <div class="helper-text">Можно вставить ссылку или загрузить фото с устройства. Загруженное фото автоматически сжимается.</div>
         <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
       </div>
-      <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
       <div class="form-actions">
         <button class="owner-btn" type="submit">Сохранить</button>
         <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
@@ -276,11 +305,25 @@
     `;
   }
 
+  function supportFormTemplate(contact = {}) {
+    return `
+      <input type="hidden" name="id" value="${escapeHtml(contact.id || '')}" />
+      <input name="title" placeholder="Название контакта" value="${escapeHtml(contact.title || '')}" required />
+      <input name="value" placeholder="Текст / ник / телефон" value="${escapeHtml(contact.value || '')}" />
+      <input name="link" placeholder="Ссылка (например https://t.me/username)" value="${escapeHtml(contact.link || '')}" required />
+      <div class="form-actions">
+        <button class="owner-btn" type="submit">Сохранить</button>
+      </div>
+    `;
+  }
+
   function renderForms() {
     const product = state.products.find(item => item.id === state.editProductId) || {};
     el.productForm.innerHTML = productFormTemplate(product);
     const banner = state.banners.find(item => item.id === state.editBannerId) || {};
     el.bannerForm.innerHTML = bannerFormTemplate(banner);
+    const contact = state.supportContacts.find(item => item.id === state.editSupportId) || {};
+    el.supportForm.innerHTML = supportFormTemplate(contact);
   }
 
   function renderAll() {
@@ -289,6 +332,7 @@
     renderLastOrders();
     renderProductsTable();
     renderBannersTable();
+    renderSupportTable();
     renderOrders();
     renderForms();
   }
@@ -303,10 +347,12 @@
     const data = await window.AppApi.ownerGetBootstrap(state.token);
     state.products = data.products || [];
     state.banners = data.banners || [];
+    state.supportContacts = data.supportContacts || [];
     state.orders = data.orders || [];
     state.summary = data.summary || null;
     if (!state.editProductId && state.products[0]) state.editProductId = state.products[0].id;
     if (!state.editBannerId && state.banners[0]) state.editBannerId = state.banners[0].id;
+    if (!state.editSupportId && state.supportContacts[0]) state.editSupportId = state.supportContacts[0].id;
     renderAll();
   }
 
@@ -352,11 +398,18 @@
       activateSection('banners');
     });
 
+    el.newSupportBtn.addEventListener('click', () => {
+      state.editSupportId = '';
+      renderForms();
+      activateSection('support');
+    });
+
     el.productsBody.addEventListener('click', async event => {
       const editBtn = event.target.closest('[data-edit-product]');
       if (editBtn) {
         state.editProductId = editBtn.dataset.editProduct;
         renderForms();
+        activateSection('products');
         return;
       }
       const deleteBtn = event.target.closest('[data-delete-product]');
@@ -377,6 +430,7 @@
       if (editBtn) {
         state.editBannerId = editBtn.dataset.editBanner;
         renderForms();
+        activateSection('banners');
         return;
       }
       const deleteBtn = event.target.closest('[data-delete-banner]');
@@ -385,6 +439,27 @@
         try {
           await window.AppApi.ownerDeleteBanner(state.token, deleteBtn.dataset.deleteBanner);
           state.editBannerId = '';
+          await loadBootstrap();
+        } catch (error) {
+          alert(error.message);
+        }
+      }
+    });
+
+    el.supportBody.addEventListener('click', async event => {
+      const editBtn = event.target.closest('[data-edit-support]');
+      if (editBtn) {
+        state.editSupportId = editBtn.dataset.editSupport;
+        renderForms();
+        activateSection('support');
+        return;
+      }
+      const deleteBtn = event.target.closest('[data-delete-support]');
+      if (deleteBtn) {
+        if (!confirm('Удалить контакт?')) return;
+        try {
+          await window.AppApi.ownerDeleteSupportContact(state.token, deleteBtn.dataset.deleteSupport);
+          state.editSupportId = '';
           await loadBootstrap();
         } catch (error) {
           alert(error.message);
@@ -430,16 +505,19 @@
       const payload = {
         id: formData.get('id') || '',
         name: formData.get('name') || '',
+        brand: formData.get('brand') || '',
         category: formData.get('category') || 'прочее',
         accent: formData.get('accent') || 'ember',
         price: Number(formData.get('price') || 0),
         stock: Number(formData.get('stock') || 0),
+        description: formData.get('description') || '',
         image: await getProductImagePayload(),
         favorite: formData.get('favorite') === 'on'
       };
       try {
         await window.AppApi.ownerSaveProduct(state.token, payload, !payload.id);
         await loadBootstrap();
+        activateSection('products');
       } catch (error) {
         alert(error.message);
       }
@@ -458,6 +536,25 @@
       try {
         await window.AppApi.ownerSaveBanner(state.token, payload, !payload.id);
         await loadBootstrap();
+        activateSection('banners');
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    el.supportForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const formData = new FormData(el.supportForm);
+      const payload = {
+        id: formData.get('id') || '',
+        title: formData.get('title') || '',
+        value: formData.get('value') || '',
+        link: formData.get('link') || ''
+      };
+      try {
+        await window.AppApi.ownerSaveSupportContact(state.token, payload, !payload.id);
+        await loadBootstrap();
+        activateSection('support');
       } catch (error) {
         alert(error.message);
       }

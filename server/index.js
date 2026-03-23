@@ -122,6 +122,7 @@ async function handleApi(req, res, pathname) {
   const products = () => readJson('products.json');
   const banners = () => readJson('banners.json');
   const orders = () => readJson('orders.json');
+  const supportContacts = () => readJson('support_contacts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
     return sendJson(res, 200, { ok: true, name: 'stav-ugolki' });
@@ -131,7 +132,7 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, {
       products: products(),
       banners: banners().filter(item => item.active),
-      supportUrl: process.env.SUPPORT_URL || 'https://t.me/your_support'
+      supportContacts: supportContacts()
     });
   }
 
@@ -179,10 +180,12 @@ async function handleApi(req, res, pathname) {
     if (!ensureOwner(req, res)) return;
     const p = products();
     const b = banners();
+    const s = supportContacts();
     const o = orders();
     return sendJson(res, 200, {
       products: p,
       banners: b,
+      supportContacts: s,
       orders: o,
       summary: summarize(p, o, b)
     });
@@ -196,6 +199,8 @@ async function handleApi(req, res, pathname) {
       const product = {
         id: nextId('prod'),
         name: String(body.name || 'Новый товар').slice(0, 120),
+        brand: String(body.brand || '').slice(0, 80),
+        description: String(body.description || '').slice(0, 5000),
         category: String(body.category || 'прочее').slice(0, 40),
         price: Number(body.price || 0),
         favorite: Boolean(body.favorite),
@@ -222,6 +227,8 @@ async function handleApi(req, res, pathname) {
       current[index] = {
         ...current[index],
         name: String(body.name || current[index].name),
+        brand: String(body.brand ?? (current[index].brand || '')),
+        description: String(body.description ?? (current[index].description || '')),
         category: String(body.category || current[index].category),
         price: Number(body.price ?? current[index].price),
         favorite: Boolean(body.favorite),
@@ -240,8 +247,7 @@ async function handleApi(req, res, pathname) {
     if (!ensureOwner(req, res)) return;
     const id = pathname.split('/').pop();
     const current = products();
-    const next = current.filter(item => item.id !== id);
-    writeJson('products.json', next);
+    writeJson('products.json', current.filter(item => item.id !== id));
     return sendJson(res, 200, { ok: true });
   }
 
@@ -296,6 +302,54 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     const current = banners();
     writeJson('banners.json', current.filter(item => item.id !== id));
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (pathname === '/api/owner/support-contacts' && method === 'POST') {
+    if (!ensureOwner(req, res)) return;
+    try {
+      const body = await parseBody(req);
+      const current = supportContacts();
+      const item = {
+        id: nextId('support'),
+        title: String(body.title || 'Контакт').slice(0, 80),
+        value: String(body.value || '').slice(0, 120),
+        link: String(body.link || '').slice(0, 300)
+      };
+      current.unshift(item);
+      writeJson('support_contacts.json', current);
+      return sendJson(res, 201, { ok: true, item });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/owner/support-contacts/') && method === 'PUT') {
+    if (!ensureOwner(req, res)) return;
+    const id = pathname.split('/').pop();
+    try {
+      const body = await parseBody(req);
+      const current = supportContacts();
+      const index = current.findIndex(item => item.id === id);
+      if (index === -1) return sendJson(res, 404, { error: 'Support contact not found' });
+      current[index] = {
+        ...current[index],
+        title: String(body.title ?? current[index].title),
+        value: String(body.value ?? current[index].value),
+        link: String(body.link ?? current[index].link)
+      };
+      writeJson('support_contacts.json', current);
+      return sendJson(res, 200, { ok: true, item: current[index] });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/owner/support-contacts/') && method === 'DELETE') {
+    if (!ensureOwner(req, res)) return;
+    const id = pathname.split('/').pop();
+    const current = supportContacts();
+    writeJson('support_contacts.json', current.filter(item => item.id !== id));
     return sendJson(res, 200, { ok: true });
   }
 

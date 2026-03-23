@@ -21,6 +21,7 @@
         <button class="owner-nav-item is-active" data-section="dashboard">Аналитика</button>
         <button class="owner-nav-item" data-section="products">Товары</button>
         <button class="owner-nav-item" data-section="banners">Баннеры</button>
+        <button class="owner-nav-item" data-section="support">Поддержка</button>
         <button class="owner-nav-item" data-section="orders">Заказы</button>
       </nav>
       <button class="logout-btn" id="logoutBtn" type="button">Выйти</button>
@@ -40,7 +41,7 @@
         <header class="owner-header">
           <div>
             <h1>Управление магазином</h1>
-            <p>Отдельная зона для товаров, баннеров, заказов и аналитики.</p>
+            <p>Товары, баннеры, контакты поддержки, заказы и аналитика.</p>
           </div>
         </header>
 
@@ -69,6 +70,7 @@
                 <thead>
                   <tr>
                     <th>Название</th>
+                    <th>Бренд</th>
                     <th>Категория</th>
                     <th>Цена</th>
                     <th>Остаток</th>
@@ -111,6 +113,33 @@
           <div class="panel surface form-panel">
             <div class="panel-title">Редактор баннера</div>
             <form id="bannerForm" class="owner-form"></form>
+          </div>
+        </section>
+
+        <section class="owner-section hidden" data-section-panel="support">
+          <div class="panel surface">
+            <div class="panel-head">
+              <div class="panel-title">Контакты поддержки</div>
+              <button class="owner-btn" type="button" id="newSupportBtn">Новый контакт</button>
+            </div>
+            <div class="table-wrap">
+              <table class="owner-table">
+                <thead>
+                  <tr>
+                    <th>Название</th>
+                    <th>Текст</th>
+                    <th>Ссылка</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="supportBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel surface form-panel">
+            <div class="panel-title">Редактор контакта</div>
+            <form id="supportForm" class="owner-form"></form>
           </div>
         </section>
 
