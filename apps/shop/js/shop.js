@@ -534,33 +534,45 @@
     const variant = selectedVariantForProduct(product, variantId);
     if (variant) rememberVariant(product.id, variant.id);
     setCartQty(product, cartQty(product.id, variant?.id || '') + 1, variant);
-    animateToCart(sourceNode);
+
+    const flightSource = sourceNode?.closest?.('[data-open-product]')?.querySelector('.product-image-wrap')
+      || sourceNode?.closest?.('.product-sheet-card')?.querySelector('.product-sheet-media')
+      || sourceNode;
+
+    animateToCart(flightSource);
   }
 
   function animateToCart(sourceNode) {
     const cartTarget = el.navCart;
     if (!sourceNode || !cartTarget) return;
+
     const sourceRect = sourceNode.getBoundingClientRect();
     const targetRect = cartTarget.getBoundingClientRect();
+    if (!sourceRect.width || !sourceRect.height) return;
+
     const clone = sourceNode.cloneNode(true);
+    clone.querySelectorAll?.('.product-actions, .mini-action').forEach(node => node.remove());
     clone.classList.add('fly-clone');
     clone.style.left = `${sourceRect.left}px`;
     clone.style.top = `${sourceRect.top}px`;
     clone.style.width = `${sourceRect.width}px`;
     clone.style.height = `${sourceRect.height}px`;
     document.body.appendChild(clone);
+
     requestAnimationFrame(() => {
       const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
       const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
-      clone.style.transform = `translate(${dx}px, ${dy}px) scale(.18) rotate(-24deg)`;
-      clone.style.opacity = '.1';
-      clone.style.filter = 'blur(1px)';
+      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.14) rotate(-12deg)`;
+      clone.style.opacity = '.14';
+      clone.style.filter = 'blur(1.4px) saturate(1.15)';
+      clone.style.borderRadius = '16px';
     });
+
     setTimeout(() => {
       clone.remove();
       el.navCart.classList.add('cart-pulse');
       setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
-    }, 760);
+    }, 820);
   }
 
   async function shareProduct(productId) {
