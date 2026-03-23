@@ -1751,3 +1751,153 @@ svg {
     min-width: 200px;
   }
 }
+
+/* v16 visible coal glow + real product flight */
+.hero-logo-button {
+  overflow: visible;
+}
+
+.hero-logo {
+  filter:
+    drop-shadow(0 0 18px rgba(255, 118, 34, 0.34))
+    drop-shadow(0 0 42px rgba(255, 102, 28, 0.24))
+    drop-shadow(0 0 18px rgba(129, 216, 208, 0.18));
+}
+
+.hero-logo-button::before {
+  left: 1.8%;
+  bottom: 11.5%;
+  width: 34%;
+  height: 37%;
+  background:
+    radial-gradient(circle at 12% 70%, rgba(255, 215, 116, 1), transparent 7%),
+    radial-gradient(circle at 20% 48%, rgba(255, 110, 34, .98), transparent 10%),
+    radial-gradient(circle at 32% 66%, rgba(255, 210, 114, .98), transparent 7%),
+    radial-gradient(circle at 42% 36%, rgba(255, 100, 30, 1), transparent 10%),
+    radial-gradient(circle at 53% 60%, rgba(255, 206, 108, .98), transparent 7%),
+    radial-gradient(circle at 63% 40%, rgba(255, 96, 28, .98), transparent 10%),
+    radial-gradient(circle at 74% 64%, rgba(255, 202, 104, .96), transparent 7%),
+    radial-gradient(circle at 84% 40%, rgba(255, 92, 26, .98), transparent 10%),
+    radial-gradient(circle at 48% 93%, rgba(255, 96, 22, .82), transparent 22%);
+  filter: blur(3.6px) saturate(1.12);
+  opacity: 1;
+  animation: coalCracksV16 1.12s ease-in-out infinite;
+}
+
+.hero-logo-button::after {
+  left: .8%;
+  bottom: 9.8%;
+  width: 37%;
+  height: 24%;
+  background:
+    radial-gradient(circle at 18% 52%, rgba(255, 126, 40, 1), transparent 16%),
+    radial-gradient(circle at 38% 44%, rgba(255, 188, 74, .98), transparent 18%),
+    radial-gradient(circle at 58% 54%, rgba(255, 104, 28, .96), transparent 16%),
+    radial-gradient(circle at 78% 48%, rgba(255, 178, 66, .9), transparent 16%);
+  filter: blur(15px) saturate(1.15);
+  opacity: 1;
+  animation: coalHeatV16 1.24s ease-in-out infinite;
+}
+
+.hero-logo-embers::before {
+  left: 2.5%;
+  top: 4%;
+  width: 31%;
+  height: 40%;
+  background:
+    radial-gradient(circle at 14% 86%, rgba(255, 210, 92, 1), transparent 8%),
+    radial-gradient(circle at 30% 58%, rgba(255, 110, 36, 1), transparent 9%),
+    radial-gradient(circle at 52% 24%, rgba(255, 198, 84, .98), transparent 8%),
+    radial-gradient(circle at 72% 54%, rgba(255, 114, 42, .98), transparent 8%),
+    radial-gradient(circle at 90% 18%, rgba(255, 182, 74, .9), transparent 6%);
+  filter: blur(.9px) saturate(1.15);
+  opacity: .98;
+  animation: emberRiseV16 1.45s ease-in-out infinite;
+}
+
+.hero-logo-embers::after {
+  left: -.8%;
+  top: -2%;
+  width: 38%;
+  height: 58%;
+  background:
+    radial-gradient(circle at 10% 76%, rgba(255, 184, 78, .98), transparent 3.8%),
+    radial-gradient(circle at 18% 62%, rgba(255, 103, 30, .98), transparent 3.8%),
+    radial-gradient(circle at 26% 44%, rgba(255, 196, 92, .98), transparent 3.6%),
+    radial-gradient(circle at 34% 30%, rgba(255, 109, 38, .98), transparent 3.8%),
+    radial-gradient(circle at 46% 20%, rgba(255, 194, 88, .96), transparent 3.4%),
+    radial-gradient(circle at 54% 38%, rgba(255, 112, 42, .98), transparent 3.8%),
+    radial-gradient(circle at 66% 22%, rgba(255, 198, 92, .92), transparent 3.4%),
+    radial-gradient(circle at 76% 42%, rgba(255, 104, 36, .96), transparent 3.6%),
+    radial-gradient(circle at 88% 18%, rgba(255, 188, 86, .86), transparent 3.2%);
+  filter: blur(.7px) saturate(1.16);
+  opacity: .95;
+  animation: emberScatterV16 1.6s linear infinite;
+}
+
+@keyframes coalCracksV16 {
+  0%, 100% { opacity: .88; transform: translateY(0) scale(.99); }
+  18% { opacity: 1; transform: translateY(-1px) scale(1.05); }
+  46% { opacity: .94; transform: translateY(.5px) scale(1.02); }
+  70% { opacity: 1; transform: translateY(-.5px) scale(1.06); }
+}
+
+@keyframes coalHeatV16 {
+  0%, 100% { opacity: .74; transform: scale(.96); }
+  30% { opacity: 1; transform: scale(1.14); }
+  62% { opacity: .92; transform: scale(1.04); }
+}
+
+@keyframes emberRiseV16 {
+  0% { opacity: .28; transform: translateY(3px) scale(.94); }
+  18% { opacity: 1; }
+  50% { opacity: .9; transform: translateY(-8px) scale(1.08); }
+  100% { opacity: 0; transform: translateY(-16px) scale(1.12); }
+}
+
+@keyframes emberScatterV16 {
+  0% { opacity: .1; transform: translateY(7px) scale(.9); }
+  14% { opacity: 1; }
+  56% { opacity: .72; transform: translateY(-6px) scale(1.04); }
+  100% { opacity: 0; transform: translateY(-18px) scale(1.1); }
+}
+
+.fly-clone-media {
+  position: fixed;
+  z-index: 120;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 22px;
+  background: rgba(6, 9, 11, .88);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, .48),
+    0 0 22px rgba(255, 123, 42, .18),
+    0 0 16px rgba(72, 198, 188, .16);
+  will-change: transform, opacity, filter;
+}
+
+.fly-clone-image,
+.fly-clone-fallback {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fly-clone-image {
+  object-fit: cover;
+}
+
+.fly-clone-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  color: #d8fff7;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.1;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(95, 233, 219, .34), transparent 42%),
+    linear-gradient(180deg, rgba(23, 31, 37, .96), rgba(10, 15, 18, .98));
+}

@@ -1,8 +1,8 @@
 (function () {
   const STORAGE_KEYS = {
     likes: 'stav:likes',
-    cart: 'stav:cart:v15',
-    selectedVariants: 'stav:selectedVariants:v15'
+    cart: 'stav:cart:v16',
+    selectedVariants: 'stav:selectedVariants:v16'
   };
 
   const state = {
@@ -531,55 +531,105 @@
   function addToCart(productId, variantId, sourceNode) {
     const product = productById(productId);
     if (!product) return;
+
+    const flightSource = sourceNode?.closest?.('.product-card')?.querySelector?.('.product-image-wrap')
+      || sourceNode?.closest?.('.product-sheet-card')?.querySelector?.('.product-sheet-media')
+      || sourceNode?.closest?.('[data-open-product]')?.querySelector?.('.product-image-wrap')
+      || sourceNode;
+
+    animateToCart(product, flightSource);
+
     const variant = selectedVariantForProduct(product, variantId);
     if (variant) rememberVariant(product.id, variant.id);
     setCartQty(product, cartQty(product.id, variant?.id || '') + 1, variant);
-
-    const flightSource = sourceNode?.closest?.('.product-card')
-      || sourceNode?.closest?.('.product-sheet-card')?.querySelector('.product-sheet-media')
-      || sourceNode?.closest?.('[data-open-product]')?.querySelector('.product-image-wrap')
-      || sourceNode;
-
-    animateToCart(flightSource);
   }
 
-  function animateToCart(sourceNode) {
+  function animateToCart(product, sourceNode) {
     const cartTarget = el.navCart?.querySelector?.('.nav-icon') || el.navCart;
     if (!sourceNode || !cartTarget) return;
 
     const sourceRect = sourceNode.getBoundingClientRect();
     const targetRect = cartTarget.getBoundingClientRect();
-    if (sourceRect.width < 20 || sourceRect.height < 20) return;
+    if (sourceRect.width < 28 || sourceRect.height < 28) return;
 
-    const clone = sourceNode.cloneNode(true);
-    clone.querySelectorAll?.('button, .product-actions, .mini-action, .sheet-close').forEach(node => node.remove());
-    clone.classList.add('fly-clone');
+    const clone = document.createElement('div');
+    clone.className = 'fly-clone fly-clone-media';
+
+    const sourceImg = sourceNode.querySelector?.('img');
+    if (sourceImg?.src) {
+      clone.innerHTML = `<img class="fly-clone-image" src="${sourceImg.src}" alt="" />`;
+    } else if (product?.image) {
+      clone.innerHTML = `<img class="fly-clone-image" src="${product.image}" alt="" />`;
+    } else {
+      const label = escapeHtml((product?.brand || product?.name || '').slice(0, 18));
+      clone.innerHTML = `<div class="fly-clone-fallback"><span>${label}</span></div>`;
+    }
+
     clone.style.left = `${sourceRect.left}px`;
     clone.style.top = `${sourceRect.top}px`;
     clone.style.width = `${sourceRect.width}px`;
     clone.style.height = `${sourceRect.height}px`;
     document.body.appendChild(clone);
 
-    const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
-    const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
-    const targetScale = Math.max(0.24, Math.min(0.34, targetRect.width / Math.max(sourceRect.width, 1) * 1.9));
+    const startX = sourceRect.left + sourceRect.width / 2;
+    const startY = sourceRect.top + sourceRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const arcX = dx * 0.62;
+    const arcY = dy * 0.22 - Math.min(70, Math.abs(dx) * 0.06);
 
-    requestAnimationFrame(() => {
-      clone.style.transform = 'translate3d(0, 0, 0) scale(1)';
-      clone.style.opacity = '1';
-      clone.style.filter = 'blur(0px) saturate(1)';
-      requestAnimationFrame(() => {
-        clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${targetScale}) rotate(-8deg)`;
-        clone.style.opacity = '.18';
-        clone.style.filter = 'blur(.6px) saturate(1.08)';
+    if (typeof clone.animate === 'function') {
+      const animation = clone.animate([
+        {
+          transform: 'translate3d(0, 0, 0) scale(1) rotate(0deg)',
+          opacity: 1,
+          filter: 'blur(0px) saturate(1.02)',
+          borderRadius: '18px'
+        },
+        {
+          transform: `translate3d(${arcX}px, ${arcY}px, 0) scale(.78) rotate(-7deg)`,
+          opacity: .96,
+          filter: 'blur(.15px) saturate(1.08)',
+          offset: .56,
+          borderRadius: '20px'
+        },
+        {
+          transform: `translate3d(${dx}px, ${dy}px, 0) scale(.16) rotate(-14deg)`,
+          opacity: .14,
+          filter: 'blur(.9px) saturate(1.18)',
+          borderRadius: '999px'
+        }
+      ], {
+        duration: 820,
+        easing: 'cubic-bezier(.2,.86,.18,1)',
+        fill: 'forwards'
       });
-    });
 
+      animation.finished.catch(() => null).finally(() => {
+        clone.remove();
+        el.navCart.classList.add('cart-pulse');
+        setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
+      });
+      return;
+    }
+
+    clone.style.transition = 'transform 820ms cubic-bezier(.2,.86,.18,1), opacity 820ms ease, filter 820ms ease';
+    clone.style.transform = 'translate3d(0,0,0) scale(1) rotate(0deg)';
+    clone.style.opacity = '1';
+    clone.style.filter = 'blur(0px) saturate(1.02)';
+    requestAnimationFrame(() => {
+      clone.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(.16) rotate(-14deg)`;
+      clone.style.opacity = '.14';
+      clone.style.filter = 'blur(.9px) saturate(1.18)';
+      clone.style.borderRadius = '999px';
+    });
     setTimeout(() => {
       clone.remove();
       el.navCart.classList.add('cart-pulse');
       setTimeout(() => el.navCart.classList.remove('cart-pulse'), 420);
-    }, 860);
+    }, 840);
   }
 
   async function shareProduct(productId) {
