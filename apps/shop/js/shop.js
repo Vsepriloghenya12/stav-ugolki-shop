@@ -43,6 +43,7 @@
     cartSheet: document.getElementById('cartSheet'),
     supportSheet: document.getElementById('supportSheet'),
     searchToggle: document.getElementById('searchToggle'),
+    heroLogoButton: document.getElementById('heroLogoButton'),
     searchInput: document.getElementById('searchInput'),
     menuCatalogBtn: document.getElementById('menuCatalogBtn'),
     installAppBtn: document.getElementById('installAppBtn'),
@@ -760,7 +761,8 @@
     el.filterCategoryGrid.addEventListener('click', event => {
       const btn = event.target.closest('[data-filter-category]');
       if (!btn) return;
-      state.filters.category = btn.dataset.filterCategory;
+      const nextCategory = btn.dataset.filterCategory;
+      state.filters.category = state.filters.category === nextCategory ? 'all' : nextCategory;
       if (state.filters.category !== 'табак') state.filters.brand = 'all';
       renderFilterOptions();
     });
@@ -768,7 +770,8 @@
     el.filterBrandGrid.addEventListener('click', event => {
       const btn = event.target.closest('[data-filter-brand]');
       if (!btn) return;
-      state.filters.brand = btn.dataset.filterBrand;
+      const nextBrand = btn.dataset.filterBrand;
+      state.filters.brand = state.filters.brand === nextBrand ? 'all' : nextBrand;
       renderFilterOptions();
     });
 
@@ -901,6 +904,22 @@
     });
 
     el.checkoutForm.addEventListener('submit', submitCheckout);
+
+    el.heroLogoButton?.addEventListener('click', () => {
+      state.view = 'catalog';
+      state.search = '';
+      state.filters.category = 'all';
+      state.filters.brand = 'all';
+      state.filters.priceMin = '';
+      state.filters.priceMax = '';
+      el.searchInput.value = '';
+      closeAllSheets();
+      renderCategories();
+      renderFilterOptions();
+      renderProducts();
+      syncBanner(0);
+      renderBottomNav('menu');
+    });
 
     el.navMenu.addEventListener('click', () => openSheet(el.menuSheet, 'menu'));
     el.navFavorites.addEventListener('click', () => {
