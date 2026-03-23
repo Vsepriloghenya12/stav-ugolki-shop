@@ -121,5 +121,19 @@ window.AppApi = {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Не удалось обновить заказ');
     return data;
+  },
+
+  async ownerCreatePost(token, post) {
+    const response = await fetch('/api/owner/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(post)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось отправить пост');
+    return data;
   }
 };

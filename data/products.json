@@ -1,8 +1,56 @@
 [
   {
+    "id": "prod-tab-blackburn-lemon",
+    "name": "Black Burn Lemon Sweets",
+    "brand": "Black Burn",
+    "description": "Яркий сладкий лимон с плотным вкусом и хорошей жаростойкостью. Подходит для соло-покура и цитрусовых миксов.",
+    "category": "табак",
+    "price": 65000,
+    "favorite": true,
+    "stock": 32,
+    "image": "",
+    "accent": "tiffany",
+    "variants": [
+      { "id": "bb-25", "label": "25 г", "price": 65000 },
+      { "id": "bb-100", "label": "100 г", "price": 220000 }
+    ]
+  },
+  {
+    "id": "prod-tab-blackburn-ice",
+    "name": "Black Burn Ice Baby",
+    "brand": "Black Burn",
+    "description": "Холодный профиль с мощным освежающим эффектом и чистым послевкусием.",
+    "category": "табак",
+    "price": 68000,
+    "favorite": false,
+    "stock": 28,
+    "image": "",
+    "accent": "tiffany",
+    "variants": [
+      { "id": "bbi-25", "label": "25 г", "price": 68000 },
+      { "id": "bbi-100", "label": "100 г", "price": 228000 }
+    ]
+  },
+  {
+    "id": "prod-tab-darkside-berry",
+    "name": "Darkside Berry Pulse",
+    "brand": "Darkside",
+    "description": "Плотный ягодный микс с насыщенным вкусом и хорошей отдачей в чаше.",
+    "category": "табак",
+    "price": 72000,
+    "favorite": false,
+    "stock": 18,
+    "image": "",
+    "accent": "coal",
+    "variants": [
+      { "id": "ds-30", "label": "30 г", "price": 72000 },
+      { "id": "ds-120", "label": "120 г", "price": 250000 }
+    ]
+  },
+  {
     "id": "prod-char-001",
     "name": "Уголь кокосовый 1 кг",
-    "brand": "Coconut Charcoal",
+    "brand": "Coco Heat",
     "description": "Кокосовый уголь для кальяна. Ровный жар, стабильное тление и чистый вкус без лишнего запаха.",
     "category": "уголь",
     "price": 120000,
@@ -24,42 +72,6 @@
     "accent": "coal"
   },
   {
-    "id": "prod-char-003",
-    "name": "Уголь кубик premium",
-    "brand": "Ember Gold",
-    "description": "Плотный премиальный кубик с долгим временем работы. Для насыщенных и длительных сессий.",
-    "category": "уголь",
-    "price": 85000,
-    "favorite": false,
-    "stock": 32,
-    "image": "",
-    "accent": "mint"
-  },
-  {
-    "id": "prod-tab-001",
-    "name": "Табак Ice Mint",
-    "brand": "Frost Leaf",
-    "description": "Освежающий мятный вкус с холодком. Подходит для соло-покура и миксов.",
-    "category": "табак",
-    "price": 110000,
-    "favorite": false,
-    "stock": 21,
-    "image": "",
-    "accent": "mint"
-  },
-  {
-    "id": "prod-tab-002",
-    "name": "Табак Berry Mix",
-    "brand": "Berry Cloud",
-    "description": "Яркий ягодный микс со сладким ароматом и мягкой тягой.",
-    "category": "табак",
-    "price": 115000,
-    "favorite": false,
-    "stock": 17,
-    "image": "",
-    "accent": "ember"
-  },
-  {
     "id": "prod-hook-001",
     "name": "Кальян mini black",
     "brand": "Noir Hookah",
@@ -69,19 +81,7 @@
     "favorite": true,
     "stock": 6,
     "image": "",
-    "accent": "coal"
-  },
-  {
-    "id": "prod-hook-002",
-    "name": "Чаша phunnel",
-    "brand": "Clay Flow",
-    "description": "Фанел для сиропистых табаков. Стабильно держит жар и раскрывает вкус.",
-    "category": "прочее",
-    "price": 170000,
-    "favorite": false,
-    "stock": 14,
-    "image": "",
-    "accent": "mint"
+    "accent": "tiffany"
   },
   {
     "id": "prod-other-001",

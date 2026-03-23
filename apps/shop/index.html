@@ -3,9 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#101214" />
+    <meta name="theme-color" content="#0d171a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ставь угольки" />
+    <link rel="manifest" href="/apps/shop/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apps/shared/assets/img/logo-ember.png" />
     <title>Ставь угольки</title>
     <link rel="stylesheet" href="/apps/shared/css/theme.css" />
     <link rel="stylesheet" href="/apps/shared/css/base.css" />
@@ -16,12 +19,7 @@
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-row">
-          <div class="brand-logo-frame" aria-hidden="true">
-            <span class="ember ember-1"></span>
-            <span class="ember ember-2"></span>
-            <span class="ember ember-3"></span>
-            <img class="brand-logo" src="/apps/shared/assets/img/logo-ember.png" alt="Ставь угольки" />
-          </div>
+          <img class="brand-logo" src="/apps/shared/assets/img/logo-ember.png" alt="Ставь угольки" />
           <div class="brand-name" id="brandName">Ставь угольки</div>
         </div>
         <button class="icon-button" id="searchToggle" type="button" aria-label="Поиск"></button>
@@ -33,12 +31,13 @@
       </div>
 
       <div class="category-row" id="categoryRow"></div>
+      <div class="brand-subfilters hidden" id="brandSubfilters"></div>
 
       <main class="product-grid" id="productGrid"></main>
     </div>
 
     <nav class="bottom-nav">
-      <button class="nav-item is-active" id="navMenu" data-nav="catalog" type="button">
+      <button class="nav-item is-active" id="navMenu" data-nav="menu" type="button">
         <span class="nav-icon nav-icon-menu"></span>
         <span class="nav-label">Меню</span>
       </button>
@@ -62,6 +61,17 @@
     </nav>
 
     <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
+
+    <section class="sheet hidden" id="menuSheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Меню</div>
+        <button class="sheet-close" data-close-sheet="menuSheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body menu-sheet-body">
+        <button class="menu-action" id="menuCatalogBtn" type="button">Каталог</button>
+        <button class="menu-action hidden" id="installAppBtn" type="button">Установить на телефон</button>
+      </div>
+    </section>
 
     <section class="sheet hidden" id="searchSheet">
       <div class="sheet-head">
@@ -118,7 +128,9 @@
         <div class="cart-list" id="cartList"></div>
         <form class="checkout-form" id="checkoutForm">
           <input class="sheet-input" name="name" type="text" placeholder="Имя" required />
-          <input class="sheet-input" name="phone" type="tel" placeholder="Телефон" required />
+          <input class="sheet-input" name="phone" type="tel" placeholder="Телефон" />
+          <input class="sheet-input" name="telegram" type="text" placeholder="Ссылка на Telegram или @username" />
+          <div class="auth-help">Для оформления заказа укажите телефон или Telegram.</div>
           <div class="cart-summary-row">
             <span id="cartTotalLabel">0 VND</span>
             <button class="submit-button" type="submit">Оформить</button>

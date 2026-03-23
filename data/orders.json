@@ -1,44 +1,23 @@
 [
   {
-    "id": "order-1001",
-    "createdAt": "2026-03-22T10:30:00.000Z",
+    "id": "order-1774274592222-xfxdi",
+    "createdAt": "2026-03-23T14:03:12.222Z",
     "customer": {
-      "name": "Telegram Client",
-      "phone": "+84 111 222 333"
+      "name": "Test",
+      "phone": "123",
+      "telegram": ""
     },
     "items": [
       {
         "id": "prod-char-001",
-        "name": "Уголь кокосовый 1 кг",
+        "name": "Уголь",
         "qty": 2,
-        "price": 120000
-      },
-      {
-        "id": "prod-tab-001",
-        "name": "Табак Ice Mint",
-        "qty": 1,
-        "price": 110000
+        "price": 120000,
+        "variantId": "",
+        "variantLabel": ""
       }
     ],
-    "total": 350000,
+    "total": 240000,
     "status": "new"
-  },
-  {
-    "id": "order-1002",
-    "createdAt": "2026-03-21T18:45:00.000Z",
-    "customer": {
-      "name": "Walk In",
-      "phone": "+84 222 555 111"
-    },
-    "items": [
-      {
-        "id": "prod-hook-001",
-        "name": "Кальян mini black",
-        "qty": 1,
-        "price": 850000
-      }
-    ],
-    "total": 850000,
-    "status": "paid"
   }
 ]
