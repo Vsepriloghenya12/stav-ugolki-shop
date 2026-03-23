@@ -335,16 +335,17 @@
     requestAnimationFrame(() => {
       const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
       const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
-      clone.style.transition = 'transform 650ms cubic-bezier(.18,.8,.24,1), opacity 650ms ease';
-      clone.style.transform = `translate(${dx}px, ${dy}px) scale(.16) rotate(-14deg)`;
-      clone.style.opacity = '.2';
+      clone.style.transition = 'transform 760ms cubic-bezier(.14,.86,.24,1), opacity 760ms ease, filter 760ms ease';
+      clone.style.transform = `translate(${dx}px, ${dy}px) scale(.16) rotate(-18deg)`;
+      clone.style.opacity = '.16';
+      clone.style.filter = 'blur(1px) saturate(1.08)';
     });
 
     setTimeout(() => {
       clone.remove();
       el.navCart.classList.add('cart-pulse');
       setTimeout(() => el.navCart.classList.remove('cart-pulse'), 450);
-    }, 680);
+    }, 780);
   }
 
   async function shareProduct(productId) {
@@ -457,8 +458,8 @@
         event.stopPropagation();
         const card = plusBtn.closest('.product-card');
         const flyNode = card?.querySelector('.product-image-wrap') || card;
-        addToCart(plusBtn.dataset.cartPlus);
         animateToCart(flyNode);
+        addToCart(plusBtn.dataset.cartPlus);
         return;
       }
 
@@ -467,8 +468,8 @@
         event.stopPropagation();
         const card = cartBtn.closest('.product-card');
         const flyNode = card?.querySelector('.product-image-wrap') || card;
-        addToCart(cartBtn.dataset.addToCart);
         animateToCart(flyNode);
+        addToCart(cartBtn.dataset.addToCart);
         return;
       }
 
@@ -482,8 +483,8 @@
       const addBtn = event.target.closest('[data-sheet-add]');
       if (!addBtn) return;
       const flyNode = el.productSheet.querySelector('.product-sheet-media');
-      addToCart(addBtn.dataset.sheetAdd);
       animateToCart(flyNode);
+      addToCart(addBtn.dataset.sheetAdd);
     });
 
     el.bottomNav.addEventListener('click', event => {

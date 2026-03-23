@@ -5,17 +5,20 @@
   --accent-green: #5a9b87;
   --accent-red: #ff3b30;
   --shadow-soft: 0 12px 28px rgba(0,0,0,0.28);
-  --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 86px);
+  --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 94px);
 }
 
 html,
 body {
   min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
   overscroll-behavior: none;
 }
 
 body {
   touch-action: manipulation;
+  overflow-x: clip;
 }
 
 .app-shell {
@@ -302,6 +305,7 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  overflow-x: clip;
 }
 
 .product-card {
@@ -312,6 +316,7 @@ body {
   padding: 10px;
   box-shadow: var(--shadow-soft);
   min-width: 0;
+  overflow: hidden;
 }
 
 .product-image-wrap {
@@ -443,12 +448,17 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .product-price {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 16px;
   font-weight: 800;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cart-stepper,
@@ -459,6 +469,8 @@ body {
   border-radius: 16px;
   border: 0;
   flex: 0 0 auto;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .cart-icon-button,
@@ -472,16 +484,17 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 0 12px;
-  min-width: 92px;
-  background: rgba(255,59,48,0.12);
-  box-shadow: inset 0 0 0 1px rgba(255,59,48,0.26);
+  gap: 6px;
+  padding: 0 8px;
+  min-width: 78px;
+  max-width: 78px;
+  background: rgba(255,59,48,0.14);
+  box-shadow: inset 0 0 0 1px rgba(255,59,48,0.28);
 }
 
 .cart-stepper-button {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -489,17 +502,19 @@ body {
   border: 0;
   padding: 0;
   border-radius: 999px;
-  background: rgba(255,59,48,0.78);
+  background: rgba(255,59,48,0.88);
   font-size: 16px;
   font-weight: 800;
   line-height: 1;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .cart-stepper-value {
-  min-width: 12px;
+  min-width: 10px;
   text-align: center;
   color: var(--text);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -519,24 +534,29 @@ body {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
-  padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 12px);
-  background: linear-gradient(to top, rgba(10,12,14,0.96), rgba(10,12,14,0.62), rgba(10,12,14,0));
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  padding: 12px 8px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  background: transparent;
   z-index: 60;
+  isolation: isolate;
 }
 
 .bottom-nav::before {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(11,13,15,0.78), rgba(11,13,15,0.18), rgba(11,13,15,0));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 104px;
+  background: linear-gradient(to top, rgba(10,12,14,0.94), rgba(10,12,14,0.74) 38%, rgba(10,12,14,0.28) 74%, rgba(10,12,14,0));
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   pointer-events: none;
+  z-index: -1;
 }
 
 .nav-item {
   position: relative;
-  min-height: 62px;
+  min-height: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -544,9 +564,13 @@ body {
   gap: 6px;
   color: rgba(243,234,215,0.82);
   background: transparent;
+  border: 0;
+  outline: 0;
   border-radius: 0;
   box-shadow: none;
   z-index: 1;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .nav-item .nav-icon {
@@ -555,15 +579,20 @@ body {
 }
 
 .nav-label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
-  text-shadow: 0 1px 1px rgba(0,0,0,0.44);
+  text-shadow: 0 1px 1px rgba(0,0,0,0.52);
 }
 
 .nav-item.is-active,
 .nav-item-cart {
   color: #fff;
+}
+
+.nav-item.is-active .nav-label,
+.nav-item-cart .nav-label {
+  text-shadow: 0 0 14px rgba(255,90,47,0.18), 0 1px 1px rgba(0,0,0,0.52);
 }
 
 .nav-item.is-active .nav-icon,
@@ -577,8 +606,8 @@ body {
 
 .nav-badge {
   position: absolute;
-  top: 7px;
-  right: 18px;
+  top: 5px;
+  right: 20px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -822,6 +851,10 @@ body {
   .category-button,
   .filter-option { font-size: 12px; }
   .product-name { font-size: 15px; }
+  .product-price { font-size: 14px; }
+  .cart-stepper { min-width: 72px; max-width: 72px; padding: 0 6px; gap: 5px; }
+  .cart-stepper-button { width: 22px; height: 22px; }
+  .nav-label { font-size: 10px; }
 }
 
 @keyframes cartPulseGlow {
