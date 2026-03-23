@@ -23,10 +23,13 @@
     activeBanner: 0,
     bannerTimer: null,
     activeProductId: '',
-    deferredPrompt: null
+    deferredPrompt: null,
+    bannerGesture: { startX: 0, deltaX: 0, active: false },
+    suppressBannerClick: false
   };
 
   const el = {
+    bannerSection: document.getElementById('bannerSection'),
     bannerTrack: document.getElementById('bannerTrack'),
     bannerDots: document.getElementById('bannerDots'),
     categoryRow: document.getElementById('categoryRow'),
@@ -237,12 +240,10 @@
       return;
     }
 
-    const brands = ['all', ...brandsForCategory('табак')];
-    el.brandSubfilters.innerHTML = brands.map(brand => {
-      const value = brand === 'all' ? 'all' : brand;
-      const label = brand === 'all' ? 'Все бренды' : brand;
-      return `<button class="subfilter-chip ${state.filters.brand === value ? 'is-active' : ''}" data-sub-brand="${escapeHtml(value)}" type="button">${escapeHtml(label)}</button>`;
-    }).join('');
+    const brands = brandsForCategory('табак');
+    el.brandSubfilters.innerHTML = brands.map(brand => `
+      <button class="subfilter-chip ${state.filters.brand === brand ? 'is-active' : ''}" data-sub-brand="${escapeHtml(brand)}" type="button">${escapeHtml(brand)}</button>
+    `).join('');
   }
 
   function renderFilterOptions() {
@@ -276,10 +277,14 @@
     syncBanner(state.activeBanner);
   }
 
-  function syncBanner(index) {
+  function syncBanner(index, offsetPx = 0) {
     const count = Math.max(state.banners.length || 1, 1);
     state.activeBanner = ((index % count) + count) % count;
-    el.bannerTrack.style.transform = `translateX(-${state.activeBanner * 100}%)`;
+    const width = el.bannerSection?.clientWidth || 0;
+    const base = -(state.activeBanner * width);
+    el.bannerTrack.style.transform = width
+      ? `translate3d(${base + offsetPx}px, 0, 0)`
+      : `translateX(-${state.activeBanner * 100}%)`;
     [...el.bannerDots.children].forEach((node, i) => node.classList.toggle('is-active', i === state.activeBanner));
   }
 
@@ -289,11 +294,46 @@
     state.bannerTimer = setInterval(() => syncBanner(state.activeBanner + 1), 4200);
   }
 
+  function stopBannerAutoplay() {
+    if (state.bannerTimer) clearInterval(state.bannerTimer);
+    state.bannerTimer = null;
+  }
+
+  function onBannerGestureStart(clientX) {
+    if ((state.banners?.length || 0) < 2) return;
+    state.bannerGesture = { startX: clientX, deltaX: 0, active: true };
+    state.suppressBannerClick = false;
+    stopBannerAutoplay();
+    el.bannerTrack.style.transition = 'none';
+  }
+
+  function onBannerGestureMove(clientX) {
+    if (!state.bannerGesture.active) return;
+    state.bannerGesture.deltaX = clientX - state.bannerGesture.startX;
+    if (Math.abs(state.bannerGesture.deltaX) > 8) state.suppressBannerClick = true;
+    syncBanner(state.activeBanner, state.bannerGesture.deltaX);
+  }
+
+  function onBannerGestureEnd() {
+    if (!state.bannerGesture.active) return;
+    const deltaX = state.bannerGesture.deltaX;
+    state.bannerGesture.active = false;
+    el.bannerTrack.style.transition = '';
+    if (Math.abs(deltaX) > 46) {
+      syncBanner(state.activeBanner + (deltaX < 0 ? 1 : -1));
+    } else {
+      syncBanner(state.activeBanner);
+    }
+    startBannerAutoplay();
+    setTimeout(() => { state.suppressBannerClick = false; }, 120);
+  }
+
   function priceControlHtml(product, variant, isSheet = false) {
     const qty = cartQty(product.id, variant?.id || '');
     const sizeClass = isSheet ? ' cart-stepper-sheet' : '';
     if (qty > 0) {
-      return `<div class="cart-stepper${sizeClass}" data-cart-stepper="${product.id}" data-variant-id="${variant?.id || ''}">
+      return `<div class="cart-stepper${sizeClass}${isSheet ? '' : ' cart-stepper-card'}" data-cart-stepper="${product.id}" data-variant-id="${variant?.id || ''}">
+
         <button class="cart-stepper-button" type="button" data-cart-minus="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Уменьшить">−</button>
         <span class="cart-stepper-value">${qty}</span>
         <button class="cart-stepper-button" type="button" data-cart-plus="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Увеличить">+</button>
@@ -431,7 +471,8 @@
   }
 
   function setCategory(category) {
-    state.filters.category = category;
+    const isSame = state.filters.category === category;
+    state.filters.category = isSame ? 'all' : category;
     state.filters.brand = 'all';
     state.view = 'catalog';
     renderCategories();
@@ -710,7 +751,7 @@
     el.brandSubfilters.addEventListener('click', event => {
       const btn = event.target.closest('[data-sub-brand]');
       if (!btn) return;
-      state.filters.brand = btn.dataset.subBrand;
+      state.filters.brand = state.filters.brand === btn.dataset.subBrand ? 'all' : btn.dataset.subBrand;
       renderCategories();
       renderFilterOptions();
       renderProducts();
@@ -738,10 +779,19 @@
     });
 
     el.bannerTrack.addEventListener('click', event => {
+      if (state.suppressBannerClick) return;
       const btn = event.target.closest('[data-banner-id]');
       if (!btn) return;
       applyBannerFilter(btn.dataset.bannerId);
     });
+
+    el.bannerSection.addEventListener('touchstart', event => onBannerGestureStart(event.touches[0].clientX), { passive: true });
+    el.bannerSection.addEventListener('touchmove', event => onBannerGestureMove(event.touches[0].clientX), { passive: true });
+    el.bannerSection.addEventListener('touchend', onBannerGestureEnd);
+    el.bannerSection.addEventListener('mousedown', event => onBannerGestureStart(event.clientX));
+    window.addEventListener('mousemove', event => onBannerGestureMove(event.clientX));
+    window.addEventListener('mouseup', onBannerGestureEnd);
+    window.addEventListener('resize', () => syncBanner(state.activeBanner));
 
     el.productGrid.addEventListener('click', event => {
       const shareBtn = event.target.closest('[data-share]');

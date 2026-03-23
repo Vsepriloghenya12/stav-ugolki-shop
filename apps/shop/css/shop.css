@@ -747,3 +747,307 @@ svg {
     font-size: 11px;
   }
 }
+
+/* v11 visual and interaction refinements */
+.topbar {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.brand-logo-wrap {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+}
+
+.brand-logo-wrap::before,
+.brand-logo-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.brand-logo-wrap::before {
+  background: radial-gradient(circle, rgba(255, 122, 64, 0.30) 0%, rgba(255, 122, 64, 0.12) 35%, transparent 72%);
+  filter: blur(12px);
+  animation: emberPulse 2.3s ease-in-out infinite;
+}
+
+.brand-logo-wrap::after {
+  background:
+    radial-gradient(circle at 30% 38%, rgba(255, 160, 64, 0.66), transparent 15%),
+    radial-gradient(circle at 66% 32%, rgba(255, 108, 64, 0.54), transparent 14%),
+    radial-gradient(circle at 56% 70%, rgba(129,216,208,0.18), transparent 18%);
+  filter: blur(8px);
+  opacity: .8;
+  animation: emberSpark 3.2s ease-in-out infinite;
+}
+
+.brand-logo {
+  position: relative;
+  z-index: 1;
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  animation: logoFloat 4.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 14px rgba(255, 120, 64, 0.22)) drop-shadow(0 0 28px rgba(129,216,208,0.14));
+}
+
+.brand-name {
+  text-align: center;
+  justify-self: center;
+  width: 100%;
+  font-family: 'Lobster', cursive;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: .01em;
+  white-space: normal;
+  text-wrap: balance;
+  color: #c9fffb;
+  text-shadow: 0 0 22px rgba(129,216,208,0.16), 0 0 36px rgba(255,120,64,0.10);
+}
+
+.icon-button,
+.mini-action,
+.cart-icon-button,
+.sheet-close,
+.sheet-add-button {
+  box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+}
+
+.banner-section {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -14px 14px;
+  touch-action: pan-y;
+}
+
+.banner-track {
+  display: flex;
+  transition: transform 0.35s ease;
+  will-change: transform;
+}
+
+.banner-link {
+  flex: 0 0 100%;
+}
+
+.banner-card {
+  width: 100%;
+  aspect-ratio: 16 / 6.8;
+  border-radius: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, #163139 0%, #0b1418 100%);
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.banner-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.32);
+  box-shadow: 0 0 10px rgba(0,0,0,0.18);
+}
+
+.banner-dot.is-active {
+  width: 18px;
+  background: rgba(129,216,208,0.95);
+}
+
+.category-row,
+.brand-subfilters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.brand-subfilters {
+  margin-bottom: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.category-button,
+.subfilter-chip {
+  padding: 0 8px;
+}
+
+.product-grid {
+  align-items: start;
+}
+
+.product-card {
+  min-width: 0;
+  overflow: hidden;
+  align-content: start;
+}
+
+.product-image-wrap {
+  border-radius: 22px;
+  background: transparent;
+}
+
+.product-image {
+  display: block;
+}
+
+.product-name {
+  min-height: auto;
+}
+
+.price-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.price-row > div:first-child {
+  min-width: 0;
+}
+
+.product-price {
+  font-size: 15px;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.product-variant-caption {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cart-icon-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  padding: 11px;
+}
+
+.cart-stepper {
+  min-width: 84px;
+  max-width: 92px;
+  min-height: 40px;
+  padding: 0 6px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cart-stepper-sheet {
+  min-width: 126px;
+  max-width: none;
+  min-height: 46px;
+  padding: 0 10px;
+}
+
+.cart-stepper-button {
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+}
+
+.cart-stepper-sheet .cart-stepper-button {
+  width: 28px;
+  height: 28px;
+}
+
+.cart-stepper-value {
+  min-width: 10px;
+  font-size: 16px;
+}
+
+.bottom-nav {
+  left: 50%;
+  bottom: 8px;
+  width: min(calc(100vw - 16px), 430px);
+  padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  gap: 4px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(7,15,18,0.86), rgba(10,18,22,0.94));
+  border: 1px solid rgba(129,216,208,0.12);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.34);
+}
+
+.nav-item {
+  min-height: 58px;
+  border-radius: 18px;
+}
+
+.nav-item.is-active {
+  background: rgba(129,216,208,0.10);
+}
+
+.hidden {
+  display: none !important;
+}
+
+@keyframes emberPulse {
+  0%, 100% { opacity: .52; transform: scale(.92); }
+  50% { opacity: .95; transform: scale(1.08); }
+}
+
+@keyframes emberSpark {
+  0%, 100% { opacity: .58; transform: translateY(0px) scale(1); }
+  35% { opacity: .92; transform: translateY(-2px) scale(1.06); }
+  65% { opacity: .72; transform: translateY(1px) scale(.98); }
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-1px) scale(1.02); }
+}
+
+@media (max-width: 380px) {
+  .brand-name {
+    font-size: 27px;
+  }
+
+  .banner-section {
+    margin-left: -12px;
+    margin-right: -12px;
+  }
+
+  .product-card {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .price-row {
+    gap: 6px;
+  }
+
+  .product-price {
+    font-size: 14px;
+  }
+
+  .cart-stepper {
+    min-width: 80px;
+    max-width: 86px;
+    min-height: 38px;
+  }
+}
