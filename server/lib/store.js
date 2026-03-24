@@ -12,7 +12,8 @@ const seedFiles = [
   'banners.json',
   'orders.json',
   'posts.json',
-  'support_contacts.json'
+  'support_contacts.json',
+  'chat_targets.json'
 ];
 
 function ensureDir(dirPath) {

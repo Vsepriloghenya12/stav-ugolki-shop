@@ -16,6 +16,8 @@ const ownerPassword = process.env.OWNER_PASSWORD || 'stavugolki2026';
 const botToken = process.env.BOT_TOKEN || '';
 const adminGroupId = process.env.ADMIN_GROUP_CHAT_ID || '';
 const channelChatId = process.env.CHANNEL_CHAT_ID || '';
+const miniAppUrl = process.env.MINIAPP_URL || process.env.WEB_APP_URL || '';
+const botUsername = process.env.BOT_USERNAME || '';
 
 function loadEnv() {
   const envPath = path.join(__dirname, '..', '.env');
@@ -247,22 +249,110 @@ function dataUriToFile(dataUri, fallbackName = 'image.png') {
   };
 }
 
-async function sendTelegramMessage(chatId, text) {
-  return telegramRequest('sendMessage', { chat_id: chatId, text });
+function localMediaToFile(mediaPath = '') {
+  const value = String(mediaPath || '').trim();
+  if (!value.startsWith('/media/')) return null;
+  const fileName = path.basename(value);
+  const absolute = path.join(uploadsDir(), fileName);
+  if (!fs.existsSync(absolute)) return null;
+  const buffer = fs.readFileSync(absolute);
+  const mime = getMimeType(absolute);
+  return {
+    name: fileName,
+    mime,
+    blob: new Blob([buffer], { type: mime })
+  };
+}
+
+function chatTargets() {
+  try {
+    const raw = readJson('chat_targets.json');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function uniqChatIds(values = []) {
+  const seen = new Set();
+  const result = [];
+  values.forEach(value => {
+    const next = String(value || '').trim();
+    if (!next || seen.has(next)) return;
+    seen.add(next);
+    result.push(next);
+  });
+  return result;
+}
+
+function targetChatsFor(kind = 'group') {
+  const targets = chatTargets();
+  const ids = [];
+  const addRole = role => targets.filter(item => item.role === role).forEach(item => ids.push(item.chatId));
+  if (kind === 'orders') {
+    addRole('manager');
+    if (!ids.length && adminGroupId) ids.push(adminGroupId);
+    return uniqChatIds(ids);
+  }
+  if (kind === 'group') {
+    addRole('post');
+    if (!ids.length) addRole('manager');
+    if (!ids.length && adminGroupId) ids.push(adminGroupId);
+    return uniqChatIds(ids);
+  }
+  if (kind === 'all-groups') {
+    targets.forEach(item => ids.push(item.chatId));
+    if (!ids.length && adminGroupId) ids.push(adminGroupId);
+    return uniqChatIds(ids);
+  }
+  if (kind === 'channel') {
+    if (channelChatId) ids.push(channelChatId);
+    return uniqChatIds(ids);
+  }
+  return uniqChatIds(ids);
+}
+
+function buildProductLink(productId = '') {
+  const id = String(productId || '').trim();
+  if (!id) return '';
+  if (botUsername) return `https://t.me/${botUsername}/shop?startapp=product_${id}`;
+  if (!miniAppUrl) return '';
+  try {
+    const url = new URL(miniAppUrl);
+    url.searchParams.set('startapp', `product_${id}`);
+    return url.toString();
+  } catch {
+    const divider = miniAppUrl.includes('?') ? '&' : '?';
+    return `${miniAppUrl}${divider}startapp=product_${id}`;
+  }
+}
+
+function postReplyMarkup(productId = '') {
+  const url = buildProductLink(productId);
+  if (!url) return undefined;
+  return {
+    inline_keyboard: [[{ text: 'Открыть товар', url }]]
+  };
+}
+
+async function sendTelegramMessage(chatId, text, extra = {}) {
+  return telegramRequest('sendMessage', { chat_id: chatId, text, ...extra });
 }
 
 
-async function sendTelegramPhoto(chatId, text, image) {
-  if (!image) return sendTelegramMessage(chatId, text);
+async function sendTelegramPhoto(chatId, text, image, extra = {}) {
+  if (!image) return sendTelegramMessage(chatId, text, extra);
   const mediaType = mediaTypeFromValue(image);
   const remote = /^https?:\/\//i.test(image);
+  const localFile = localMediaToFile(image);
   if (mediaType === 'video') {
-    if (remote) return telegramRequest('sendVideo', { chat_id: chatId, video: image, caption: text });
-    const file = dataUriToFile(image, 'post-video');
-    if (!file) return sendTelegramMessage(chatId, text);
+    if (remote) return telegramRequest('sendVideo', { chat_id: chatId, video: image, caption: text, ...extra });
+    const file = localFile || dataUriToFile(image, 'post-video');
+    if (!file) return sendTelegramMessage(chatId, text, extra);
     const form = new FormData();
     form.append('chat_id', String(chatId));
     form.append('caption', text);
+    if (extra.reply_markup) form.append('reply_markup', JSON.stringify(extra.reply_markup));
     form.append('video', file.blob, file.name);
     return telegramRequest('sendVideo', form, true);
   }
@@ -270,14 +360,16 @@ async function sendTelegramPhoto(chatId, text, image) {
     return telegramRequest('sendPhoto', {
       chat_id: chatId,
       photo: image,
-      caption: text
+      caption: text,
+      ...extra
     });
   }
-  const file = dataUriToFile(image, 'post-image');
-  if (!file) return sendTelegramMessage(chatId, text);
+  const file = localFile || dataUriToFile(image, 'post-image');
+  if (!file) return sendTelegramMessage(chatId, text, extra);
   const form = new FormData();
   form.append('chat_id', String(chatId));
   form.append('caption', text);
+  if (extra.reply_markup) form.append('reply_markup', JSON.stringify(extra.reply_markup));
   form.append('photo', file.blob, file.name);
   return telegramRequest('sendPhoto', form, true);
 }
@@ -285,23 +377,28 @@ async function sendTelegramPhoto(chatId, text, image) {
 
 async function publishOwnerPost(payload) {
   const target = String(payload.target || 'group');
-  const chats = [];
-  if (target === 'group' || target === 'both') {
-    if (!adminGroupId) throw new Error('ADMIN_GROUP_CHAT_ID не задан');
-    chats.push(adminGroupId);
-  }
-  if (target === 'channel' || target === 'both') {
-    if (!channelChatId) throw new Error('CHANNEL_CHAT_ID не задан');
-    chats.push(channelChatId);
-  }
+  const productId = String(payload.productId || '').trim();
+  const markup = postReplyMarkup(productId);
+  const productsList = readJson('products.json');
+  const linkedProduct = productsList.find(item => item.id === productId) || null;
+  const image = String(payload.image || linkedProduct?.image || '');
+
+  let chats = [];
+  if (target === 'group') chats = targetChatsFor('group');
+  if (target === 'channel') chats = targetChatsFor('channel');
+  if (target === 'both') chats = uniqChatIds([...targetChatsFor('channel'), ...targetChatsFor('group')]);
+  if (target === 'all-groups') chats = targetChatsFor('all-groups');
   if (!chats.length) throw new Error('Не выбран получатель поста');
+
   for (const chatId of chats) {
-    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), String(payload.image || ''));
+    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), image, markup ? { reply_markup: markup } : {});
   }
 }
 
 async function notifyOrder(order) {
-  if (!botToken || !adminGroupId) return;
+  if (!botToken) return;
+  const chats = targetChatsFor('orders');
+  if (!chats.length) return;
   const lines = [
     'Новый заказ',
     '',
@@ -317,7 +414,9 @@ async function notifyOrder(order) {
     lines.push(`${index + 1}. ${escapeTelegram(item.name)}${variant} × ${item.qty} — ${formatMoney(item.price * item.qty)}`);
   });
   lines.push('', `Итого: ${formatMoney(order.total)}`);
-  await sendTelegramMessage(adminGroupId, lines.join('\n'));
+  for (const chatId of chats) {
+    await sendTelegramMessage(chatId, lines.join('\n'));
+  }
 }
 
 async function handleApi(req, res, pathname) {
@@ -327,6 +426,7 @@ async function handleApi(req, res, pathname) {
   const orders = () => readJson('orders.json');
   const supportContacts = () => readJson('support_contacts.json');
   const posts = () => readJson('posts.json');
+  const registeredChats = () => chatTargets();
 
   if (pathname === '/api/health' && method === 'GET') {
     return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir() });
@@ -408,9 +508,13 @@ async function handleApi(req, res, pathname) {
       summary: summarize(p, o, b),
       telegramConfig: {
         hasBotToken: Boolean(botToken),
-        hasAdminGroup: Boolean(adminGroupId),
-        hasChannel: Boolean(channelChatId)
-      }
+        hasAdminGroup: targetChatsFor('orders').length > 0,
+        hasChannel: Boolean(channelChatId),
+        hasMiniAppLink: Boolean(buildProductLink(p[0]?.id || 'demo')),
+        managerGroups: registeredChats().filter(item => item.role === 'manager').length,
+        postGroups: registeredChats().filter(item => item.role === 'post').length
+      },
+      chatTargets: registeredChats()
     });
   }
 
@@ -613,7 +717,8 @@ async function handleApi(req, res, pathname) {
         createdAt: new Date().toISOString(),
         target: String(body.target || 'group'),
         text: text.slice(0, 4000),
-        image: await persistMediaAsset(body.image, 'post')
+        image: await persistMediaAsset(body.image, 'post'),
+        productId: String(body.productId || '').slice(0, 120)
       };
       current.unshift(entry);
       writeJson('posts.json', current);
