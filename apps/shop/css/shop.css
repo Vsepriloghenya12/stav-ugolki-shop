@@ -40,7 +40,7 @@ button {
 }
 
 .topbar {
-  margin: 0 -12px 6px;
+  margin: 0 -12px 2px;
 }
 
 .hero-logo-button,
@@ -48,7 +48,7 @@ button {
 .hero-logo-button:focus {
   position: relative;
   width: 100%;
-  height: clamp(112px, 30vw, 190px);
+  height: clamp(76px, 18vw, 124px);
   padding: 0;
   border: 0;
   background: transparent;
@@ -862,10 +862,9 @@ button {
   }
 
   .hero-logo-button {
-    width: min(100%, 820px);
+    width: min(100%, 980px);
     margin: 0 auto;
-    aspect-ratio: 1127 / 736;
-    height: auto;
+    height: 128px;
   }
 
   .hero-logo-burn::before {
@@ -899,8 +898,7 @@ button {
     width: calc(100% + 24px);
     margin-left: -12px;
     margin-right: -12px;
-    aspect-ratio: 1127 / 736;
-    height: auto;
+    height: 96px;
   }
 
   .quickbar {
@@ -926,6 +924,6 @@ button {
   .hero-logo-button,
   .hero-logo-button:hover,
   .hero-logo-button:focus {
-    height: 168px;
+    height: 128px;
   }
 }
