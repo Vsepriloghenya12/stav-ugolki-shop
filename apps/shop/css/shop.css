@@ -40,7 +40,7 @@ button {
 }
 
 .topbar {
-  margin: 0 -12px 8px;
+  margin: 0 -12px 6px;
 }
 
 .hero-logo-button,
@@ -48,8 +48,7 @@ button {
 .hero-logo-button:focus {
   position: relative;
   width: 100%;
-  aspect-ratio: 1127 / 736;
-  height: auto;
+  height: clamp(112px, 30vw, 190px);
   padding: 0;
   border: 0;
   background: transparent;
@@ -919,5 +918,14 @@ button {
 
   .product-price {
     font-size: 16px;
+  }
+}
+
+
+@media (min-width: 900px) {
+  .hero-logo-button,
+  .hero-logo-button:hover,
+  .hero-logo-button:focus {
+    height: 168px;
   }
 }
