@@ -173,15 +173,43 @@ function serveStatic(res, relativePath) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-function normalizeVariants(input) {
+function normalizeVariants(input, fallbackStock = 0) {
   if (!Array.isArray(input)) return [];
   return input
     .map(item => ({
       id: String(item.id || nextId('var')).slice(0, 60),
       label: String(item.label || '').trim().slice(0, 60),
-      price: Number(item.price || 0)
+      price: Number(item.price || 0),
+      stock: Math.max(0, Number((item.stock ?? fallbackStock ?? 0)))
     }))
     .filter(item => item.label && Number.isFinite(item.price) && item.price >= 0);
+}
+
+function withVariantStock(product) {
+  const baseStock = Math.max(0, Number(product?.stock || 0));
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  if (!variants.length) return { ...product, stock: baseStock, variants: [] };
+  const hasExplicitStock = variants.some(item => item.stock !== undefined && item.stock !== null && item.stock !== '');
+  let normalized;
+  if (hasExplicitStock) {
+    normalized = variants.map(item => ({
+      ...item,
+      stock: Math.max(0, Number((item.stock ?? 0)))
+    }));
+  } else {
+    const perVariant = variants.length ? Math.floor(baseStock / variants.length) : 0;
+    let remainder = variants.length ? baseStock % variants.length : 0;
+    normalized = variants.map(item => {
+      const extra = remainder > 0 ? 1 : 0;
+      remainder = Math.max(0, remainder - 1);
+      return {
+        ...item,
+        stock: perVariant + extra
+      };
+    });
+  }
+  const total = normalized.reduce((sum, item) => sum + Number(item.stock || 0), 0);
+  return { ...product, variants: normalized, stock: total };
 }
 
 function escapeTelegram(text) {
@@ -306,7 +334,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
     return sendJson(res, 200, {
-      products: products(),
+      products: products().map(withVariantStock),
       banners: banners().filter(item => item.active),
       supportContacts: supportContacts(),
       pwa: { enabled: true }
@@ -367,7 +395,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/owner/bootstrap' && method === 'GET') {
     if (!ensureOwner(req, res)) return;
-    const p = products();
+    const p = products().map(withVariantStock);
     const b = banners();
     const s = supportContacts();
     const o = orders();
@@ -402,7 +430,7 @@ async function handleApi(req, res, pathname) {
         stock: Number(body.stock || 0),
         image: await persistMediaAsset(body.image, 'product'),
         accent: String(body.accent || 'tiffany'),
-        variants: normalizeVariants(body.variants)
+        variants: normalizeVariants(body.variants, Number(body.stock || 0))
       };
       current.unshift(product);
       writeJson('products.json', current);
@@ -431,7 +459,7 @@ async function handleApi(req, res, pathname) {
         stock: Number(body.stock ?? current[index].stock),
         image: body.image !== undefined ? await persistMediaAsset(body.image, 'product') : current[index].image,
         accent: String(body.accent || current[index].accent || 'tiffany'),
-        variants: normalizeVariants(body.variants ?? current[index].variants)
+        variants: normalizeVariants(body.variants ?? current[index].variants, Number((body.stock ?? current[index].stock ?? 0)))
       };
       writeJson('products.json', current);
       return sendJson(res, 200, { ok: true, product: current[index] });

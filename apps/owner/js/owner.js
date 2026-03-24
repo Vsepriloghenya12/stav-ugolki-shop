@@ -57,24 +57,100 @@
     el.ownerApp.classList.toggle('hidden', !isVisible);
   }
 
-  function parseVariantsText(text) {
-    return String(text || '')
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map((line, index) => {
-        const [labelPart, pricePart] = line.split('|');
-        const label = String(labelPart || '').trim();
-        const price = Number(String(pricePart || '').trim());
-        if (!label || !Number.isFinite(price)) return null;
-        return { id: `variant-${Date.now()}-${index}`, label, price };
-      })
-      .filter(Boolean);
+  function normalizeVariantDrafts(variants, fallbackStock = 0) {
+    return (Array.isArray(variants) ? variants : [])
+      .map((item, index) => ({
+        id: String(item.id || `variant-${Date.now()}-${index}`).slice(0, 60),
+        label: String(item.label || '').trim(),
+        price: Number(item.price || 0),
+        stock: Number(item.stock ?? fallbackStock ?? 0)
+      }))
+      .filter(item => item.label);
   }
 
-  function variantsText(variants) {
-    return (Array.isArray(variants) ? variants : []).map(item => `${item.label}|${item.price}`).join('\n');
+  function categoryVariantMeta(category) {
+    if (category === 'табак') {
+      return {
+        title: 'Граммовки табака',
+        helper: 'Для каждой граммовки задайте цену и остаток отдельно'
+      };
+    }
+    if (category === 'уголь') {
+      return {
+        title: 'Фасовки угля',
+        helper: 'Для каждой фасовки задайте цену и остаток отдельно'
+      };
+    }
+    return {
+      title: 'Варианты товара',
+      helper: 'Можно добавить размеры или другие варианты товара'
+    };
   }
+
+  function variantPlaceholder(category) {
+    if (category === 'табак') return '20 г';
+    if (category === 'уголь') return '1 кг';
+    return 'Вариант';
+  }
+
+  function variantRowsHtml(category, variants = []) {
+    const rows = normalizeVariantDrafts(variants, 0);
+    if (!rows.length && ['табак', 'уголь'].includes(category)) {
+      rows.push({ id: `variant-${Date.now()}-0`, label: category === 'табак' ? '20 г' : '1 кг', price: 0, stock: 0 });
+    }
+    return rows.map((item, index) => `
+      <div class="variant-editor-row" data-variant-row>
+        <input type="hidden" name="variantId" value="${escapeHtml(item.id)}" />
+        <input name="variantLabel" placeholder="${escapeHtml(variantPlaceholder(category))}" value="${escapeHtml(item.label)}" />
+        <input name="variantPrice" type="number" placeholder="Цена" value="${Number(item.price || 0)}" />
+        <input name="variantStock" type="number" placeholder="Остаток" value="${Number(item.stock || 0)}" />
+        <button class="danger-btn variant-remove-btn" type="button" data-remove-variant="${index}">Удалить</button>
+      </div>
+    `).join('');
+  }
+
+  function collectVariantsFromForm(form) {
+    return [...form.querySelectorAll('[data-variant-row]')]
+      .map((row, index) => ({
+        id: row.querySelector('input[name="variantId"]')?.value || `variant-${Date.now()}-${index}`,
+        label: row.querySelector('input[name="variantLabel"]')?.value || '',
+        price: Number(row.querySelector('input[name="variantPrice"]')?.value || 0),
+        stock: Number(row.querySelector('input[name="variantStock"]')?.value || 0)
+      }))
+      .filter(item => String(item.label || '').trim());
+  }
+
+  function totalStock(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return Number(product?.stock || 0);
+    return variants.reduce((sum, item) => sum + Number(item.stock || 0), 0);
+  }
+
+  function displayPrice(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return Number(product?.price || 0);
+    return Math.min(...variants.map(item => Number(item.price || 0)));
+  }
+
+  function nameOptionsFor(category, brand = '', currentId = '') {
+    const normalizedBrand = String(brand || '').trim().toLowerCase();
+    const names = new Set();
+    state.products
+      .filter(item => item.id !== currentId)
+      .filter(item => String(item.category || '') === String(category || ''))
+      .filter(item => !normalizedBrand || String(item.brand || '').trim().toLowerCase() === normalizedBrand)
+      .forEach(item => names.add(String(item.name || '').trim()));
+
+    if (!names.size) {
+      state.products
+        .filter(item => item.id !== currentId)
+        .filter(item => String(item.category || '') === String(category || ''))
+        .forEach(item => names.add(String(item.name || '').trim()));
+    }
+
+    return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru'));
+  }
+
 
   
 async function resizeImage(file, maxSize = 1080, quality = 0.8) {
@@ -183,8 +259,8 @@ function statsData() {
         <td>${escapeHtml(item.name)}</td>
         <td>${escapeHtml(item.category)}</td>
         <td>${escapeHtml(item.brand || '—')}</td>
-        <td>${money(item.price)}</td>
-        <td>${Number(item.stock || 0)}</td>
+        <td>${money(displayPrice(item))}</td>
+        <td>${totalStock(item)}</td>
         <td>
           <div class="table-actions">
             <button class="ghost-btn" type="button" data-edit-product="${item.id}">Редактировать</button>
@@ -285,49 +361,41 @@ function statsData() {
   }
 
   
-function categoryVariantMeta(category) {
-  if (category === 'табак') {
-    return {
-      title: 'Граммовки табака и цена',
-      helper: 'Каждая строка: 25 г|65000 или 100 г|220000'
-    };
-  }
-  if (category === 'уголь') {
-    return {
-      title: 'Фасовка угля и цена',
-      helper: 'Каждая строка: 0.5 кг|65000 или 1 кг|120000'
-    };
-  }
-  return {
-    title: 'Варианты и цена',
-    helper: 'Если у товара нет вариантов, поле можно оставить пустым'
-  };
-}
-
 function productFormTemplate(product = {}) {
   const category = product.category || 'табак';
   const variantsMeta = categoryVariantMeta(category);
+  const usesVariantStock = ['табак', 'уголь'].includes(category);
+  const productVariants = normalizeVariantDrafts(product.variants, Number(product.stock || 0));
+  const nameOptions = nameOptionsFor(category, product.brand || '', product.id || '');
   return `
     <input type="hidden" name="id" value="${escapeHtml(product.id || '')}" />
-    <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
     <div class="form-grid-2">
-      <input name="brand" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" />
       <select name="category">
         ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === category ? 'selected' : ''}>${value}</option>`).join('')}
       </select>
+      <input name="brand" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" />
     </div>
-    <div class="form-grid-2">
-      <input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />
-      <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
-    </div>
+    <select name="namePreset">
+      <option value="">Выбрать название из списка</option>
+      ${nameOptions.map(value => `<option value="${escapeHtml(value)}" ${value === (product.name || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
+    </select>
+    <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
     <div class="form-grid-2">
       <input name="price" type="number" placeholder="Базовая цена" value="${Number(product.price || 0)}" />
-      <div class="owner-note-inline">Оформление карточки подставляется автоматически</div>
+      ${usesVariantStock
+        ? `<div class="owner-note-inline">Общий остаток считается по граммовкам / фасовкам</div>`
+        : `<input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />`}
     </div>
+    <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
     <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
-    <div class="field-title">${variantsMeta.title}</div>
-    <textarea name="variantsText" placeholder="${escapeHtml(variantsMeta.helper)}">${escapeHtml(variantsText(product.variants))}</textarea>
+    <div class="field-title">${escapeHtml(variantsMeta.title)}</div>
     <div class="helper-text">${escapeHtml(variantsMeta.helper)}</div>
+    <div class="variants-editor" data-variants-editor data-variant-kind="${escapeHtml(category)}">
+      ${variantRowsHtml(category, productVariants)}
+    </div>
+    <div class="form-actions">
+      <button class="secondary-btn" type="button" data-add-variant>${usesVariantStock ? (category === 'табак' ? 'Добавить граммовку' : 'Добавить фасовку') : 'Добавить вариант'}</button>
+    </div>
     <div class="media-uploader">
       <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
       <input class="file-input" name="imageFile" type="file" accept="image/*,.gif" />
@@ -575,10 +643,32 @@ function supportFormTemplate(contact = {}) {
       updatePreview(el.productForm, 'Товар');
     });
 
+    el.productForm.addEventListener('click', event => {
+      const addBtn = event.target.closest('[data-add-variant]');
+      if (addBtn) {
+        const editor = el.productForm.querySelector('[data-variants-editor]');
+        if (!editor) return;
+        const category = editor.dataset.variantKind || el.productForm.querySelector('select[name="category"]')?.value || 'табак';
+        editor.insertAdjacentHTML('beforeend', variantRowsHtml(category, [{ id: '', label: '', price: 0, stock: 0 }]));
+        return;
+      }
+      const removeBtn = event.target.closest('[data-remove-variant]');
+      if (removeBtn) {
+        removeBtn.closest('[data-variant-row]')?.remove();
+      }
+    });
+
 
 el.productForm.addEventListener('change', event => {
   const categorySelect = event.target.closest('select[name="category"]');
-  if (!categorySelect) return;
+  const brandInput = event.target.closest('input[name="brand"]');
+  const presetSelect = event.target.closest('select[name="namePreset"]');
+  if (presetSelect) {
+    const nameInput = el.productForm.querySelector('input[name="name"]');
+    if (nameInput && presetSelect.value) nameInput.value = presetSelect.value;
+    return;
+  }
+  if (!categorySelect && !brandInput) return;
   const current = Object.fromEntries(new FormData(el.productForm).entries());
   const existingId = current.id || state.editProductId || '';
   const oldProduct = state.products.find(item => item.id === existingId) || {};
@@ -586,11 +676,11 @@ el.productForm.addEventListener('change', event => {
     ...oldProduct,
     ...current,
     id: existingId,
-    category: categorySelect.value || 'табак',
+    category: current.category || oldProduct.category || 'табак',
     favorite: current.favorite === 'on',
     stock: Number(current.stock || oldProduct.stock || 0),
     price: Number(current.price || oldProduct.price || 0),
-    variants: parseVariantsText(current.variantsText || '')
+    variants: collectVariantsFromForm(el.productForm)
   };
   el.productForm.innerHTML = productFormTemplate(nextDraft);
 });
@@ -604,18 +694,19 @@ el.productForm.addEventListener('change', event => {
     el.productForm.addEventListener('submit', async event => {
       event.preventDefault();
       const formData = new FormData(el.productForm);
+      const variants = collectVariantsFromForm(el.productForm);
       const payload = {
         id: formData.get('id') || '',
         name: formData.get('name') || '',
         brand: formData.get('brand') || '',
         category: formData.get('category') || 'прочее',
-        accent: (formData.get('category') === 'уголь' ? 'ember' : formData.get('category') === 'кальяны' ? 'coal' : 'tiffany'),
+        accent: 'tiffany',
         price: Number(formData.get('price') || 0),
-        stock: Number(formData.get('stock') || 0),
+        stock: variants.length ? variants.reduce((sum, item) => sum + Number(item.stock || 0), 0) : Number(formData.get('stock') || 0),
         description: formData.get('description') || '',
         image: await mediaFieldValue(el.productForm),
         favorite: formData.get('favorite') === 'on',
-        variants: parseVariantsText(formData.get('variantsText') || '')
+        variants
       };
       try {
         await window.AppApi.ownerSaveProduct(state.token, payload, !payload.id);

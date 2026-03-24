@@ -1,8 +1,8 @@
 (function () {
   const STORAGE_KEYS = {
     likes: 'stav:likes',
-    cart: 'stav:cart:v21',
-    selectedVariants: 'stav:selectedVariants:v21'
+    cart: 'stav:cart:v24',
+    selectedVariants: 'stav:selectedVariants:v24'
   };
 
   const state = {
@@ -150,11 +150,32 @@ function categories() {
     return values.sort((a, b) => a.localeCompare(b, 'ru'));
   }
 
+  function variantStock(product, variant = null) {
+    if (!variant) return Math.max(0, Number(product?.stock || 0));
+    const raw = variant?.stock;
+    if (raw === undefined || raw === null || raw === '') return Math.max(0, Number(product?.stock || 0));
+    return Math.max(0, Number(raw || 0));
+  }
+
+  function hasAvailableVariant(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return Math.max(0, Number(product?.stock || 0)) > 0;
+    return variants.some(item => variantStock(product, item) > 0);
+  }
+
   function currentVariant(product) {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     if (!variants.length) return null;
     const selected = state.selectedVariants[product.id];
-    return variants.find(item => item.id === selected) || variants[0];
+    const picked = variants.find(item => item.id === selected);
+    if (picked) return picked;
+    return variants.find(item => variantStock(product, item) > 0) || variants[0];
+  }
+
+  function totalStock(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return Math.max(0, Number(product?.stock || 0));
+    return variants.reduce((sum, item) => sum + variantStock(product, item), 0);
   }
 
   function rememberVariant(productId, variantId) {
@@ -174,10 +195,15 @@ function categories() {
     return state.cart.reduce((sum, item) => sum + Number(item.qty || 0), 0);
   }
 
+  function maxQtyFor(product, variant = null) {
+    if (variant) return variantStock(product, variant);
+    return Math.max(0, Number(product?.stock || 0));
+  }
+
   function setCartQty(product, qty, variant = null) {
     const variantId = variant?.id || '';
     const key = cartEntryKey(product.id, variantId);
-    const nextQty = Math.max(0, Number(qty || 0));
+    const nextQty = Math.max(0, Math.min(Number(qty || 0), maxQtyFor(product, variant)));
     const next = state.cart.filter(item => item.key !== key);
     if (nextQty > 0) {
       next.push({
@@ -368,15 +394,20 @@ function syncBanner(index, offsetPx = 0) {
   }
 
   function priceControlHtml(product, variant, isSheet = false) {
+    const available = maxQtyFor(product, variant);
     const qty = cartQty(product.id, variant?.id || '');
     const sizeClass = isSheet ? ' cart-stepper-sheet' : '';
     if (qty > 0) {
       return `<div class="cart-stepper${sizeClass}${isSheet ? '' : ' cart-stepper-card'}" data-cart-stepper="${product.id}" data-variant-id="${variant?.id || ''}">
-
         <button class="cart-stepper-button" type="button" data-cart-minus="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Уменьшить">−</button>
         <span class="cart-stepper-value">${qty}</span>
-        <button class="cart-stepper-button" type="button" data-cart-plus="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Увеличить">+</button>
+        <button class="cart-stepper-button" type="button" data-cart-plus="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Увеличить" ${qty >= available ? 'disabled' : ''}>+</button>
       </div>`;
+    }
+    if (available <= 0) {
+      return isSheet
+        ? `<button class="sheet-add-button is-disabled" type="button" disabled aria-label="Нет в наличии">${icon('cart')}<span class="sheet-add-label">Нет в наличии</span></button>`
+        : `<button class="cart-icon-button is-disabled" type="button" disabled aria-label="Нет в наличии">${icon('cart')}</button>`;
     }
     if (isSheet) {
       return `<button class="sheet-add-button" type="button" data-add-to-cart="${product.id}" data-variant-id="${variant?.id || ''}" aria-label="Добавить в корзину">${icon('cart')}<span class="sheet-add-label">В корзину</span></button>`;
@@ -389,9 +420,11 @@ function syncBanner(index, offsetPx = 0) {
     if (!variants.length) return '';
     const selected = currentVariant(product)?.id;
     return `<div class="variant-row ${isSheet ? 'variant-row-sheet' : ''}">
-      ${variants.map(item => `
-        <button class="variant-chip ${selected === item.id ? 'is-active' : ''}" type="button" data-variant-select="${product.id}" data-variant-id="${item.id}">${escapeHtml(item.label)}</button>
-      `).join('')}
+      ${variants.map(item => {
+        const soldOut = variantStock(product, item) <= 0;
+        return `
+        <button class="variant-chip ${selected === item.id ? 'is-active' : ''} ${soldOut ? 'is-disabled' : ''}" type="button" data-variant-select="${product.id}" data-variant-id="${item.id}" ${soldOut ? 'disabled' : ''}>${escapeHtml(item.label)}</button>`;
+      }).join('')}
     </div>`;
   }
 
@@ -406,6 +439,7 @@ function syncBanner(index, offsetPx = 0) {
       const isFavorite = state.favorites.includes(product.id);
       const variant = currentVariant(product);
       const price = variant?.price ?? product.price;
+      const variantInStock = maxQtyFor(product, variant);
       return `
         <article class="product-card" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
           <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
@@ -422,7 +456,7 @@ function syncBanner(index, offsetPx = 0) {
           <div class="price-row">
             <div>
               <div class="product-price">${money(price)}</div>
-              ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}</div>` : ''}
+              ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${variantInStock <= 0 ? ' • нет в наличии' : ''}</div>` : `<div class="product-variant-caption">остаток ${totalStock(product)}</div>`}
             </div>
             ${priceControlHtml(product, variant)}
           </div>
@@ -482,6 +516,7 @@ function syncBanner(index, offsetPx = 0) {
     state.activeProductId = productId;
     const variant = currentVariant(product);
     const price = variant?.price ?? product.price;
+    const available = maxQtyFor(product, variant);
     el.productSheetTitle.textContent = product.name;
     el.productSheetBody.innerHTML = `
       <div class="product-sheet-card">
@@ -495,11 +530,11 @@ function syncBanner(index, offsetPx = 0) {
           <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
           ${productSupportsVariants(product) ? variantChipsHtml(product, true) : ''}
           <div class="product-sheet-description">${escapeHtml(product.description || 'Описание пока не заполнено')}</div>
-          <div class="product-sheet-meta">${escapeHtml(product.category)} • остаток ${Number(product.stock || 0)}</div>
+          <div class="product-sheet-meta">${escapeHtml(product.category)} • ${variant ? `${escapeHtml(variant.label)} • остаток ${available}` : `остаток ${totalStock(product)}`}</div>
           <div class="product-sheet-price-row">
             <div>
               <div class="product-sheet-price">${money(price)}</div>
-              ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}</div>` : ''}
+              ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${available <= 0 ? ' • нет в наличии' : ''}</div>` : ''}
             </div>
             ${priceControlHtml(product, variant, true)}
           </div>
@@ -564,7 +599,7 @@ function syncBanner(index, offsetPx = 0) {
   function selectedVariantForProduct(product, variantId = '') {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     if (!variants.length) return null;
-    return variants.find(item => item.id === (variantId || state.selectedVariants[product.id])) || variants[0];
+    return variants.find(item => item.id === (variantId || state.selectedVariants[product.id])) || currentVariant(product);
   }
 
   function addToCart(productId, variantId, sourceNode) {
@@ -578,6 +613,10 @@ function syncBanner(index, offsetPx = 0) {
 
     const variant = selectedVariantForProduct(product, variantId);
     if (variant) rememberVariant(product.id, variant.id);
+    if (maxQtyFor(product, variant) <= 0) {
+      showNotice('Эта граммовка закончилась');
+      return;
+    }
     pulseHaptic('medium');
     animateToCart(product, flightSource);
     window.setTimeout(() => {
@@ -1061,7 +1100,7 @@ async function shareProduct(productId) {
       state.supportContacts = data.supportContacts || [];
       state.products.forEach(product => {
         if (product.variants?.length && !state.selectedVariants[product.id]) {
-          state.selectedVariants[product.id] = product.variants[0].id;
+          state.selectedVariants[product.id] = (product.variants.find(item => variantStock(product, item) > 0) || product.variants[0]).id;
         }
       });
       save(STORAGE_KEYS.selectedVariants, state.selectedVariants);

@@ -1,4 +1,4 @@
-const CACHE = 'stav-ugolki-v23';
+const CACHE = 'stav-ugolki-v24';
 const ASSETS = [
   '/shop/',
   '/apps/shop/index.html',
@@ -8,8 +8,7 @@ const ASSETS = [
   '/apps/shared/css/base.css',
   '/apps/shared/js/api.js',
   '/apps/shared/assets/img/logo-ember.png',
-  '/apps/shared/assets/img/header-logo.png',
-  '/apps/shared/assets/img/header-coals.png'
+  '/apps/shared/assets/img/header-logo.png'
 ];
 
 self.addEventListener('install', event => {
@@ -21,7 +20,6 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())
   );
 });
-
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;

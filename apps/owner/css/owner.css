@@ -448,3 +448,40 @@ body {
   display: block;
   background: #000;
 }
+
+.owner-form select {
+  background: rgba(17, 29, 33, 0.96);
+  color: var(--text);
+}
+
+.owner-form select option {
+  background: #0f1b1f;
+  color: #eefbf8;
+}
+
+.variants-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.variant-editor-row {
+  display: grid;
+  grid-template-columns: 1.1fr .9fr .8fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.variant-remove-btn {
+  min-width: 96px;
+  padding: 0 14px;
+}
+
+@media (max-width: 900px) {
+  .variant-editor-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .variant-remove-btn {
+    width: 100%;
+  }
+}

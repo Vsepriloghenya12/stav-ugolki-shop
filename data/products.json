@@ -14,12 +14,14 @@
       {
         "id": "bb-25",
         "label": "25 г",
-        "price": 65000
+        "price": 65000,
+        "stock": 16
       },
       {
         "id": "bb-100",
         "label": "100 г",
-        "price": 220000
+        "price": 220000,
+        "stock": 16
       }
     ]
   },
@@ -38,12 +40,14 @@
       {
         "id": "bbi-25",
         "label": "25 г",
-        "price": 68000
+        "price": 68000,
+        "stock": 14
       },
       {
         "id": "bbi-100",
         "label": "100 г",
-        "price": 228000
+        "price": 228000,
+        "stock": 14
       }
     ]
   },
@@ -62,12 +66,14 @@
       {
         "id": "ds-30",
         "label": "30 г",
-        "price": 72000
+        "price": 72000,
+        "stock": 9
       },
       {
         "id": "ds-120",
         "label": "120 г",
-        "price": 250000
+        "price": 250000,
+        "stock": 9
       }
     ]
   },
@@ -86,12 +92,14 @@
       {
         "id": "prod-char-001-05",
         "label": "0.5 кг",
-        "price": 69600
+        "price": 69600,
+        "stock": 24
       },
       {
         "id": "prod-char-001-10",
         "label": "1 кг",
-        "price": 120000
+        "price": 120000,
+        "stock": 24
       }
     ]
   },
@@ -110,12 +118,14 @@
       {
         "id": "prod-char-002-05",
         "label": "0.5 кг",
-        "price": 65000
+        "price": 65000,
+        "stock": 34
       },
       {
         "id": "prod-char-002-10",
         "label": "1 кг",
-        "price": 120250
+        "price": 120250,
+        "stock": 33
       }
     ]
   },
