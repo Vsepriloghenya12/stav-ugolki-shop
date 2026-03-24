@@ -48,7 +48,8 @@ button {
 .hero-logo-button:focus {
   position: relative;
   width: 100%;
-  height: clamp(88px, 20vw, 150px);
+  aspect-ratio: 1127 / 736;
+  height: auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -64,7 +65,7 @@ button {
   width: 100%;
   height: 100%;
   max-height: none;
-  object-fit: fill;
+  object-fit: contain;
   object-position: center center;
   pointer-events: none;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
@@ -862,7 +863,10 @@ button {
   }
 
   .hero-logo-button {
-    height: 156px;
+    width: min(100%, 820px);
+    margin: 0 auto;
+    aspect-ratio: 1127 / 736;
+    height: auto;
   }
 
   .hero-logo-burn::before {
@@ -893,7 +897,11 @@ button {
 
 @media (max-width: 520px) {
   .hero-logo-button {
-    height: 92px;
+    width: calc(100% + 24px);
+    margin-left: -12px;
+    margin-right: -12px;
+    aspect-ratio: 1127 / 736;
+    height: auto;
   }
 
   .quickbar {
