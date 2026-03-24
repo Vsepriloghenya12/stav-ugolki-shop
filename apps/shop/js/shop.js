@@ -65,7 +65,8 @@
     navFavorites: document.getElementById('navFavorites'),
     navCart: document.getElementById('navCart'),
     navFilters: document.getElementById('navFilters'),
-    navSupport: document.getElementById('navSupport')
+    navSupport: document.getElementById('navSupport'),
+    appLoader: document.getElementById('appLoader')
   };
 
   function load(key, fallback) {
@@ -1088,7 +1089,50 @@ async function shareProduct(productId) {
     el.navSupport.addEventListener('click', () => openSheet(el.supportSheet, 'support'));
   }
 
+
+  function preloadMedia(src, kind = 'image') {
+    return new Promise(resolve => {
+      if (!src) return resolve();
+      const done = () => resolve();
+      const timer = setTimeout(done, 2600);
+      if (kind === 'video') {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.muted = true;
+        video.playsInline = true;
+        video.onloadeddata = () => { clearTimeout(timer); done(); };
+        video.onerror = () => { clearTimeout(timer); done(); };
+        video.src = src;
+        return;
+      }
+      const image = new Image();
+      image.decoding = 'async';
+      image.loading = 'eager';
+      image.onload = () => { clearTimeout(timer); done(); };
+      image.onerror = () => { clearTimeout(timer); done(); };
+      image.src = src;
+      if (image.decode) {
+        image.decode().then(() => { clearTimeout(timer); done(); }).catch(() => {});
+      }
+    });
+  }
+
+  async function preloadInitialMedia(data) {
+    const bannerMedia = (data?.banners || []).slice(0, 1).map(item => preloadMedia(item.image || '', mediaKind(item.image)));
+    const productMedia = (data?.products || []).slice(0, 8).map(item => preloadMedia(item.image || '', mediaKind(item.image)));
+    await Promise.allSettled([...bannerMedia, ...productMedia]);
+  }
+
+  function hideLoader() {
+    const loader = el.appLoader;
+    if (!loader) return;
+    loader.classList.add('is-hidden');
+    document.body.classList.remove('is-loading-app');
+    setTimeout(() => loader.remove(), 460);
+  }
+
   async function init() {
+    const startedAt = Date.now();
     try {
       window.Telegram?.WebApp?.ready?.();
       window.Telegram?.WebApp?.expand?.();
@@ -1104,6 +1148,12 @@ async function shareProduct(productId) {
         }
       });
       save(STORAGE_KEYS.selectedVariants, state.selectedVariants);
+      await preloadInitialMedia(data);
+      const minLoaderMs = 900;
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < minLoaderMs) {
+        await new Promise(resolve => setTimeout(resolve, minLoaderMs - elapsed));
+      }
       prefillTelegramField();
       renderCategories();
       renderFilterOptions();
@@ -1116,8 +1166,10 @@ async function shareProduct(productId) {
       window.addEventListener('resize', () => document.body.classList.toggle('desktop-mode', window.matchMedia('(min-width: 900px)').matches));
       startBannerAutoplay();
       handleStartApp();
+      hideLoader();
       window.setTimeout(() => pulseHaptic('light'), 180);
     } catch (error) {
+      hideLoader();
       el.productGrid.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
     }
   }
