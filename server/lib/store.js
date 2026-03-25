@@ -13,6 +13,7 @@ const seedFiles = [
   'orders.json',
   'posts.json',
   'support_contacts.json',
+  'brands.json',
   'telegram_config.json'
 ];
 

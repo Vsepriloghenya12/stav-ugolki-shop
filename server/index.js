@@ -402,12 +402,42 @@ async function notifyOrder(order) {
   await sendTelegramMessage(ordersChatId, lines.join('\n'));
 }
 
+
+function normalizeBrandRecord(body, fallback = {}) {
+  return {
+    id: String(body.id || fallback.id || '').slice(0, 80),
+    name: String(body.name || fallback.name || '').trim().slice(0, 80),
+    category: String(body.category || fallback.category || 'прочее').trim().slice(0, 40)
+  };
+}
+
+function uniqueBrandsFromProducts(items = []) {
+  const map = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    const name = String(item.brand || '').trim();
+    const category = String(item.category || 'прочее').trim();
+    if (!name) continue;
+    const key = `${category}::${name.toLowerCase()}`;
+    if (!map.has(key)) {
+      map.set(key, { id: nextId('brand'), name, category });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.category.localeCompare(b.category, 'ru') || a.name.localeCompare(b.name, 'ru'));
+}
+
 async function handleApi(req, res, pathname) {
   const method = req.method || 'GET';
   const products = () => readJson('products.json');
   const banners = () => readJson('banners.json');
   const orders = () => readJson('orders.json');
   const supportContacts = () => readJson('support_contacts.json');
+  const brands = () => {
+    const current = readJson('brands.json');
+    if (Array.isArray(current) && current.length) return current;
+    const derived = uniqueBrandsFromProducts(readJson('products.json'));
+    if (derived.length) writeJson('brands.json', derived);
+    return derived;
+  };
   const posts = () => readJson('posts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
@@ -508,6 +538,7 @@ async function handleApi(req, res, pathname) {
       products: p,
       banners: b,
       supportContacts: s,
+      brands: brands(),
       orders: o,
       posts: posts(),
       summary: summarize(p, o, b),
@@ -576,6 +607,63 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     const current = products();
     writeJson('products.json', current.filter(item => item.id !== id));
+    return sendJson(res, 200, { ok: true });
+  }
+
+
+  if (pathname === '/api/owner/brands' && method === 'POST') {
+    if (!ensureOwner(req, res)) return;
+    try {
+      const body = await parseBody(req);
+      const current = brands();
+      const item = normalizeBrandRecord({ ...body, id: nextId('brand') });
+      if (!item.name) return sendJson(res, 400, { error: 'Введите название бренда' });
+      const duplicate = current.some(entry => String(entry.category || '') === item.category && String(entry.name || '').trim().toLowerCase() === item.name.toLowerCase());
+      if (duplicate) return sendJson(res, 400, { error: 'Такой бренд уже есть в этой категории' });
+      current.unshift(item);
+      writeJson('brands.json', current);
+      return sendJson(res, 201, { ok: true, brand: item });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/owner/brands/') && method === 'PUT') {
+    if (!ensureOwner(req, res)) return;
+    const id = pathname.split('/').pop();
+    try {
+      const body = await parseBody(req);
+      const current = brands();
+      const index = current.findIndex(item => item.id === id);
+      if (index === -1) return sendJson(res, 404, { error: 'Brand not found' });
+      const next = normalizeBrandRecord({ ...current[index], ...body, id });
+      if (!next.name) return sendJson(res, 400, { error: 'Введите название бренда' });
+      const duplicate = current.some((entry, entryIndex) => entryIndex !== index && String(entry.category || '') === next.category && String(entry.name || '').trim().toLowerCase() === next.name.toLowerCase());
+      if (duplicate) return sendJson(res, 400, { error: 'Такой бренд уже есть в этой категории' });
+      current[index] = next;
+      writeJson('brands.json', current);
+      return sendJson(res, 200, { ok: true, brand: next });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (pathname.startsWith('/api/owner/brands/') && method === 'DELETE') {
+    if (!ensureOwner(req, res)) return;
+    const id = pathname.split('/').pop();
+    const current = brands();
+    const brand = current.find(item => item.id === id);
+    const nextBrands = current.filter(item => item.id !== id);
+    writeJson('brands.json', nextBrands);
+    if (brand) {
+      const nextProducts = products().map(item => {
+        if (String(item.category || '') === String(brand.category || '') && String(item.brand || '').trim() === String(brand.name || '').trim()) {
+          return { ...item, brand: '' };
+        }
+        return item;
+      });
+      writeJson('products.json', nextProducts);
+    }
     return sendJson(res, 200, { ok: true });
   }
 

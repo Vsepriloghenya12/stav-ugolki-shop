@@ -61,6 +61,31 @@ window.AppApi = {
     return data;
   },
 
+
+  async ownerSaveBrand(token, brand, isNew) {
+    const response = await fetch(isNew ? '/api/owner/brands' : `/api/owner/brands/${brand.id}`, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(brand)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить бренд');
+    return data;
+  },
+
+  async ownerDeleteBrand(token, id) {
+    const response = await fetch(`/api/owner/brands/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить бренд');
+    return data;
+  },
+
   async ownerSaveBanner(token, banner, isNew) {
     const response = await fetch(isNew ? '/api/owner/banners' : `/api/owner/banners/${banner.id}`, {
       method: isNew ? 'POST' : 'PUT',

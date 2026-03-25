@@ -747,7 +747,7 @@ async function shareProduct(productId) {
   function showNotice(text) {
     el.checkoutNotice.textContent = text;
     clearTimeout(showNotice.timer);
-    showNotice.timer = setTimeout(() => { el.checkoutNotice.textContent = ''; }, 2200);
+    showNotice.timer = setTimeout(() => { el.checkoutNotice.textContent = ''; }, 4200);
   }
 
   function goHome() {
@@ -881,7 +881,7 @@ async function shareProduct(productId) {
       renderProducts();
       el.checkoutForm.reset();
       prefillTelegramField();
-      showNotice('Заказ отправлен');
+      showNotice('Ваша заявка успешно создана. В ближайшее время с вами свяжется менеджер');
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "brand-1774461733995-3w6tm",
+    "name": "Must Have",
+    "category": "табак"
+  },
+  {
+    "id": "brand-tab-blackburn",
+    "name": "Black Burn",
+    "category": "табак"
+  },
+  {
+    "id": "brand-tab-darkside",
+    "name": "Darkside",
+    "category": "табак"
+  },
+  {
+    "id": "brand-char-cocoheat",
+    "name": "Coco Heat",
+    "category": "уголь"
+  },
+  {
+    "id": "brand-char-blackcube",
+    "name": "Black Cube",
+    "category": "уголь"
+  },
+  {
+    "id": "brand-hook-noir",
+    "name": "Noir Hookah",
+    "category": "кальяны"
+  },
+  {
+    "id": "brand-other-steel",
+    "name": "Steel Grip",
+    "category": "прочее"
+  }
+]

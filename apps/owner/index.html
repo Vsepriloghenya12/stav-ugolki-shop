@@ -31,6 +31,7 @@
         <nav class="owner-nav" id="ownerNav">
           <button class="owner-nav-item is-active" data-section="dashboard" type="button">Аналитика</button>
           <button class="owner-nav-item" data-section="products" type="button">Товары</button>
+          <button class="owner-nav-item" data-section="brands" type="button">Бренды</button>
           <button class="owner-nav-item" data-section="banners" type="button">Баннеры</button>
           <button class="owner-nav-item" data-section="support" type="button">Поддержка</button>
           <button class="owner-nav-item" data-section="orders" type="button">Заказы</button>
@@ -65,11 +66,24 @@
             </div>
           </section>
 
-          <section class="owner-section hidden" data-section-panel="products">
+          <section class="owner-section hidden owner-section-single" data-section-panel="products">
             <div class="panel surface">
               <div class="panel-head">
-                <div class="panel-title">Товары</div>
+                <div>
+                  <div class="panel-title">Товары</div>
+                  <div class="helper-text">Нажмите на карточку товара, чтобы открыть её редактор.</div>
+                </div>
                 <button class="owner-btn" id="newProductBtn" type="button">Новый товар</button>
+              </div>
+              <div class="product-cards" id="productsList"></div>
+            </div>
+          </section>
+
+          <section class="owner-section hidden" data-section-panel="brands">
+            <div class="panel surface">
+              <div class="panel-head">
+                <div class="panel-title">Бренды</div>
+                <button class="owner-btn" id="newBrandBtn" type="button">Новый бренд</button>
               </div>
               <div class="table-wrap">
                 <table class="owner-table">
@@ -77,20 +91,16 @@
                     <tr>
                       <th>Название</th>
                       <th>Категория</th>
-                      <th>Бренд</th>
-                      <th>Цена</th>
-                      <th>Остаток</th>
-                      <th>Приоритет</th>
                       <th></th>
                     </tr>
                   </thead>
-                  <tbody id="productsBody"></tbody>
+                  <tbody id="brandsBody"></tbody>
                 </table>
               </div>
             </div>
             <div class="panel surface form-panel">
-              <div class="panel-head"><div class="panel-title">Редактор товара</div></div>
-              <form class="owner-form" id="productForm"></form>
+              <div class="panel-head"><div class="panel-title">Редактор бренда</div></div>
+              <form class="owner-form" id="brandForm"></form>
             </div>
           </section>
 
