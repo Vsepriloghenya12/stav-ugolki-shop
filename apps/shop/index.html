@@ -107,6 +107,7 @@
       </div>
       <div class="sheet-body menu-sheet-body">
         <button class="menu-action" id="menuCatalogBtn" type="button">Каталог</button>
+        <button class="menu-action" id="menuOrdersBtn" type="button">Мои заказы</button>
         <button class="menu-action hidden" id="installAppBtn" type="button">Установить на телефон</button>
       </div>
     </section>
@@ -174,6 +175,7 @@
             <button class="submit-button" type="submit">Оформить</button>
           </div>
         </form>
+        <button class="ghost-sheet-button cart-history-button" id="cartHistoryBtn" type="button">История заказов</button>
         <div class="sheet-notice" id="checkoutNotice"></div>
       </div>
     </section>
@@ -188,7 +190,15 @@
       </div>
     </section>
 
-
+    <section class="sheet hidden" id="historySheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Мои заказы</div>
+        <button class="sheet-close" data-close-sheet="historySheet" type="button">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="order-history-list" id="historyList"></div>
+      </div>
+    </section>
 
     <section class="success-modal hidden" id="orderSuccessModal" aria-live="polite" aria-modal="true" role="dialog">
       <div class="success-modal-backdrop" data-close-success-modal></div>

@@ -1,9 +1,10 @@
 (function () {
   const STORAGE_KEYS = {
     likes: 'stav:likes',
-    cart: 'stav:cart:v39',
-    selectedVariants: 'stav:selectedVariants:v39',
-    secretTheme: 'stav:secret-theme:v1'
+    cart: 'stav:cart:v47',
+    selectedVariants: 'stav:selectedVariants:v47',
+    secretTheme: 'stav:secret-theme:v1',
+    orderHistory: 'stav:order-history:v47'
   };
 
   const state = {
@@ -21,6 +22,7 @@
     cart: load(STORAGE_KEYS.cart, []),
     selectedVariants: load(STORAGE_KEYS.selectedVariants, {}),
     view: 'catalog',
+    orderHistory: load(STORAGE_KEYS.orderHistory, []),
     activeBanner: 0,
     bannerTimer: null,
     activeProductId: '',
@@ -50,12 +52,14 @@
     productSheet: document.getElementById('productSheet'),
     cartSheet: document.getElementById('cartSheet'),
     supportSheet: document.getElementById('supportSheet'),
+    historySheet: document.getElementById('historySheet'),
     orderSuccessModal: document.getElementById('orderSuccessModal'),
     successModalCloseBtn: document.getElementById('successModalCloseBtn'),
     quickFilterToggle: document.getElementById('quickFilterToggle'),
     heroLogoButton: document.getElementById('heroLogoButton'),
     searchInput: document.getElementById('searchInput'),
     menuCatalogBtn: document.getElementById('menuCatalogBtn'),
+    menuOrdersBtn: document.getElementById('menuOrdersBtn'),
     installAppBtn: document.getElementById('installAppBtn'),
     filterCategoryGrid: document.getElementById('filterCategoryGrid'),
     filterBrandGrid: document.getElementById('filterBrandGrid'),
@@ -66,11 +70,13 @@
     productSheetTitle: document.getElementById('productSheetTitle'),
     productSheetBody: document.getElementById('productSheetBody'),
     supportList: document.getElementById('supportList'),
+    historyList: document.getElementById('historyList'),
     cartList: document.getElementById('cartList'),
     cartTotalLabel: document.getElementById('cartTotalLabel'),
     cartCountBadge: document.getElementById('cartCountBadge'),
     checkoutForm: document.getElementById('checkoutForm'),
     checkoutNotice: document.getElementById('checkoutNotice'),
+    cartHistoryBtn: document.getElementById('cartHistoryBtn'),
     navMenu: document.getElementById('navMenu'),
     navFavorites: document.getElementById('navFavorites'),
     navCart: document.getElementById('navCart'),
@@ -143,7 +149,7 @@
         return;
       }
       const script = document.createElement('script');
-      script.src = '/apps/shop/secret-theme/index.js?v=45';
+      script.src = '/apps/shop/secret-theme/index.js?v=47';
       script.async = true;
       script.dataset.secretThemeScript = '1';
       script.onload = () => resolve(window.StavSecretTheme || null);
@@ -163,7 +169,7 @@
       const link = document.createElement('link');
       link.id = 'secretThemeStylesheet';
       link.rel = 'stylesheet';
-      link.href = `${config.cssHref}?v=45`;
+      link.href = `${config.cssHref}?v=47`;
       link.onload = () => resolve(true);
       link.onerror = () => { link.remove(); resolve(false); };
       document.head.appendChild(link);
@@ -407,7 +413,7 @@ function categories() {
 
   function activeProducts() {
     const search = state.search.trim().toLowerCase();
-    let list = [...state.products];
+    let list = state.products.filter(item => !item.hiddenFromCatalog);
 
     if (state.view === 'favorites') {
       return sortProductsForDisplay(list.filter(item => state.favorites.includes(item.id)));
@@ -473,6 +479,7 @@ function categories() {
     const badges = [];
     if (product.isNew) badges.push('<span class="product-badge product-badge--new">Новинка</span>');
     if (product.isTop) badges.push('<span class="product-badge product-badge--top">Топ</span>');
+    if (!hasAvailableVariant(product)) badges.push('<span class="product-badge product-badge--sold">Нет в наличии</span>');
     if (!badges.length) return '';
     return `<div class="product-badges">${badges.join('')}</div>`;
   }
@@ -643,7 +650,7 @@ function syncBanner(index, offsetPx = 0) {
       const price = variant?.price ?? product.price;
       const variantInStock = maxQtyFor(product, variant);
       return `
-        <article class="product-card" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
+        <article class="product-card ${product.isTop ? 'product-card--top' : ''}" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
           <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
             ${productBadgesHtml(product)}
             ${product.image
@@ -713,6 +720,71 @@ function syncBanner(index, offsetPx = 0) {
     `).join('');
   }
 
+  function saveOrderHistory() {
+    save(STORAGE_KEYS.orderHistory, state.orderHistory);
+  }
+
+  function pushOrderToHistory(order) {
+    if (!order?.id) return;
+    state.orderHistory = [order, ...state.orderHistory.filter(item => item.id !== order.id)].slice(0, 20);
+    saveOrderHistory();
+    renderOrderHistory();
+  }
+
+  async function refreshOrderHistory() {
+    const ids = state.orderHistory.map(item => item.id).filter(Boolean);
+    if (!ids.length || !window.AppApi.getOrderHistory) return;
+    try {
+      const data = await window.AppApi.getOrderHistory(ids);
+      if (Array.isArray(data.orders) && data.orders.length) {
+        const byId = new Map(data.orders.map(item => [item.id, item]));
+        state.orderHistory = state.orderHistory.map(item => byId.get(item.id) || item);
+        saveOrderHistory();
+      }
+    } catch {}
+    renderOrderHistory();
+  }
+
+  function renderOrderHistory() {
+    if (!el.historyList) return;
+    if (!state.orderHistory.length) {
+      el.historyList.innerHTML = '<div class="empty-state">История заказов пока пуста</div>';
+      return;
+    }
+    el.historyList.innerHTML = state.orderHistory.map(order => `
+      <article class="history-card">
+        <div class="history-card-head">
+          <div>
+            <div class="history-card-title">Заказ ${escapeHtml(order.id || '')}</div>
+            <div class="history-card-meta">${new Date(order.createdAt || Date.now()).toLocaleString('ru-RU')}</div>
+          </div>
+          <span class="history-status history-status--${escapeHtml(order.status || 'new')}">${escapeHtml(historyStatusLabel(order.status))}</span>
+        </div>
+        <div class="history-items">${(order.items || []).map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''} × ${item.qty}</span><strong>${money(item.price * item.qty)}</strong></div>`).join('')}</div>
+        <div class="history-total">${money(order.total || 0)}</div>
+      </article>
+    `).join('');
+  }
+
+  function historyStatusLabel(status) {
+    const map = { new: 'Новый', paid: 'Оплачен', done: 'Завершён', cancelled: 'Отменён' };
+    return map[status] || 'Новый';
+  }
+
+  function renderProductSkeletons(count = 6) {
+    el.productGrid.innerHTML = Array.from({ length: count }).map(() => `
+      <article class="product-card product-card-skeleton">
+        <div class="product-image-wrap skeleton-box"></div>
+        <div class="skeleton-line skeleton-line-title"></div>
+        <div class="variant-row variant-row-empty skeleton-variants" aria-hidden="true"></div>
+        <div class="price-row skeleton-price-row">
+          <div class="skeleton-line skeleton-line-price"></div>
+          <div class="skeleton-circle"></div>
+        </div>
+      </article>
+    `).join('');
+  }
+
   function renderProductSheet(productId, shouldOpen = true) {
     const product = state.products.find(item => item.id === productId);
     if (!product) return;
@@ -745,7 +817,7 @@ function syncBanner(index, offsetPx = 0) {
         </div>
       </div>
     `;
-    if (shouldOpen) openSheet(el.productSheet, 'catalog');
+    if (shouldOpen) openSheet(el.productSheet, 'catalog', 'product');
   }
 
   function setCategory(category) {
@@ -1025,19 +1097,24 @@ async function shareProduct(productId) {
 
   function syncOpenSheetState(activeSheet = null) {
     document.body.classList.toggle('has-cart-sheet-open', activeSheet === el.cartSheet);
+    document.body.classList.toggle('has-product-sheet-open', activeSheet === el.productSheet);
   }
 
-  function openSheet(sheet, activeNav = '') {
+  function openSheet(sheet, activeNav = '', sheetKind = '') {
     closeAllSheets(false);
     el.sheetBackdrop.classList.remove('hidden');
     sheet.classList.remove('hidden');
+    requestAnimationFrame(() => sheet.classList.add('sheet-visible'));
+    if (sheetKind === 'product' || sheet === el.productSheet) el.sheetBackdrop.classList.add('backdrop-blur-strong');
     syncOpenSheetState(sheet);
     renderBottomNav(activeNav || (sheet === el.cartSheet ? 'cart' : sheet === el.searchSheet ? 'search' : sheet === el.supportSheet ? 'support' : 'catalog'));
   }
 
   function closeSheet(sheet) {
+    sheet.classList.remove('sheet-visible');
     sheet.classList.add('hidden');
-    const openSheets = [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet].filter(node => !node.classList.contains('hidden'));
+    el.sheetBackdrop.classList.remove('backdrop-blur-strong');
+    const openSheets = [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet, el.historySheet].filter(node => !node.classList.contains('hidden'));
     const activeSheet = openSheets[openSheets.length - 1] || null;
     syncOpenSheetState(activeSheet);
     if (!activeSheet) {
@@ -1047,7 +1124,8 @@ async function shareProduct(productId) {
   }
 
   function closeAllSheets(shouldHideBackdrop = true) {
-    [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet].forEach(node => node.classList.add('hidden'));
+    [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet, el.historySheet].forEach(node => { node.classList.remove('sheet-visible'); node.classList.add('hidden'); });
+    el.sheetBackdrop.classList.remove('backdrop-blur-strong');
     syncOpenSheetState(null);
     if (shouldHideBackdrop) el.sheetBackdrop.classList.add('hidden');
     renderBottomNav(state.view === 'favorites' ? 'favorites' : 'catalog');
@@ -1070,7 +1148,7 @@ async function shareProduct(productId) {
     }
     const total = payload.reduce((sum, item) => sum + item.price * item.qty, 0);
     try {
-      await window.AppApi.createOrder({
+      const created = await window.AppApi.createOrder({
         customer: {
           name: formData.get('name') || 'Telegram Client',
           phone,
@@ -1079,6 +1157,7 @@ async function shareProduct(productId) {
         items: payload,
         total
       });
+      pushOrderToHistory(created.order);
       state.cart = [];
       save(STORAGE_KEYS.cart, state.cart);
       renderCart();
@@ -1109,6 +1188,8 @@ async function shareProduct(productId) {
     });
 
     el.menuCatalogBtn.addEventListener('click', goHome);
+    el.menuOrdersBtn?.addEventListener('click', () => { renderOrderHistory(); openSheet(el.historySheet, state.view === 'favorites' ? 'favorites' : 'catalog'); });
+    el.cartHistoryBtn?.addEventListener('click', () => { renderOrderHistory(); openSheet(el.historySheet, state.view === 'favorites' ? 'favorites' : 'catalog'); });
 
     el.installAppBtn.addEventListener('click', async () => {
       if (!state.deferredPrompt) return;
@@ -1378,6 +1459,8 @@ async function shareProduct(productId) {
       }
       bindEvents();
       registerPwa();
+      renderProductSkeletons(window.matchMedia('(min-width: 900px)').matches ? 8 : 6);
+      renderOrderHistory();
       const data = await window.AppApi.getShopBootstrap();
       state.products = data.products || [];
       state.banners = data.banners || [];
@@ -1401,11 +1484,13 @@ async function shareProduct(productId) {
       renderProducts();
       renderSupport();
       renderCart();
+      renderOrderHistory();
       renderBottomNav('catalog');
       document.body.classList.toggle('desktop-mode', window.matchMedia('(min-width: 900px)').matches);
       window.addEventListener('resize', () => document.body.classList.toggle('desktop-mode', window.matchMedia('(min-width: 900px)').matches));
       startBannerAutoplay();
       handleStartApp();
+      refreshOrderHistory();
       hideLoader();
       window.setTimeout(() => pulseHaptic('light'), 180);
     } catch (error) {

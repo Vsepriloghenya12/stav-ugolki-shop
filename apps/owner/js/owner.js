@@ -12,6 +12,7 @@
     orders: [],
     posts: [],
     summary: null,
+    lowStockAlerts: [],
     telegramConfig: null,
     editProductId: '',
     editBannerId: '',
@@ -35,6 +36,7 @@
     ordersList: document.getElementById('ordersList'),
     postsHistory: document.getElementById('postsHistory'),
     telegramState: document.getElementById('telegramState'),
+    lowStockAlerts: document.getElementById('lowStockAlerts'),
     newProductBtn: document.getElementById('newProductBtn'),
     newBrandBtn: document.getElementById('newBrandBtn'),
     newBannerBtn: document.getElementById('newBannerBtn'),
@@ -68,7 +70,8 @@
         id: String(item.id || `variant-${Date.now()}-${index}`).slice(0, 60),
         label: String(item.label || '').trim(),
         price: Number(item.price || 0),
-        stock: Number(item.stock ?? fallbackStock ?? 0)
+        stock: Number(item.stock ?? fallbackStock ?? 0),
+        minStock: Math.max(0, Number(item.minStock ?? 0))
       }))
       .filter(item => item.label);
   }
@@ -154,6 +157,8 @@
     const chips = [];
     if (product.isNew) chips.push('<span class="owner-badge-chip owner-badge-chip--new">Новинка</span>');
     if (product.isTop) chips.push('<span class="owner-badge-chip owner-badge-chip--top">Топ</span>');
+    if (product.hiddenFromCatalog) chips.push('<span class="owner-badge-chip">Скрыт</span>');
+    if (totalStock(product) <= 0) chips.push('<span class="owner-badge-chip">Нет в наличии</span>');
     return chips.join('');
   }
 
@@ -188,6 +193,13 @@
     el.lastOrders.innerHTML = items.length
       ? items.map(item => `<div class="mini-row"><span>${escapeHtml(item.customer?.name || 'Клиент')}</span><strong>${money(item.total)}</strong></div>`).join('')
       : '<div class="empty-box">Заказов пока нет</div>';
+  }
+
+  function renderLowStockAlerts() {
+    const items = Array.isArray(state.lowStockAlerts) ? state.lowStockAlerts : [];
+    el.lowStockAlerts.innerHTML = items.length
+      ? items.map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''}</span><strong>${item.stock}/${item.minStock}</strong></div>`).join('')
+      : '<div class="empty-box">Все остатки в норме</div>';
   }
 
   function renderBrandsTable() {
@@ -309,6 +321,7 @@
         <input name="variantLabel" placeholder="${escapeHtml(variantPlaceholder(category))}" value="${escapeHtml(item.label)}" />
         <input name="variantPrice" type="number" placeholder="Цена" value="${Number(item.price || 0)}" />
         <input name="variantStock" type="number" placeholder="Остаток" value="${Number(item.stock || 0)}" />
+        <input name="variantMinStock" type="number" placeholder="Мин. остаток" value="${Number(item.minStock || 0)}" />
         <button class="danger-btn variant-remove-btn" type="button" data-remove-variant="${index}">Удалить</button>
       </div>
     `).join('');
@@ -320,7 +333,8 @@
         id: row.querySelector('input[name="variantId"]')?.value || `variant-${Date.now()}-${index}`,
         label: row.querySelector('input[name="variantLabel"]')?.value || '',
         price: Number(row.querySelector('input[name="variantPrice"]')?.value || 0),
-        stock: Number(row.querySelector('input[name="variantStock"]')?.value || 0)
+        stock: Number(row.querySelector('input[name="variantStock"]')?.value || 0),
+        minStock: Number(row.querySelector('input[name="variantMinStock"]')?.value || 0)
       }))
       .filter(item => String(item.label || '').trim());
   }
@@ -441,6 +455,10 @@
           <input name="homePriority" type="number" placeholder="Приоритет на главной" value="${Number(product.homePriority || 0)}" />
         </div>
         <div class="form-grid-2">
+          <label class="form-check"><input name="hiddenFromCatalog" type="checkbox" ${product.hiddenFromCatalog ? 'checked' : ''} /> Скрыть с витрины</label>
+          ${usesVariantStock ? `<div class="owner-note-inline">Для уведомлений используйте мин. остаток у граммовок</div>` : `<input name="minStock" type="number" placeholder="Мин. остаток для уведомления" value="${Number(product.minStock || 0)}" />`}
+        </div>
+        <div class="form-grid-2">
           <label class="form-check"><input name="isNew" type="checkbox" ${product.isNew ? 'checked' : ''} /> Бирка «Новинка»</label>
           <label class="form-check"><input name="isTop" type="checkbox" ${product.isTop ? 'checked' : ''} /> Бирка «Топ»</label>
         </div>
@@ -525,7 +543,7 @@
             <div class="product-admin-title">${escapeHtml(formProduct.name || 'Новый товар')}</div>
             <div class="product-admin-badges">${productBadgeChips(formProduct)}</div>
             <div class="product-admin-meta">${escapeHtml(formProduct.category || 'табак')}${formProduct.brand ? ` · ${escapeHtml(formProduct.brand)}` : ''}</div>
-            <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Приоритет: ${Number(formProduct.homePriority || 0)}</div>
+            <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Приоритет: ${Number(formProduct.homePriority || 0)}${formProduct.hiddenFromCatalog ? ' · скрыт с витрины' : ''}</div>
           </div>
           <div class="product-admin-side">
             <div class="product-admin-price">${money(displayPrice(formProduct))}</div>
@@ -576,6 +594,7 @@
     renderStats();
     renderTopProducts();
     renderLastOrders();
+    renderLowStockAlerts();
     renderProductsList();
     renderBrandsTable();
     renderBannersTable();
@@ -605,6 +624,7 @@
     state.orders = data.orders || [];
     state.posts = data.posts || [];
     state.summary = data.summary || null;
+    state.lowStockAlerts = data.summary?.lowStockAlerts || [];
     state.telegramConfig = data.telegramConfig || null;
     if (!state.editBannerId && state.banners[0]) state.editBannerId = state.banners[0].id;
     if (!state.editBrandId && state.brands[0]) state.editBrandId = state.brands[0].id;
@@ -642,6 +662,8 @@
       isNew: formData.get('isNew') === 'on',
       isTop: formData.get('isTop') === 'on',
       homePriority: Number(formData.get('homePriority') || existing.homePriority || 0),
+      hiddenFromCatalog: formData.get('hiddenFromCatalog') === 'on',
+      minStock: Number(formData.get('minStock') || existing.minStock || 0),
       description: String(formData.get('description') || existing.description || ''),
       image: String(form.querySelector('input[name="image"]')?.value || existing.image || ''),
       variants: collectVariantsFromForm(form)
@@ -813,6 +835,8 @@
         isNew: formData.get('isNew') === 'on',
         isTop: formData.get('isTop') === 'on',
         homePriority: Number(formData.get('homePriority') || 0),
+        hiddenFromCatalog: formData.get('hiddenFromCatalog') === 'on',
+        minStock: Number(formData.get('minStock') || 0),
         variants
       };
       try {

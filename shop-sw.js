@@ -1,4 +1,4 @@
-const CACHE = 'stav-ugolki-v45';
+const CACHE = 'stav-ugolki-v47';
 const ASSETS = [
   '/shop/',
   '/apps/shop/index.html',

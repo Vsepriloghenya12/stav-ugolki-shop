@@ -17,6 +17,17 @@ window.AppApi = {
     return data;
   },
 
+  async getOrderHistory(ids) {
+    const response = await fetch('/api/shop/orders/history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить историю');
+    return data;
+  },
+
   async ownerLogin(payload) {
     const response = await fetch('/api/owner/login', {
       method: 'POST',

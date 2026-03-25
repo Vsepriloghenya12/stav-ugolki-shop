@@ -616,3 +616,6 @@ body {
     height: 72px;
   }
 }
+
+
+.owner-note-inline { display:flex; align-items:center; min-height:44px; padding:10px 14px; border-radius:14px; background: rgba(255,255,255,.04); color: rgba(255,255,255,.7); }

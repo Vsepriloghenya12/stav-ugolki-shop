@@ -187,8 +187,66 @@ function summarize(products, orders, banners) {
     favorites,
     activeBanners,
     lowStock,
-    topProducts
+    topProducts,
+    lowStockAlerts: collectLowStockAlerts(products)
   };
+}
+
+
+function collectLowStockAlerts(productsList = []) {
+  const alerts = [];
+  for (const item of Array.isArray(productsList) ? productsList : []) {
+    const product = withVariantStock(item);
+    if (Array.isArray(product.variants) && product.variants.length) {
+      for (const variant of product.variants) {
+        const minStock = Math.max(0, Number(variant.minStock ?? 0));
+        if (!minStock) continue;
+        const stock = Math.max(0, Number(variant.stock || 0));
+        if (stock <= minStock) alerts.push({ id: `${product.id}:${variant.id}`, productId: product.id, name: product.name, variantId: variant.id, variantLabel: variant.label, stock, minStock });
+      }
+    } else {
+      const minStock = Math.max(0, Number(product.minStock ?? 0));
+      const stock = Math.max(0, Number(product.stock || 0));
+      if (minStock && stock <= minStock) alerts.push({ id: product.id, productId: product.id, name: product.name, stock, minStock });
+    }
+  }
+  return alerts.sort((a,b) => a.stock - b.stock || String(a.name).localeCompare(String(b.name), 'ru'));
+}
+
+function lowStockKey(item) {
+  return `${item.productId || item.id}::${item.variantId || 'base'}`;
+}
+
+async function notifyLowStockAlerts(items = []) {
+  const ordersChatId = resolveOrdersChatId();
+  if (!botToken || !ordersChatId || !items.length) return;
+  const lines = ['Низкий остаток', ''];
+  items.forEach(item => lines.push(`• ${escapeTelegram(item.name)}${item.variantLabel ? ` · ${escapeTelegram(item.variantLabel)}` : ''} — остаток ${item.stock}${item.minStock ? ` / порог ${item.minStock}` : ''}`));
+  await sendTelegramMessage(ordersChatId, lines.join('\n'));
+}
+
+function applyOrderStock(order, productsList = []) {
+  const current = productsList.map(item => JSON.parse(JSON.stringify(item)));
+  const beforeAlerts = collectLowStockAlerts(current);
+  const beforeKeys = new Set(beforeAlerts.map(lowStockKey));
+  for (const orderItem of Array.isArray(order?.items) ? order.items : []) {
+    const product = current.find(item => item.id === orderItem.id);
+    if (!product) continue;
+    if (Array.isArray(product.variants) && product.variants.length) {
+      const target = product.variants.find(variant => variant.id === orderItem.variantId) || null;
+      if (target) {
+        target.stock = Math.max(0, Number(target.stock || 0) - Number(orderItem.qty || 0));
+      } else {
+        product.stock = Math.max(0, Number(product.stock || 0) - Number(orderItem.qty || 0));
+      }
+      product.stock = product.variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stock || 0)), 0);
+    } else {
+      product.stock = Math.max(0, Number(product.stock || 0) - Number(orderItem.qty || 0));
+    }
+  }
+  const nextAlerts = collectLowStockAlerts(current);
+  const freshAlerts = nextAlerts.filter(item => !beforeKeys.has(lowStockKey(item)));
+  return { products: current, freshAlerts };
 }
 
 function safeFilePath(urlPath) {
@@ -256,7 +314,8 @@ function normalizeVariants(input, fallbackStock = 0) {
       id: String(item.id || nextId('var')).slice(0, 60),
       label: String(item.label || '').trim().slice(0, 60),
       price: Number(item.price || 0),
-      stock: Math.max(0, Number((item.stock ?? fallbackStock ?? 0)))
+      stock: Math.max(0, Number((item.stock ?? fallbackStock ?? 0))),
+      minStock: Math.max(0, Number(item.minStock ?? 0))
     }))
     .filter(item => item.label && Number.isFinite(item.price) && item.price >= 0);
 }
@@ -264,13 +323,14 @@ function normalizeVariants(input, fallbackStock = 0) {
 function withVariantStock(product) {
   const baseStock = Math.max(0, Number(product?.stock || 0));
   const variants = Array.isArray(product?.variants) ? product.variants : [];
-  if (!variants.length) return { ...product, stock: baseStock, variants: [] };
+  if (!variants.length) return { ...product, stock: baseStock, minStock: Math.max(0, Number(product?.minStock || 0)), variants: [] };
   const hasExplicitStock = variants.some(item => item.stock !== undefined && item.stock !== null && item.stock !== '');
   let normalized;
   if (hasExplicitStock) {
     normalized = variants.map(item => ({
       ...item,
-      stock: Math.max(0, Number((item.stock ?? 0)))
+      stock: Math.max(0, Number((item.stock ?? 0))),
+      minStock: Math.max(0, Number(item.minStock ?? 0))
     }));
   } else {
     const perVariant = variants.length ? Math.floor(baseStock / variants.length) : 0;
@@ -280,7 +340,8 @@ function withVariantStock(product) {
       remainder = Math.max(0, remainder - 1);
       return {
         ...item,
-        stock: perVariant + extra
+        stock: perVariant + extra,
+        minStock: Math.max(0, Number(item.minStock ?? 0))
       };
     });
   }
@@ -469,7 +530,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
     return sendJson(res, 200, {
-      products: products().map(withVariantStock),
+      products: products().map(withVariantStock).filter(item => !item.hiddenFromCatalog),
       banners: banners().filter(item => item.active),
       supportContacts: supportContacts(),
       pwa: { enabled: true }
@@ -499,6 +560,7 @@ async function handleApi(req, res, pathname) {
         : [];
       if (!items.length) return sendJson(res, 400, { error: 'Корзина пуста' });
       const current = orders();
+      const currentProducts = products();
       const order = {
         id: nextId('order'),
         createdAt: new Date().toISOString(),
@@ -509,8 +571,24 @@ async function handleApi(req, res, pathname) {
       };
       current.unshift(order);
       writeJson('orders.json', current);
+      const stockResult = applyOrderStock(order, currentProducts);
+      writeJson('products.json', stockResult.products);
       notifyOrder(order).catch(error => console.error('Order telegram notify error:', error.message));
-      return sendJson(res, 201, { ok: true, order });
+      if (stockResult.freshAlerts.length) {
+        notifyLowStockAlerts(stockResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+      }
+      return sendJson(res, 201, { ok: true, order, lowStockAlerts: stockResult.freshAlerts });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (pathname === '/api/shop/orders/history' && method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const ids = Array.isArray(body.ids) ? body.ids.map(item => String(item || '')) : [];
+      const map = new Set(ids);
+      return sendJson(res, 200, { ok: true, orders: orders().filter(item => map.has(String(item.id || ''))).slice(0, 20) });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
@@ -563,6 +641,8 @@ async function handleApi(req, res, pathname) {
         isTop: Boolean(body.isTop),
         homePriority: Number(body.homePriority || 0),
         stock: Number(body.stock || 0),
+        minStock: Math.max(0, Number(body.minStock || 0)),
+        hiddenFromCatalog: Boolean(body.hiddenFromCatalog),
         image: await persistMediaAsset(body.image, 'product'),
         accent: String(body.accent || 'tiffany'),
         variants: normalizeVariants(body.variants, Number(body.stock || 0))
@@ -595,6 +675,8 @@ async function handleApi(req, res, pathname) {
         isTop: body.isTop !== undefined ? Boolean(body.isTop) : Boolean(current[index].isTop),
         homePriority: Number(body.homePriority ?? current[index].homePriority ?? 0),
         stock: Number(body.stock ?? current[index].stock),
+        minStock: Math.max(0, Number(body.minStock ?? current[index].minStock ?? 0)),
+        hiddenFromCatalog: body.hiddenFromCatalog !== undefined ? Boolean(body.hiddenFromCatalog) : Boolean(current[index].hiddenFromCatalog),
         image: body.image !== undefined ? await persistMediaAsset(body.image, 'product') : current[index].image,
         accent: String(body.accent || current[index].accent || 'tiffany'),
         variants: normalizeVariants(body.variants ?? current[index].variants, Number((body.stock ?? current[index].stock ?? 0)))
