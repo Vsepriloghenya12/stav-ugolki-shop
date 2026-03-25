@@ -207,7 +207,22 @@ async function handleChatAssignment(updateLike, key) {
     : { postsChatId: chat.id, postsChatTitle: chat.title };
   updateTelegramConfig(patch);
   const targetName = key === 'orders' ? 'заявок' : 'постов';
-  await reply(chat.id, `Готово. Этот чат сохранён для ${targetName}.\nchat_id: ${chat.id}\nНазвание: ${chat.title}`);
+
+  let syncLine = '';
+  try {
+    const remote = await syncTelegramConfigRemote(patch);
+    if (remote && remote.ok) {
+      syncLine = '\nСинхронизация с приложением: ок';
+    } else if (remote && remote.skipped) {
+      syncLine = `\nСинхронизация с приложением: пропущена (${remote.reason || 'APP_BASE_URL missing'})`;
+    } else {
+      syncLine = '\nСинхронизация с приложением: неизвестный статус';
+    }
+  } catch (error) {
+    syncLine = `\nСинхронизация с приложением: ошибка (${error.message})`;
+  }
+
+  await reply(chat.id, `Готово. Этот чат сохранён для ${targetName}.\nchat_id: ${chat.id}\nНазвание: ${chat.title}${syncLine}`);
 }
 
 async function handleWhere(chatId, chat) {
