@@ -13,7 +13,7 @@ const seedFiles = [
   'orders.json',
   'posts.json',
   'support_contacts.json',
-  'chat_targets.json'
+  'telegram_config.json'
 ];
 
 function ensureDir(dirPath) {
@@ -28,6 +28,17 @@ function ensureSeedFile(name) {
   const bundled = path.join(bundledDataDir, name);
   if (fs.existsSync(bundled)) {
     fs.copyFileSync(bundled, destination);
+    return destination;
+  }
+
+  if (name === 'telegram_config.json') {
+    fs.writeFileSync(destination, JSON.stringify({
+      ordersChatId: '',
+      postsChatId: '',
+      ordersChatTitle: '',
+      postsChatTitle: '',
+      updatedAt: ''
+    }, null, 2) + '\n', 'utf8');
     return destination;
   }
 

@@ -11,7 +11,6 @@
     posts: [],
     summary: null,
     telegramConfig: null,
-    chatTargets: [],
     editProductId: '',
     editBannerId: '',
     editSupportId: ''
@@ -342,16 +341,12 @@ function statsData() {
 
   function renderPostsHistory() {
     el.postsHistory.innerHTML = state.posts.length
-      ? state.posts.map(item => {
-          const product = state.products.find(productItem => productItem.id === item.productId);
-          return `
+      ? state.posts.map(item => `
           <div class="post-item">
             <div class="mini-row"><span>${new Date(item.createdAt).toLocaleString('ru-RU')}</span><strong>${escapeHtml(item.target)}</strong></div>
-            ${product ? `<div class="mini-row"><span>Товар</span><strong>${escapeHtml(product.name)}</strong></div>` : ''}
             <div class="post-text">${escapeHtml(item.text)}</div>
           </div>
-        `;
-        }).join('')
+        `).join('')
       : '<div class="empty-box">Постов пока нет</div>';
   }
 
@@ -359,25 +354,13 @@ function statsData() {
     const cfg = state.telegramConfig || {};
     const chips = [
       ['BOT_TOKEN', cfg.hasBotToken],
-      ['Группа менеджера', cfg.hasAdminGroup],
-      ['Канал', cfg.hasChannel],
-      ['Ссылка на товар', cfg.hasMiniAppLink]
+      ['ADMIN_GROUP_CHAT_ID', cfg.hasAdminGroup],
+      ['CHANNEL_CHAT_ID', cfg.hasChannel]
     ];
-    const groups = [
-      `manager: ${Number(cfg.managerGroups || 0)}`,
-      `post: ${Number(cfg.postGroups || 0)}`
-    ].join(' · ');
-    el.telegramState.innerHTML = chips.map(item => `<span class="state-chip ${item[1] ? 'ok' : 'warn'}">${item[0]}</span>`).join('') + `<div class="helper-text">${escapeHtml(groups)} · команды: /meneger, /postgroup, /roles, /unregister</div>`;
+    el.telegramState.innerHTML = chips.map(item => `<span class="state-chip ${item[1] ? 'ok' : 'warn'}">${item[0]}</span>`).join('');
   }
 
-  function renderPostProductOptions() {
-    const select = document.getElementById('postProductSelect');
-    if (!select) return;
-    const currentValue = select.value || '';
-    select.innerHTML = `<option value="">Без привязки к товару</option>` + state.products.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.brand ? ` · ${escapeHtml(item.brand)}` : ''}</option>`).join('');
-    if (state.products.some(item => item.id === currentValue)) select.value = currentValue;
-  }
-
+  
 function productFormTemplate(product = {}) {
   const category = product.category || 'табак';
   const variantsMeta = categoryVariantMeta(category);
@@ -491,7 +474,6 @@ function supportFormTemplate(contact = {}) {
     renderPostsHistory();
     renderTelegramState();
     renderForms();
-    renderPostProductOptions();
   }
 
   function activateSection(name) {
@@ -509,7 +491,6 @@ function supportFormTemplate(contact = {}) {
     state.posts = data.posts || [];
     state.summary = data.summary || null;
     state.telegramConfig = data.telegramConfig || null;
-    state.chatTargets = data.chatTargets || [];
     if (!state.editProductId && state.products[0]) state.editProductId = state.products[0].id;
     if (!state.editBannerId && state.banners[0]) state.editBannerId = state.banners[0].id;
     if (!state.editSupportId && state.supportContacts[0]) state.editSupportId = state.supportContacts[0].id;
@@ -781,7 +762,6 @@ el.productForm.addEventListener('change', event => {
       const formData = new FormData(el.postForm);
       const payload = {
         target: formData.get('target') || 'group',
-        productId: formData.get('productId') || '',
         text: formData.get('text') || '',
         image: await mediaFieldValue(el.postForm)
       };

@@ -1,12 +1,15 @@
 const fs = require('fs');
 const path = require('path');
-const { readJson, writeJson, initializeDataStore } = require('../server/lib/store');
 
 loadEnv();
-initializeDataStore();
 
 const token = process.env.BOT_TOKEN;
-const miniAppUrl = process.env.MINIAPP_URL || process.env.WEB_APP_URL;
+const miniAppUrl = process.env.MINIAPP_URL;
+const dataDir = resolveDataDir();
+const telegramConfigFile = path.join(dataDir, 'telegram_config.json');
+
+ensureDir(dataDir);
+ensureTelegramConfigFile();
 
 if (!token || !miniAppUrl) {
   console.error('Нужны BOT_TOKEN и MINIAPP_URL');
@@ -41,6 +44,65 @@ function loadEnv() {
   });
 }
 
+function resolveDataDir() {
+  const configured = process.env.DATA_DIR || process.env.PERSISTENT_DATA_DIR || '';
+  if (configured) return path.resolve(configured);
+  if (fs.existsSync('/data')) return '/data';
+  return path.join(__dirname, '..', 'data');
+}
+
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function ensureTelegramConfigFile() {
+  if (fs.existsSync(telegramConfigFile)) return;
+  fs.writeFileSync(telegramConfigFile, JSON.stringify({
+    ordersChatId: '',
+    postsChatId: '',
+    ordersChatTitle: '',
+    postsChatTitle: '',
+    updatedAt: ''
+  }, null, 2) + '\n', 'utf8');
+}
+
+function readTelegramConfig() {
+  ensureTelegramConfigFile();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(telegramConfigFile, 'utf8'));
+    return {
+      ordersChatId: '',
+      postsChatId: '',
+      ordersChatTitle: '',
+      postsChatTitle: '',
+      updatedAt: '',
+      ...(parsed && typeof parsed === 'object' ? parsed : {})
+    };
+  } catch {
+    return {
+      ordersChatId: '',
+      postsChatId: '',
+      ordersChatTitle: '',
+      postsChatTitle: '',
+      updatedAt: ''
+    };
+  }
+}
+
+function writeTelegramConfig(value) {
+  fs.writeFileSync(telegramConfigFile, JSON.stringify(value, null, 2) + '\n', 'utf8');
+}
+
+function updateTelegramConfig(patch) {
+  const next = {
+    ...readTelegramConfig(),
+    ...patch,
+    updatedAt: new Date().toISOString()
+  };
+  writeTelegramConfig(next);
+  return next;
+}
+
 function shopKeyboard() {
   return {
     inline_keyboard: [[
@@ -52,99 +114,127 @@ function shopKeyboard() {
   };
 }
 
-function targetStore() {
+function normalizeCommand(text) {
+  const first = String(text || '').trim().split(/\s+/)[0] || '';
+  if (!first.startsWith('/')) return '';
+  return first.split('@')[0].toLowerCase();
+}
+
+function describeChat(chat) {
+  const title = chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || chat.username || 'Без названия';
+  return {
+    id: String(chat.id || ''),
+    title,
+    type: String(chat.type || '')
+  };
+}
+
+function helpText() {
+  return [
+    'Команды бота:',
+    '/shop — открыть магазин',
+    '/manager — назначить этот чат для заявок',
+    '/posts — назначить этот чат для постов',
+    '/where — показать текущий chat_id и сохранённые чаты',
+    '/help — список команд'
+  ].join('\n');
+}
+
+async function isAdmin(updateLike) {
+  const chat = updateLike.chat;
+  if (!chat || !chat.id) return false;
+  if (chat.type === 'private') return true;
+  if (updateLike.channelPost) return true;
+  const userId = updateLike.from && updateLike.from.id;
+  if (!userId) return false;
   try {
-    const value = readJson('chat_targets.json');
-    return Array.isArray(value) ? value : [];
+    const admins = await telegram('getChatAdministrators', { chat_id: chat.id });
+    return admins.some(item => item && item.user && item.user.id === userId);
   } catch {
-    return [];
+    return false;
   }
 }
 
-function saveTargets(items) {
-  writeJson('chat_targets.json', items);
-}
-
-function registerChat(chat, role) {
-  const current = targetStore().filter(item => String(item.chatId) !== String(chat.id) || item.role !== role);
-  current.push({
-    chatId: String(chat.id),
-    role,
-    title: chat.title || chat.username || 'Telegram chat',
-    type: chat.type || 'group',
-    username: chat.username || '',
-    registeredAt: new Date().toISOString()
-  });
-  saveTargets(current);
-  return current;
-}
-
-function removeChat(chatId) {
-  const current = targetStore().filter(item => String(item.chatId) !== String(chatId));
-  saveTargets(current);
-  return current;
-}
-
-function rolesForChat(chatId) {
-  return targetStore().filter(item => String(item.chatId) === String(chatId));
-}
-
-async function reply(chatId, text, extra = {}) {
-  return telegram('sendMessage', {
+async function reply(chatId, text, withShop = false) {
+  const payload = {
     chat_id: chatId,
-    text,
-    ...extra
-  });
+    text
+  };
+  if (withShop) payload.reply_markup = shopKeyboard();
+  return telegram('sendMessage', payload);
+}
+
+async function handleChatAssignment(updateLike, key) {
+  const chat = describeChat(updateLike.chat);
+  const allowed = await isAdmin(updateLike);
+  if (!allowed) {
+    await reply(chat.id, 'Эту команду может использовать только админ чата.');
+    return;
+  }
+  const patch = key === 'orders'
+    ? { ordersChatId: chat.id, ordersChatTitle: chat.title }
+    : { postsChatId: chat.id, postsChatTitle: chat.title };
+  updateTelegramConfig(patch);
+  const targetName = key === 'orders' ? 'заявок' : 'постов';
+  await reply(chat.id, `Готово. Этот чат сохранён для ${targetName}.\nchat_id: ${chat.id}\nНазвание: ${chat.title}`);
+}
+
+async function handleWhere(chatId, chat) {
+  const current = readTelegramConfig();
+  const info = describeChat(chat);
+  const lines = [
+    `Текущий чат: ${info.title}`,
+    `Тип: ${info.type}`,
+    `chat_id: ${info.id}`,
+    '',
+    `Чат заявок: ${current.ordersChatTitle || 'не задан'}`,
+    current.ordersChatId ? `ID заявок: ${current.ordersChatId}` : 'ID заявок: не задан',
+    '',
+    `Чат постов: ${current.postsChatTitle || 'не задан'}`,
+    current.postsChatId ? `ID постов: ${current.postsChatId}` : 'ID постов: не задан'
+  ];
+  await reply(chatId, lines.join('\n'));
 }
 
 async function handleUpdate(update) {
-  const message = update.message;
-  if (!message || !message.chat) return;
-  const chat = message.chat;
-  const chatId = chat.id;
-  const text = (message.text || '').trim();
-  const isGroup = ['group', 'supergroup'].includes(chat.type);
+  const source = update.message || update.channel_post;
+  if (!source || !source.chat) return;
+  const chatId = source.chat.id;
+  const text = (source.text || '').trim();
+  const command = normalizeCommand(text);
+  const updateLike = {
+    chat: source.chat,
+    from: source.from,
+    channelPost: Boolean(update.channel_post)
+  };
 
-  if (text === '/start' || text === '/shop') {
-    await reply(chatId, 'Ставь Угольки', { reply_markup: shopKeyboard() });
+  if (command === '/start' || command === '/shop') {
+    await reply(chatId, 'Ставь Угольки', true);
     return;
   }
 
-  if (isGroup && (text === '/meneger' || text === '/manager')) {
-    registerChat(chat, 'manager');
-    await reply(chatId, 'Эта группа сохранена как группа менеджера. Сюда будут приходить заказы.');
+  if (command === '/manager' || command === '/set_orders_here') {
+    await handleChatAssignment(updateLike, 'orders');
     return;
   }
 
-  if (isGroup && text === '/postgroup') {
-    registerChat(chat, 'post');
-    await reply(chatId, 'Эта группа сохранена как группа для постов.');
+  if (command === '/posts' || command === '/set_posts_here') {
+    await handleChatAssignment(updateLike, 'posts');
     return;
   }
 
-  if (isGroup && text === '/roles') {
-    const roles = rolesForChat(chatId);
-    const line = roles.length ? roles.map(item => item.role).join(', ') : 'ролей нет';
-    await reply(chatId, `Для этой группы зарегистрированы роли: ${line}`);
+  if (command === '/where') {
+    await handleWhere(chatId, source.chat);
     return;
   }
 
-  if (isGroup && text === '/unregister') {
-    removeChat(chatId);
-    await reply(chatId, 'Роли этой группы очищены.');
+  if (command === '/help') {
+    await reply(chatId, helpText(), true);
     return;
   }
 
-  if (text === '/help') {
-    const help = isGroup
-      ? ['/meneger — назначить группу менеджера для заказов', '/postgroup — назначить группу для постов', '/roles — показать роли группы', '/unregister — убрать роли группы', '/shop — открыть магазин'].join('\n')
-      : '/shop — открыть магазин';
-    await reply(chatId, help, isGroup ? {} : { reply_markup: shopKeyboard() });
-    return;
-  }
-
-  if (!isGroup) {
-    await reply(chatId, 'Напиши /shop чтобы открыть магазин.', { reply_markup: shopKeyboard() });
+  if (command) {
+    await reply(chatId, 'Не понял команду.\n\n' + helpText(), true);
   }
 }
 
@@ -153,7 +243,7 @@ async function poll() {
     const updates = await telegram('getUpdates', {
       offset,
       timeout: 25,
-      allowed_updates: ['message']
+      allowed_updates: ['message', 'channel_post']
     });
 
     for (const update of updates) {

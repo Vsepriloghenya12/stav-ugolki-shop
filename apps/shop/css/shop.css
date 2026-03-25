@@ -73,8 +73,8 @@ body.is-loading-app .sheet-backdrop {
 
 .app-loader-logo-wrap {
   position: relative;
-  width: min(100%, var(--app-width));
-  height: clamp(140px, 32vw, 224px);
+  width: min(92vw, 560px);
+  aspect-ratio: 5.2 / 1.7;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,54 +98,34 @@ body.is-loading-app .sheet-backdrop {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  transform: translateX(38px);
 }
 
 .app-loader-burn { z-index: 1; }
 .app-loader-burn::before,
 .app-loader-burn::after {
-  left: 8%;
-  top: 36%;
-  width: 28%;
-  height: 24%;
-  filter: blur(14px);
-  background:
-    linear-gradient(90deg, rgba(255, 210, 112, 0.00) 0%, rgba(255, 212, 116, 0.22) 18%, rgba(255, 150, 58, 0.34) 56%, rgba(255, 84, 24, 0.18) 100%),
-    radial-gradient(ellipse at 18% 52%, rgba(255, 230, 130, 0.18), transparent 22%),
-    radial-gradient(ellipse at 52% 54%, rgba(255, 148, 60, 0.20), transparent 32%),
-    radial-gradient(ellipse at 86% 60%, rgba(255, 86, 28, 0.16), transparent 38%);
-  opacity: .78;
-  animation: emberPulse 1.1s ease-in-out infinite reverse;
+  content: "";
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
 }
 
 .app-loader-burn::before {
-  left: 4%;
-  top: 20%;
-  width: 36%;
-  height: 58%;
-  filter: blur(20px);
   background:
-    linear-gradient(90deg, rgba(255, 180, 66, 0.00) 0%, rgba(255, 185, 80, 0.28) 22%, rgba(255, 122, 48, 0.36) 58%, rgba(255, 72, 22, 0.18) 100%),
-    radial-gradient(ellipse at 18% 56%, rgba(255, 236, 150, 0.22), transparent 24%),
-    radial-gradient(ellipse at 38% 54%, rgba(255, 169, 72, 0.28), transparent 34%),
-    radial-gradient(ellipse at 58% 58%, rgba(255, 110, 36, 0.30), transparent 38%),
-    radial-gradient(ellipse at 80% 62%, rgba(255, 78, 18, 0.22), transparent 42%);
+    radial-gradient(ellipse at 13% 58%, rgba(255, 235, 140, 0.0) 0 10%, rgba(255, 212, 118, 0.28) 18%, rgba(255, 152, 58, 0.42) 28%, rgba(255, 98, 34, 0.10) 38%, transparent 48%),
+    radial-gradient(ellipse at 18.5% 55%, rgba(255, 228, 132, 0.0) 0 8%, rgba(255, 205, 108, 0.26) 18%, rgba(255, 145, 54, 0.34) 28%, rgba(255, 86, 26, 0.08) 40%, transparent 48%),
+    radial-gradient(ellipse at 24% 57%, rgba(255, 226, 130, 0.0) 0 8%, rgba(255, 198, 106, 0.22) 17%, rgba(255, 138, 50, 0.30) 27%, rgba(255, 80, 24, 0.08) 38%, transparent 46%);
+  filter: blur(16px);
   opacity: .92;
-  animation: emberPulse 1.55s ease-in-out infinite;
+  animation: emberPulse 1.5s ease-in-out infinite;
 }
 
 .app-loader-burn::after {
-  left: 8%;
-  top: 36%;
-  width: 28%;
-  height: 24%;
-  filter: blur(14px);
   background:
-    linear-gradient(90deg, rgba(255, 210, 112, 0.00) 0%, rgba(255, 212, 116, 0.22) 18%, rgba(255, 150, 58, 0.34) 56%, rgba(255, 84, 24, 0.18) 100%),
-    radial-gradient(ellipse at 18% 52%, rgba(255, 230, 130, 0.18), transparent 22%),
-    radial-gradient(ellipse at 52% 54%, rgba(255, 148, 60, 0.20), transparent 32%),
-    radial-gradient(ellipse at 86% 60%, rgba(255, 86, 28, 0.16), transparent 38%);
-  opacity: .78;
+    radial-gradient(ellipse at 12.5% 60%, rgba(255, 236, 158, 0.28), transparent 16%),
+    radial-gradient(ellipse at 18.5% 57%, rgba(255, 178, 74, 0.24), transparent 18%),
+    radial-gradient(ellipse at 24% 59%, rgba(255, 114, 36, 0.18), transparent 20%);
+  filter: blur(22px);
+  opacity: .7;
   animation: emberPulse 1.1s ease-in-out infinite reverse;
 }
 
@@ -162,14 +142,14 @@ body.is-loading-app .sheet-backdrop {
   animation: emberSparkUp 1.9s linear infinite;
 }
 
-.app-loader-sparks i:nth-child(1) { left: 12%; top: 44%; --rot: -22deg; --dx: 22px; --dy: -26px; animation-delay: .18s; width: 16px; }
-.app-loader-sparks i:nth-child(2) { left: 14%; top: 31%; --rot: -30deg; --dx: 16px; --dy: -18px; animation-delay: .92s; width: 12px; }
-.app-loader-sparks i:nth-child(3) { left: 15.5%; top: 60%; --rot: -12deg; --dx: 24px; --dy: -20px; animation-delay: 1.22s; width: 18px; }
-.app-loader-sparks i:nth-child(4) { left: 18%; top: 42%; --rot: -24deg; --dx: 20px; --dy: -24px; animation-delay: 1.42s; width: 14px; }
-.app-loader-sparks i:nth-child(5) { left: 20%; top: 55%; --rot: -15deg; --dx: 22px; --dy: -18px; animation-delay: 1.64s; width: 18px; }
-.app-loader-sparks i:nth-child(6) { left: 21%; top: 36%; --rot: -28deg; --dx: 18px; --dy: -22px; animation-delay: .30s; width: 12px; }
-.app-loader-sparks i:nth-child(7) { left: 22.5%; top: 48%; --rot: -16deg; --dx: 20px; --dy: -18px; animation-delay: .88s; width: 15px; }
-.app-loader-sparks i:nth-child(8) { left: 24%; top: 29%; --rot: -34deg; --dx: 15px; --dy: -14px; animation-delay: 1.28s; width: 11px; }
+.app-loader-sparks i:nth-child(1) { left: 11%; top: 56%; --rot: -18deg; --dx: 24px; --dy: -26px; animation-delay: .02s; }
+.app-loader-sparks i:nth-child(2) { left: 14%; top: 48%; --rot: -28deg; --dx: 18px; --dy: -22px; animation-delay: .34s; width: 11px; }
+.app-loader-sparks i:nth-child(3) { left: 16%; top: 61%; --rot: -12deg; --dx: 26px; --dy: -20px; animation-delay: .78s; width: 16px; }
+.app-loader-sparks i:nth-child(4) { left: 18.5%; top: 53%; --rot: -20deg; --dx: 22px; --dy: -20px; animation-delay: 1.1s; width: 12px; }
+.app-loader-sparks i:nth-child(5) { left: 21%; top: 58%; --rot: -10deg; --dx: 26px; --dy: -16px; animation-delay: 1.44s; width: 14px; }
+.app-loader-sparks i:nth-child(6) { left: 22%; top: 46%; --rot: -26deg; --dx: 20px; --dy: -22px; animation-delay: .56s; width: 10px; }
+.app-loader-sparks i:nth-child(7) { left: 24.5%; top: 55%; --rot: -16deg; --dx: 22px; --dy: -18px; animation-delay: 1.72s; width: 11px; }
+.app-loader-sparks i:nth-child(8) { left: 26%; top: 50%; --rot: -22deg; --dx: 18px; --dy: -16px; animation-delay: .96s; width: 9px; }
 
 .app-loader-line {
   width: min(58vw, 240px);
