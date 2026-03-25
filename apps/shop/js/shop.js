@@ -2,7 +2,8 @@
   const STORAGE_KEYS = {
     likes: 'stav:likes',
     cart: 'stav:cart:v39',
-    selectedVariants: 'stav:selectedVariants:v39'
+    selectedVariants: 'stav:selectedVariants:v39',
+    secretTheme: 'stav:secret-theme:v1'
   };
 
   const state = {
@@ -25,7 +26,14 @@
     activeProductId: '',
     deferredPrompt: null,
     bannerGesture: { startX: 0, deltaX: 0, active: false },
-    suppressBannerClick: false
+    suppressBannerClick: false,
+    secretTheme: {
+      active: load(STORAGE_KEYS.secretTheme, false),
+      loading: null,
+      config: null,
+      tapMarks: [],
+      switching: false
+    }
   };
 
   const el = {
@@ -66,7 +74,9 @@
     navCart: document.getElementById('navCart'),
     navSearch: document.getElementById('navSearch'),
     navSupport: document.getElementById('navSupport'),
-    appLoader: document.getElementById('appLoader')
+    appLoader: document.getElementById('appLoader'),
+    appLoaderLogo: document.getElementById('appLoaderLogo'),
+    heroLogoImage: document.getElementById('heroLogoImage')
   };
 
   function load(key, fallback) {
@@ -80,6 +90,155 @@
 
   function save(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  const DEFAULT_THEME = {
+    bodyClass: '',
+    headerLogoSrc: '/apps/shared/assets/img/header-logo.png',
+    loaderLogoSrc: '/apps/shared/assets/img/header-logo.png'
+  };
+
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function setLoaderVisibility(isVisible) {
+    if (!el.appLoader) return;
+    el.appLoader.classList.toggle('is-hidden', !isVisible);
+    document.body.classList.toggle('is-loading-app', isVisible);
+  }
+
+  function setThemeLogos(themeConfig = null) {
+    const headerSrc = themeConfig?.headerLogoSrc || DEFAULT_THEME.headerLogoSrc;
+    const loaderSrc = themeConfig?.loaderLogoSrc || themeConfig?.headerLogoSrc || DEFAULT_THEME.loaderLogoSrc;
+    if (el.heroLogoImage) el.heroLogoImage.src = headerSrc;
+    if (el.appLoaderLogo) el.appLoaderLogo.src = loaderSrc;
+  }
+
+  function loadSecretThemeModule() {
+    if (window.StavSecretTheme) return Promise.resolve(window.StavSecretTheme);
+    if (state.secretTheme.loading) return state.secretTheme.loading;
+    state.secretTheme.loading = new Promise(resolve => {
+      const existing = document.querySelector('script[data-secret-theme-script]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.StavSecretTheme || null), { once: true });
+        existing.addEventListener('error', () => resolve(null), { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = '/apps/shop/secret-theme/index.js?v=41';
+      script.async = true;
+      script.dataset.secretThemeScript = '1';
+      script.onload = () => resolve(window.StavSecretTheme || null);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    }).finally(() => {
+      state.secretTheme.loading = null;
+    });
+    return state.secretTheme.loading;
+  }
+
+  function ensureSecretThemeStyles(config) {
+    if (!config?.cssHref) return Promise.resolve(false);
+    const current = document.getElementById('secretThemeStylesheet');
+    if (current) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const link = document.createElement('link');
+      link.id = 'secretThemeStylesheet';
+      link.rel = 'stylesheet';
+      link.href = `${config.cssHref}?v=41`;
+      link.onload = () => resolve(true);
+      link.onerror = () => { link.remove(); resolve(false); };
+      document.head.appendChild(link);
+    });
+  }
+
+  function preloadThemeAssets(config) {
+    const items = Array.isArray(config?.preload) ? config.preload : [];
+    return Promise.allSettled(items.map(src => preloadMedia(src, mediaKind(src))));
+  }
+
+  async function activateSecretTheme(options = {}) {
+    const { silent = false } = options;
+    const config = await loadSecretThemeModule();
+    if (!config) {
+      state.secretTheme.active = false;
+      save(STORAGE_KEYS.secretTheme, false);
+      document.body.classList.remove('secret-theme-active');
+      setThemeLogos();
+      return false;
+    }
+    const stylesReady = await ensureSecretThemeStyles(config);
+    if (!stylesReady) {
+      state.secretTheme.active = false;
+      save(STORAGE_KEYS.secretTheme, false);
+      document.body.classList.remove('secret-theme-active');
+      setThemeLogos();
+      return false;
+    }
+    state.secretTheme.config = config;
+    state.secretTheme.active = true;
+    save(STORAGE_KEYS.secretTheme, true);
+    document.body.classList.add(config.bodyClass || 'secret-theme-active');
+    setThemeLogos(config);
+    await preloadThemeAssets(config);
+    if (!silent) {
+      setLoaderVisibility(true);
+      await wait(config.transitionMs || 1050);
+      setLoaderVisibility(false);
+    }
+    return true;
+  }
+
+  async function deactivateSecretTheme(options = {}) {
+    const { silent = false } = options;
+    state.secretTheme.active = false;
+    save(STORAGE_KEYS.secretTheme, false);
+    if (!silent) setLoaderVisibility(true);
+    document.body.classList.remove('secret-theme-active');
+    setThemeLogos();
+    if (!silent) {
+      await wait(760);
+      setLoaderVisibility(false);
+    }
+    return true;
+  }
+
+  async function toggleSecretTheme() {
+    if (state.secretTheme.switching) return;
+    state.secretTheme.switching = true;
+    try {
+      if (document.body.classList.contains('secret-theme-active')) {
+        await deactivateSecretTheme();
+      } else {
+        const ok = await activateSecretTheme();
+        if (!ok) return;
+      }
+      renderCategories();
+      renderFilterOptions();
+      renderBanners();
+      renderProducts();
+      renderSupport();
+      renderCart();
+      renderBottomNav(state.view === 'favorites' ? 'favorites' : 'catalog');
+      if (state.activeProductId && !el.productSheet.classList.contains('hidden')) {
+        renderProductSheet(state.activeProductId, false);
+      }
+      pulseHaptic('medium');
+    } finally {
+      state.secretTheme.switching = false;
+    }
+  }
+
+  function registerSecretTap() {
+    const now = Date.now();
+    state.secretTheme.tapMarks = state.secretTheme.tapMarks.filter(mark => now - mark < 3600);
+    state.secretTheme.tapMarks.push(now);
+    if (state.secretTheme.tapMarks.length < 10) return;
+    const recent = state.secretTheme.tapMarks.slice(-10);
+    const fastEnough = recent[recent.length - 1] - recent[0] <= 3200;
+    state.secretTheme.tapMarks = [];
+    if (fastEnough) toggleSecretTheme();
   }
 
   function isPhoneLike() {
@@ -1092,7 +1251,10 @@ async function shareProduct(productId) {
 
     el.checkoutForm.addEventListener('submit', submitCheckout);
 
-    el.heroLogoButton?.addEventListener('click', goHome);
+    el.heroLogoButton?.addEventListener('click', () => {
+      goHome();
+      registerSecretTap();
+    });
 
     el.navMenu.addEventListener('click', goHome);
     el.navFavorites.addEventListener('click', () => {
@@ -1144,11 +1306,7 @@ async function shareProduct(productId) {
   }
 
   function hideLoader() {
-    const loader = el.appLoader;
-    if (!loader) return;
-    loader.classList.add('is-hidden');
-    document.body.classList.remove('is-loading-app');
-    setTimeout(() => loader.remove(), 460);
+    setLoaderVisibility(false);
   }
 
   async function init() {
@@ -1156,6 +1314,11 @@ async function shareProduct(productId) {
     try {
       window.Telegram?.WebApp?.ready?.();
       window.Telegram?.WebApp?.expand?.();
+      if (state.secretTheme.active) {
+        await activateSecretTheme({ silent: true });
+      } else {
+        setThemeLogos();
+      }
       bindEvents();
       registerPwa();
       const data = await window.AppApi.getShopBootstrap();
