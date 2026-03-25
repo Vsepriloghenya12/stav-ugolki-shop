@@ -851,6 +851,7 @@ body.is-loading-app .sheet-backdrop {
   bottom: 0;
   transform: translateX(-50%);
   width: min(calc(100vw - 12px), 440px);
+  max-width: calc(100vw - 12px);
   max-height: min(82dvh, 760px);
   overflow: auto;
   border-top-left-radius: 28px;
@@ -1234,12 +1235,12 @@ body.has-success-modal {
 }
 .sheet {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateX(-50%) translateY(24px);
   transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .24s ease;
 }
 .sheet.sheet-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 .sheet-backdrop {
   transition: opacity .24s ease, backdrop-filter .24s ease;
