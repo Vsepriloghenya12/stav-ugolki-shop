@@ -50,6 +50,8 @@
     productSheet: document.getElementById('productSheet'),
     cartSheet: document.getElementById('cartSheet'),
     supportSheet: document.getElementById('supportSheet'),
+    orderSuccessModal: document.getElementById('orderSuccessModal'),
+    successModalCloseBtn: document.getElementById('successModalCloseBtn'),
     quickFilterToggle: document.getElementById('quickFilterToggle'),
     heroLogoButton: document.getElementById('heroLogoButton'),
     searchInput: document.getElementById('searchInput'),
@@ -909,6 +911,18 @@ async function shareProduct(productId) {
     showNotice.timer = setTimeout(() => { el.checkoutNotice.textContent = ''; }, 4200);
   }
 
+  function showSuccessModal() {
+    if (!el.orderSuccessModal) return;
+    el.orderSuccessModal.classList.remove('hidden');
+    document.body.classList.add('has-success-modal');
+  }
+
+  function hideSuccessModal() {
+    if (!el.orderSuccessModal) return;
+    el.orderSuccessModal.classList.add('hidden');
+    document.body.classList.remove('has-success-modal');
+  }
+
   function goHome() {
     state.view = 'catalog';
     state.search = '';
@@ -1040,7 +1054,7 @@ async function shareProduct(productId) {
       renderProducts();
       el.checkoutForm.reset();
       prefillTelegramField();
-      showNotice('Ваша заявка успешно создана. В ближайшее время с вами свяжется менеджер');
+      showSuccessModal();
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }

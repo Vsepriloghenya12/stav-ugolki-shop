@@ -575,7 +575,11 @@
   function activateSection(name) {
     state.activeSection = name;
     document.querySelectorAll('.owner-nav-item').forEach(node => node.classList.toggle('is-active', node.dataset.section === name));
-    document.querySelectorAll('[data-section-panel]').forEach(node => node.classList.toggle('hidden', node.dataset.sectionPanel !== name));
+    document.querySelectorAll('[data-owner-panel]').forEach(node => {
+      const isCurrent = node.dataset.ownerPanel === name;
+      node.classList.toggle('hidden', !isCurrent);
+      node.classList.toggle('is-active', isCurrent);
+    });
   }
 
   async function loadBootstrap() {

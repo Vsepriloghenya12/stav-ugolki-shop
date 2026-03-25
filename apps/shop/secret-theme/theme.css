@@ -289,3 +289,32 @@ body.secret-theme-active .empty-state {
   45% { opacity: 1; transform: scale(1.04); }
   70% { opacity: .88; transform: scale(1.01); }
 }
+
+
+body.secret-theme-active .success-modal-backdrop {
+  background: rgba(8, 3, 3, 0.74);
+}
+
+body.secret-theme-active .success-modal-card {
+  border-color: rgba(255, 138, 52, 0.28);
+  background: linear-gradient(180deg, rgba(36, 10, 8, 0.98), rgba(16, 4, 4, 0.98));
+}
+
+body.secret-theme-active .success-modal-glow {
+  background: radial-gradient(circle, rgba(255, 138, 52, 0.42) 0%, rgba(255, 138, 52, 0.18) 30%, transparent 72%);
+}
+
+body.secret-theme-active .success-modal-icon,
+body.secret-theme-active .success-modal-button {
+  background: linear-gradient(180deg, #ffd379, #ff7b2d);
+  color: #2a0b05;
+  box-shadow: 0 14px 30px rgba(255, 120, 36, 0.28);
+}
+
+body.secret-theme-active .success-modal-title {
+  color: #fff4da;
+}
+
+body.secret-theme-active .success-modal-text {
+  color: #f4ba8a;
+}
