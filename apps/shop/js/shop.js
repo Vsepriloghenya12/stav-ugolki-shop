@@ -128,7 +128,7 @@
         return;
       }
       const script = document.createElement('script');
-      script.src = '/apps/shop/secret-theme/index.js?v=41';
+      script.src = '/apps/shop/secret-theme/index.js?v=44';
       script.async = true;
       script.dataset.secretThemeScript = '1';
       script.onload = () => resolve(window.StavSecretTheme || null);
@@ -148,7 +148,7 @@
       const link = document.createElement('link');
       link.id = 'secretThemeStylesheet';
       link.rel = 'stylesheet';
-      link.href = `${config.cssHref}?v=41`;
+      link.href = `${config.cssHref}?v=44`;
       link.onload = () => resolve(true);
       link.onerror = () => { link.remove(); resolve(false); };
       document.head.appendChild(link);
@@ -1264,6 +1264,16 @@ async function shareProduct(productId) {
     });
 
     el.checkoutForm.addEventListener('submit', submitCheckout);
+
+    el.successModalCloseBtn?.addEventListener('click', hideSuccessModal);
+    el.orderSuccessModal?.addEventListener('click', event => {
+      if (event.target.matches('[data-close-success-modal]')) hideSuccessModal();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && el.orderSuccessModal && !el.orderSuccessModal.classList.contains('hidden')) {
+        hideSuccessModal();
+      }
+    });
 
     el.heroLogoButton?.addEventListener('click', () => {
       goHome();
