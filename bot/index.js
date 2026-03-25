@@ -7,6 +7,8 @@ const token = process.env.BOT_TOKEN;
 const miniAppUrl = process.env.MINIAPP_URL;
 const dataDir = resolveDataDir();
 const telegramConfigFile = path.join(dataDir, 'telegram_config.json');
+const configSyncSecret = process.env.CONFIG_SYNC_SECRET || '';
+const appBaseUrl = resolveAppBaseUrl();
 
 ensureDir(dataDir);
 ensureTelegramConfigFile();
@@ -65,6 +67,35 @@ function ensureTelegramConfigFile() {
     updatedAt: ''
   }, null, 2) + '\n', 'utf8');
 }
+
+function resolveAppBaseUrl() {
+  const explicit = String(process.env.APP_BASE_URL || process.env.API_BASE_URL || '').trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const source = String(process.env.MINIAPP_URL || '').trim();
+  if (!source) return '';
+  try {
+    const url = new URL(source);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return '';
+  }
+}
+
+async function syncTelegramConfigRemote(patch) {
+  if (!appBaseUrl) return { skipped: true, reason: 'APP_BASE_URL missing' };
+  const response = await fetch(`${appBaseUrl}/api/internal/telegram-config`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(configSyncSecret ? { 'x-config-sync-secret': configSyncSecret } : {})
+    },
+    body: JSON.stringify(patch || {})
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
+}
+
 
 function readTelegramConfig() {
   ensureTelegramConfigFile();

@@ -16,6 +16,7 @@ const ownerPassword = process.env.OWNER_PASSWORD || 'stavugolki2026';
 const botToken = process.env.BOT_TOKEN || '';
 const adminGroupId = process.env.ADMIN_GROUP_CHAT_ID || '';
 const channelChatId = process.env.CHANNEL_CHAT_ID || '';
+const configSyncSecret = process.env.CONFIG_SYNC_SECRET || '';
 
 function telegramConfigPath() {
   return path.join(getDataDir(), 'telegram_config.json');
@@ -41,6 +42,21 @@ function readTelegramConfig() {
     return fallback;
   }
 }
+
+function writeTelegramConfig(value) {
+  fs.writeFileSync(telegramConfigPath(), JSON.stringify(value, null, 2) + '\n', 'utf8');
+  return value;
+}
+
+function updateTelegramConfig(patch) {
+  const next = {
+    ...readTelegramConfig(),
+    ...(patch && typeof patch === 'object' ? patch : {}),
+    updatedAt: new Date().toISOString()
+  };
+  return writeTelegramConfig(next);
+}
+
 
 function resolveOrdersChatId() {
   const config = readTelegramConfig();
@@ -95,6 +111,14 @@ function sendJson(res, status, payload) {
 function sendText(res, status, text) {
   res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end(text);
+}
+
+function extractConfigSyncToken(req) {
+  const header = String(req.headers['x-config-sync-secret'] || '').trim();
+  if (header) return header;
+  const authHeader = String(req.headers.authorization || '');
+  if (authHeader.toLowerCase().startsWith('bearer ')) return authHeader.slice(7).trim();
+  return '';
 }
 
 function parseBody(req) {
@@ -356,7 +380,10 @@ async function publishOwnerPost(payload) {
 
 async function notifyOrder(order) {
   const ordersChatId = resolveOrdersChatId();
-  if (!botToken || !ordersChatId) return;
+  if (!botToken || !ordersChatId) {
+    console.warn('Order telegram notify skipped:', !botToken ? 'BOT_TOKEN missing' : 'orders chat not configured');
+    return;
+  }
   const lines = [
     'Новый заказ',
     '',
@@ -384,7 +411,30 @@ async function handleApi(req, res, pathname) {
   const posts = () => readJson('posts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
-    return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir() });
+    return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir(), telegramConfig: telegramConfigStatus() });
+  }
+
+  if (pathname === '/api/internal/telegram-config' && method === 'GET') {
+    const token = extractConfigSyncToken(req);
+    if (configSyncSecret && token !== configSyncSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    return sendJson(res, 200, { ok: true, telegramConfig: readTelegramConfig(), resolved: telegramConfigStatus() });
+  }
+
+  if (pathname === '/api/internal/telegram-config' && method === 'POST') {
+    const token = extractConfigSyncToken(req);
+    if (configSyncSecret && token !== configSyncSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    try {
+      const body = await parseBody(req);
+      const next = updateTelegramConfig({
+        ordersChatId: body.ordersChatId !== undefined ? String(body.ordersChatId || '') : readTelegramConfig().ordersChatId,
+        postsChatId: body.postsChatId !== undefined ? String(body.postsChatId || '') : readTelegramConfig().postsChatId,
+        ordersChatTitle: body.ordersChatTitle !== undefined ? String(body.ordersChatTitle || '') : readTelegramConfig().ordersChatTitle,
+        postsChatTitle: body.postsChatTitle !== undefined ? String(body.postsChatTitle || '') : readTelegramConfig().postsChatTitle
+      });
+      return sendJson(res, 200, { ok: true, telegramConfig: next, resolved: telegramConfigStatus() });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
   }
 
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
