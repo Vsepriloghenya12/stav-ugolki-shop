@@ -31,6 +31,15 @@ button {
   cursor: pointer;
 }
 
+html.secret-theme-booting .app-loader-inner,
+html.secret-theme-booting .topbar {
+  opacity: 0;
+}
+
+html.secret-theme-booting .app-loader-inner {
+  transition: opacity .18s ease;
+}
+
 body.is-loading-app {
   overflow: hidden;
 }
@@ -143,11 +152,25 @@ body.is-loading-app .sheet-backdrop {
   isolation: isolate;
   overflow: hidden;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.hero-logo-button:active,
+.hero-logo-button:focus-visible {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
 }
 
 .hero-logo-frame {
   position: relative;
   display: flex;
+  -webkit-tap-highlight-color: transparent;
   align-items: center;
   justify-content: center;
   width: 100%;
@@ -988,7 +1011,7 @@ body.has-cart-sheet-open #cartSheet {
   .hero-logo-button {
     width: min(100%, 980px);
     margin: 0 auto;
-    height: 168px;
+    height: 128px;
   }
 
   .hero-logo-burn::before {
@@ -1045,14 +1068,6 @@ body.has-cart-sheet-open #cartSheet {
   }
 }
 
-
-@media (min-width: 900px) {
-  .hero-logo-button,
-  .hero-logo-button:hover,
-  .hero-logo-button:focus {
-    height: 128px;
-  }
-}
 
 @keyframes loaderSweep {
   0% { transform: translateX(-120%); }

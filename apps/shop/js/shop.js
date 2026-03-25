@@ -100,6 +100,12 @@
     loaderLogoSrc: '/apps/shared/assets/img/header-logo.png'
   };
 
+  const SECRET_BOOT_THEME = window.__stavBootSecretTheme ? {
+    bodyClass: 'secret-theme-active',
+    headerLogoSrc: '/apps/shop/secret-theme/assets/secret-logo.png',
+    loaderLogoSrc: '/apps/shop/secret-theme/assets/secret-logo.png'
+  } : null;
+
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -117,6 +123,15 @@
     if (el.appLoaderLogo) el.appLoaderLogo.src = loaderSrc;
   }
 
+
+  function clearThemeBootState() {
+    document.documentElement.classList.remove('secret-theme-booting');
+  }
+
+  if (SECRET_BOOT_THEME) {
+    setThemeLogos(SECRET_BOOT_THEME);
+  }
+
   function loadSecretThemeModule() {
     if (window.StavSecretTheme) return Promise.resolve(window.StavSecretTheme);
     if (state.secretTheme.loading) return state.secretTheme.loading;
@@ -128,7 +143,7 @@
         return;
       }
       const script = document.createElement('script');
-      script.src = '/apps/shop/secret-theme/index.js?v=44';
+      script.src = '/apps/shop/secret-theme/index.js?v=45';
       script.async = true;
       script.dataset.secretThemeScript = '1';
       script.onload = () => resolve(window.StavSecretTheme || null);
@@ -148,7 +163,7 @@
       const link = document.createElement('link');
       link.id = 'secretThemeStylesheet';
       link.rel = 'stylesheet';
-      link.href = `${config.cssHref}?v=44`;
+      link.href = `${config.cssHref}?v=45`;
       link.onload = () => resolve(true);
       link.onerror = () => { link.remove(); resolve(false); };
       document.head.appendChild(link);
@@ -168,6 +183,7 @@
       save(STORAGE_KEYS.secretTheme, false);
       document.body.classList.remove('secret-theme-active');
       setThemeLogos();
+      clearThemeBootState();
       return false;
     }
     const stylesReady = await ensureSecretThemeStyles(config);
@@ -176,6 +192,7 @@
       save(STORAGE_KEYS.secretTheme, false);
       document.body.classList.remove('secret-theme-active');
       setThemeLogos();
+      clearThemeBootState();
       return false;
     }
     state.secretTheme.config = config;
@@ -184,6 +201,7 @@
     document.body.classList.add(config.bodyClass || 'secret-theme-active');
     setThemeLogos(config);
     await preloadThemeAssets(config);
+    clearThemeBootState();
     if (!silent) {
       setLoaderVisibility(true);
       await wait(config.transitionMs || 1050);
@@ -199,6 +217,7 @@
     if (!silent) setLoaderVisibility(true);
     document.body.classList.remove('secret-theme-active');
     setThemeLogos();
+    clearThemeBootState();
     if (!silent) {
       await wait(760);
       setLoaderVisibility(false);
@@ -1325,7 +1344,8 @@ async function shareProduct(productId) {
 
   async function preloadInitialMedia(data) {
     const bannerMedia = (data?.banners || []).slice(0, 1).map(item => preloadMedia(item.image || '', mediaKind(item.image)));
-    const productMedia = (data?.products || []).slice(0, 8).map(item => preloadMedia(item.image || '', mediaKind(item.image)));
+    const productLimit = window.matchMedia('(min-width: 900px)').matches ? 8 : 6;
+    const productMedia = (data?.products || []).slice(0, productLimit).map(item => preloadMedia(item.image || '', mediaKind(item.image)));
     await Promise.allSettled([...bannerMedia, ...productMedia]);
   }
 
@@ -1342,6 +1362,7 @@ async function shareProduct(productId) {
         await activateSecretTheme({ silent: true });
       } else {
         setThemeLogos();
+        clearThemeBootState();
       }
       bindEvents();
       registerPwa();
@@ -1376,6 +1397,7 @@ async function shareProduct(productId) {
       hideLoader();
       window.setTimeout(() => pulseHaptic('light'), 180);
     } catch (error) {
+      clearThemeBootState();
       hideLoader();
       el.productGrid.innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
     }
