@@ -19,11 +19,13 @@
     <div class="app-loader" id="appLoader" aria-live="polite" aria-label="Загрузка магазина">
       <div class="app-loader-inner">
         <div class="app-loader-logo-wrap">
-          <span class="app-loader-burn" aria-hidden="true"></span>
-          <span class="app-loader-sparks" aria-hidden="true">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <span class="hero-logo-frame app-loader-logo-frame">
+            <span class="hero-logo-burn app-loader-burn" aria-hidden="true"></span>
+            <span class="hero-logo-sparks app-loader-sparks" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </span>
+            <img class="hero-logo app-loader-logo" src="/apps/shared/assets/img/header-logo.png" alt="Ставь угольки" />
           </span>
-          <img class="app-loader-logo" src="/apps/shared/assets/img/header-logo.png" alt="Ставь угольки" />
         </div>
         <div class="app-loader-line" aria-hidden="true"><span></span></div>
       </div>
@@ -49,8 +51,8 @@
 
       <div class="quickbar">
         <div class="category-row" id="categoryRow"></div>
-        <button class="search-quick-button" id="searchToggle" type="button" aria-label="Поиск">
-          <span class="search-quick-icon" aria-hidden="true"></span>
+        <button class="quick-action-button" id="quickFilterToggle" type="button" aria-label="Фильтры">
+          <span class="quick-action-icon quick-action-icon-filter" aria-hidden="true"></span>
         </button>
       </div>
 
@@ -60,9 +62,9 @@
     </div>
 
     <nav class="bottom-nav">
-      <button class="nav-item is-active" id="navMenu" data-nav="menu" type="button">
-        <span class="nav-icon nav-icon-menu"></span>
-        <span class="nav-label">Меню</span>
+      <button class="nav-item is-active" id="navMenu" data-nav="catalog" type="button">
+        <span class="nav-icon nav-icon-catalog"></span>
+        <span class="nav-label">Каталог</span>
       </button>
       <button class="nav-item" id="navFavorites" data-nav="favorites" type="button">
         <span class="nav-icon nav-icon-heart"></span>
@@ -73,9 +75,9 @@
         <span class="nav-icon nav-icon-cart"></span>
         <span class="nav-label">Корзина</span>
       </button>
-      <button class="nav-item" id="navFilters" data-nav="filters" type="button">
-        <span class="nav-icon nav-icon-filter"></span>
-        <span class="nav-label">Фильтры</span>
+      <button class="nav-item" id="navSearch" data-nav="search" type="button">
+        <span class="nav-icon nav-icon-search"></span>
+        <span class="nav-label">Поиск</span>
       </button>
       <button class="nav-item" id="navSupport" data-nav="support" type="button">
         <span class="nav-icon nav-icon-support"></span>

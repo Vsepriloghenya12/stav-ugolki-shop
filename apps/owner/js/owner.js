@@ -254,13 +254,14 @@ function statsData() {
   }
 
   function renderProductsTable() {
-    el.productsBody.innerHTML = state.products.map(item => `
+    el.productsBody.innerHTML = [...state.products].sort((a, b) => Number(b.homePriority || 0) - Number(a.homePriority || 0)).map(item => `
       <tr>
         <td>${escapeHtml(item.name)}</td>
         <td>${escapeHtml(item.category)}</td>
         <td>${escapeHtml(item.brand || '—')}</td>
         <td>${money(displayPrice(item))}</td>
         <td>${totalStock(item)}</td>
+        <td>${Number(item.homePriority || 0)}</td>
         <td>
           <div class="table-actions">
             <button class="ghost-btn" type="button" data-edit-product="${item.id}">Редактировать</button>
@@ -386,7 +387,11 @@ function productFormTemplate(product = {}) {
         ? `<div class="owner-note-inline">Общий остаток считается по граммовкам / фасовкам</div>`
         : `<input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />`}
     </div>
-    <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
+    <div class="form-grid-2">
+      <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
+      <input name="homePriority" type="number" placeholder="Приоритет на главной" value="${Number(product.homePriority || 0)}" />
+    </div>
+    <div class="helper-text">Чем больше число, тем выше товар поднимается на главной странице.</div>
     <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
     <div class="field-title">${escapeHtml(variantsMeta.title)}</div>
     <div class="helper-text">${escapeHtml(variantsMeta.helper)}</div>
@@ -706,6 +711,7 @@ el.productForm.addEventListener('change', event => {
         description: formData.get('description') || '',
         image: await mediaFieldValue(el.productForm),
         favorite: formData.get('favorite') === 'on',
+        homePriority: Number(formData.get('homePriority') || 0),
         variants
       };
       try {
