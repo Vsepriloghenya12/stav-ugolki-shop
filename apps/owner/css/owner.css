@@ -542,6 +542,36 @@ body {
   font-weight: 800;
   letter-spacing: -0.04em;
 }
+.product-admin-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.owner-badge-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.owner-badge-chip--new {
+  color: #072124;
+  background: linear-gradient(180deg, rgba(129,216,208,0.96), rgba(72,198,188,0.96));
+}
+
+.owner-badge-chip--top {
+  color: #261205;
+  background: linear-gradient(180deg, rgba(255,214,138,0.98), rgba(255,163,72,0.98));
+}
+
 
 .product-admin-meta,
 .product-admin-note {

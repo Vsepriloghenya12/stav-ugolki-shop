@@ -318,3 +318,18 @@ body.secret-theme-active .success-modal-title {
 body.secret-theme-active .success-modal-text {
   color: #f4ba8a;
 }
+
+body.secret-theme-active .product-badge {
+  border-color: rgba(255, 194, 116, 0.28);
+  box-shadow: 0 10px 22px rgba(0,0,0,.24), 0 0 16px rgba(255, 124, 24, 0.18);
+}
+
+body.secret-theme-active .product-badge--new {
+  background: linear-gradient(180deg, rgba(255, 210, 120, 0.96), rgba(255, 134, 46, 0.96));
+  color: #2b0c05;
+}
+
+body.secret-theme-active .product-badge--top {
+  background: linear-gradient(180deg, rgba(255, 245, 198, 0.96), rgba(255, 182, 76, 0.96));
+  color: #371205;
+}

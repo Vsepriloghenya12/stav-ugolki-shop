@@ -443,6 +443,8 @@ function categories() {
   function sortProductsForDisplay(list) {
     const indexMap = new Map(state.products.map((item, index) => [item.id, index]));
     return [...list].sort((a, b) => {
+      const topDiff = Number(Boolean(b.isTop)) - Number(Boolean(a.isTop));
+      if (topDiff) return topDiff;
       const priorityDiff = Number(b.homePriority || 0) - Number(a.homePriority || 0);
       if (priorityDiff) return priorityDiff;
       const stockDiff = Number(totalStock(b) > 0) - Number(totalStock(a) > 0);
@@ -465,6 +467,14 @@ function categories() {
   function fallbackVisual(product) {
     const text = escapeHtml((product.brand || product.name || '').slice(0, 18));
     return `<div class="fallback-art"><span>${text}</span></div>`;
+  }
+
+  function productBadgesHtml(product) {
+    const badges = [];
+    if (product.isNew) badges.push('<span class="product-badge product-badge--new">Новинка</span>');
+    if (product.isTop) badges.push('<span class="product-badge product-badge--top">Топ</span>');
+    if (!badges.length) return '';
+    return `<div class="product-badges">${badges.join('')}</div>`;
   }
 
   function renderBottomNav(active = state.view === 'favorites' ? 'favorites' : 'catalog') {
@@ -635,6 +645,7 @@ function syncBanner(index, offsetPx = 0) {
       return `
         <article class="product-card" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
           <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
+            ${productBadgesHtml(product)}
             ${product.image
               ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" />`
               : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
@@ -718,6 +729,7 @@ function syncBanner(index, offsetPx = 0) {
             : `<div class="product-fallback product-fallback-sheet">${fallbackVisual(product)}</div>`}
         </div>
         <div class="product-sheet-content">
+          ${productBadgesHtml(product)}
           <div class="product-sheet-name">${escapeHtml(product.name)}</div>
           <div class="product-sheet-brand">${escapeHtml(product.brand || 'Без бренда')}</div>
           ${productSupportsVariants(product) ? variantChipsHtml(product, true) : ''}

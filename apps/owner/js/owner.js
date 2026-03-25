@@ -150,6 +150,13 @@
     return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`;
   }
 
+  function productBadgeChips(product = {}) {
+    const chips = [];
+    if (product.isNew) chips.push('<span class="owner-badge-chip owner-badge-chip--new">Новинка</span>');
+    if (product.isTop) chips.push('<span class="owner-badge-chip owner-badge-chip--top">Топ</span>');
+    return chips.join('');
+  }
+
   function statsData() {
     const s = state.summary || {};
     return [
@@ -433,6 +440,10 @@
           <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
           <input name="homePriority" type="number" placeholder="Приоритет на главной" value="${Number(product.homePriority || 0)}" />
         </div>
+        <div class="form-grid-2">
+          <label class="form-check"><input name="isNew" type="checkbox" ${product.isNew ? 'checked' : ''} /> Бирка «Новинка»</label>
+          <label class="form-check"><input name="isTop" type="checkbox" ${product.isTop ? 'checked' : ''} /> Бирка «Топ»</label>
+        </div>
         <div class="helper-text">Чем больше число, тем выше товар поднимается на главной странице.</div>
         <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
         <div class="field-title">${escapeHtml(variantsMeta.title)}</div>
@@ -512,6 +523,7 @@
           <div class="product-admin-thumb">${productImageThumb(formProduct.image || '', formProduct.name || 'Товар')}</div>
           <div class="product-admin-info">
             <div class="product-admin-title">${escapeHtml(formProduct.name || 'Новый товар')}</div>
+            <div class="product-admin-badges">${productBadgeChips(formProduct)}</div>
             <div class="product-admin-meta">${escapeHtml(formProduct.category || 'табак')}${formProduct.brand ? ` · ${escapeHtml(formProduct.brand)}` : ''}</div>
             <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Приоритет: ${Number(formProduct.homePriority || 0)}</div>
           </div>
@@ -539,6 +551,8 @@
       stock: 0,
       homePriority: 0,
       favorite: false,
+      isNew: false,
+      isTop: false,
       description: '',
       image: '',
       variants: []
@@ -625,6 +639,8 @@
       price: Number(formData.get('price') || existing.price || 0),
       stock: Number(formData.get('stock') || existing.stock || 0),
       favorite: formData.get('favorite') === 'on',
+      isNew: formData.get('isNew') === 'on',
+      isTop: formData.get('isTop') === 'on',
       homePriority: Number(formData.get('homePriority') || existing.homePriority || 0),
       description: String(formData.get('description') || existing.description || ''),
       image: String(form.querySelector('input[name="image"]')?.value || existing.image || ''),
@@ -794,6 +810,8 @@
         description: formData.get('description') || '',
         image: await mediaFieldValue(form),
         favorite: formData.get('favorite') === 'on',
+        isNew: formData.get('isNew') === 'on',
+        isTop: formData.get('isTop') === 'on',
         homePriority: Number(formData.get('homePriority') || 0),
         variants
       };
