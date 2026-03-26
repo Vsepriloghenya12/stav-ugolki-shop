@@ -164,7 +164,7 @@ function summarize(products, orders, banners) {
   const averageCheck = orders.length ? Math.round(revenue / orders.length) : 0;
   const favorites = products.filter(item => item.favorite).length;
   const activeBanners = banners.filter(item => item.active).length;
-  const lowStock = products.filter(item => Number(item.stock) <= 10).length;
+  const lowStock = collectLowStockAlerts(products).length;
 
   const soldMap = new Map();
   orders.forEach(order => {
@@ -192,6 +192,59 @@ function summarize(products, orders, banners) {
   };
 }
 
+
+const ALLOWED_ORDER_STATUSES = new Set(['new', 'paid', 'done', 'cancelled']);
+
+function resolveValidatedOrderItems(inputItems = [], currentProducts = []) {
+  const catalog = currentProducts.map(withVariantStock);
+  const prepared = [];
+
+  for (const rawItem of Array.isArray(inputItems) ? inputItems : []) {
+    const productId = String(rawItem?.id || '').trim();
+    if (!productId) continue;
+
+    const product = catalog.find(item => item.id === productId);
+    if (!product) throw new Error('Один из товаров больше недоступен');
+
+    const qty = Math.max(0, Math.floor(Number(rawItem?.qty || 0)));
+    if (!qty) continue;
+
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const requestedVariantId = String(rawItem?.variantId || '').trim();
+    let variant = null;
+    if (variants.length) {
+      if (requestedVariantId) {
+        variant = variants.find(item => item.id === requestedVariantId) || null;
+        if (!variant) throw new Error(`Вариант товара «${product.name}» больше недоступен`);
+      } else {
+        variant = variants.find(item => Math.max(0, Number(item.stock || 0)) > 0) || variants[0] || null;
+      }
+    }
+
+    const available = variant
+      ? Math.max(0, Number(variant.stock || 0))
+      : Math.max(0, Number(product.stock || 0));
+
+    if (available <= 0) throw new Error(`Товар «${product.name}» закончился`);
+    if (qty > available) {
+      throw new Error(variant
+        ? `Недостаточно остатка для «${product.name} · ${variant.label}»`
+        : `Недостаточно остатка для «${product.name}»`);
+    }
+
+    prepared.push({
+      id: product.id,
+      name: String(product.name || '').slice(0, 120),
+      qty,
+      price: Number(variant?.price ?? product.price ?? 0),
+      variantId: variant?.id || '',
+      variantLabel: variant?.label || ''
+    });
+  }
+
+  if (!prepared.length) throw new Error('Корзина пуста');
+  return prepared;
+}
 
 function collectLowStockAlerts(productsList = []) {
   const alerts = [];
@@ -548,25 +601,16 @@ async function handleApi(req, res, pathname) {
       if (!customer.phone && !customer.telegram) {
         return sendJson(res, 400, { error: 'Укажите телефон или ссылку на Telegram' });
       }
-      const items = Array.isArray(body.items)
-        ? body.items.map(item => ({
-            id: String(item.id || ''),
-            name: String(item.name || ''),
-            qty: Number(item.qty || 1),
-            price: Number(item.price || 0),
-            variantId: String(item.variantId || ''),
-            variantLabel: String(item.variantLabel || '')
-          })).filter(item => item.id && item.qty > 0)
-        : [];
-      if (!items.length) return sendJson(res, 400, { error: 'Корзина пуста' });
       const current = orders();
       const currentProducts = products();
+      const items = resolveValidatedOrderItems(body.items, currentProducts);
+      const recalculatedTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
       const order = {
         id: nextId('order'),
         createdAt: new Date().toISOString(),
         customer,
         items,
-        total: Number(body.total || 0),
+        total: recalculatedTotal,
         status: 'new'
       };
       current.unshift(order);
@@ -824,6 +868,7 @@ async function handleApi(req, res, pathname) {
         value: String(body.value || '').slice(0, 120),
         link: String(body.link || '').slice(0, 300)
       };
+      if (!item.link.trim()) return sendJson(res, 400, { error: 'Укажите ссылку для контакта' });
       current.unshift(item);
       writeJson('support_contacts.json', current);
       return sendJson(res, 201, { ok: true, item });
@@ -846,6 +891,7 @@ async function handleApi(req, res, pathname) {
         value: String(body.value ?? current[index].value),
         link: String(body.link ?? current[index].link)
       };
+      if (!String(current[index].link || '').trim()) return sendJson(res, 400, { error: 'Укажите ссылку для контакта' });
       writeJson('support_contacts.json', current);
       return sendJson(res, 200, { ok: true, item: current[index] });
     } catch (error) {
@@ -869,7 +915,11 @@ async function handleApi(req, res, pathname) {
       const current = orders();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Order not found' });
-      current[index] = { ...current[index], status: String(body.status || current[index].status) };
+      const nextStatus = String(body.status || current[index].status);
+      if (!ALLOWED_ORDER_STATUSES.has(nextStatus)) {
+        return sendJson(res, 400, { error: 'Недопустимый статус заказа' });
+      }
+      current[index] = { ...current[index], status: nextStatus };
       writeJson('orders.json', current);
       return sendJson(res, 200, { ok: true, order: current[index] });
     } catch (error) {
@@ -901,6 +951,16 @@ async function handleApi(req, res, pathname) {
   }
 
   return sendJson(res, 404, { error: 'Not found' });
+}
+
+if (ownerLogin === 'owner' && ownerPassword === 'stavugolki2026') {
+  console.warn('⚠️ Используются стандартные OWNER_LOGIN/OWNER_PASSWORD. Обязательно замените их в env.');
+}
+if ((process.env.JWT_SECRET || '') === '' || process.env.JWT_SECRET === 'stav-ugolki-local-secret') {
+  console.warn('⚠️ Используется стандартный JWT_SECRET. Обязательно задайте свой секрет в env.');
+}
+if (!configSyncSecret) {
+  console.warn('⚠️ CONFIG_SYNC_SECRET не задан. /api/internal/telegram-config доступен без секрета.');
 }
 
 const server = http.createServer(async (req, res) => {
