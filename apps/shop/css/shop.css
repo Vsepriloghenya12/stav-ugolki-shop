@@ -19,6 +19,8 @@ body {
   width: 100%;
   overflow-x: hidden;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -78,6 +80,7 @@ body.is-loading-app .sheet-backdrop {
   display: grid;
   gap: 18px;
   justify-items: center;
+  will-change: opacity, transform;
 }
 
 .app-loader-logo-wrap {
@@ -191,6 +194,9 @@ body.is-loading-app .sheet-backdrop {
   object-position: center center;
   pointer-events: none;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: opacity, transform;
 }
 
 .hero-logo-burn,
@@ -475,6 +481,8 @@ body.is-loading-app .sheet-backdrop {
   background: linear-gradient(180deg, rgba(15, 24, 28, 0.95), rgba(8, 12, 15, 0.98));
   border: 1px solid var(--line-soft);
   box-shadow: var(--shadow-soft);
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .product-image-wrap,
@@ -500,6 +508,8 @@ body.is-loading-app .sheet-backdrop {
   height: 100%;
   object-fit: cover;
   display: block;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .product-fallback,

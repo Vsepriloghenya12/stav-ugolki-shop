@@ -100,16 +100,22 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  const APP_ASSET_VERSION = '50';
+
   const DEFAULT_THEME = {
     bodyClass: '',
-    headerLogoSrc: '/apps/shared/assets/img/header-logo.png',
-    loaderLogoSrc: '/apps/shared/assets/img/header-logo.png'
+    headerLogoSrc: `/apps/shared/assets/img/header-logo.png?v=${APP_ASSET_VERSION}`,
+    loaderLogoSrc: `/apps/shared/assets/img/header-logo.png?v=${APP_ASSET_VERSION}`,
+    preload: [
+      `/apps/shared/assets/img/header-logo.png?v=${APP_ASSET_VERSION}`,
+      `/apps/shared/assets/img/logo-ember.png?v=${APP_ASSET_VERSION}`
+    ]
   };
 
   const SECRET_BOOT_THEME = window.__stavBootSecretTheme ? {
     bodyClass: 'secret-theme-active',
-    headerLogoSrc: '/apps/shop/secret-theme/assets/secret-logo.png',
-    loaderLogoSrc: '/apps/shop/secret-theme/assets/secret-logo.png'
+    headerLogoSrc: `/apps/shop/secret-theme/assets/secret-logo.png?v=${APP_ASSET_VERSION}`,
+    loaderLogoSrc: `/apps/shop/secret-theme/assets/secret-logo.png?v=${APP_ASSET_VERSION}`
   } : null;
 
   function wait(ms) {
@@ -125,8 +131,8 @@
   function setThemeLogos(themeConfig = null) {
     const headerSrc = themeConfig?.headerLogoSrc || DEFAULT_THEME.headerLogoSrc;
     const loaderSrc = themeConfig?.loaderLogoSrc || themeConfig?.headerLogoSrc || DEFAULT_THEME.loaderLogoSrc;
-    if (el.heroLogoImage) el.heroLogoImage.src = headerSrc;
-    if (el.appLoaderLogo) el.appLoaderLogo.src = loaderSrc;
+    if (el.heroLogoImage && el.heroLogoImage.getAttribute('src') !== headerSrc) el.heroLogoImage.src = headerSrc;
+    if (el.appLoaderLogo && el.appLoaderLogo.getAttribute('src') !== loaderSrc) el.appLoaderLogo.src = loaderSrc;
   }
 
 
@@ -149,7 +155,7 @@
         return;
       }
       const script = document.createElement('script');
-      script.src = '/apps/shop/secret-theme/index.js?v=47';
+      script.src = `/apps/shop/secret-theme/index.js?v=${APP_ASSET_VERSION}`;
       script.async = true;
       script.dataset.secretThemeScript = '1';
       script.onload = () => resolve(window.StavSecretTheme || null);
@@ -169,7 +175,7 @@
       const link = document.createElement('link');
       link.id = 'secretThemeStylesheet';
       link.rel = 'stylesheet';
-      link.href = `${config.cssHref}?v=47`;
+      link.href = `${config.cssHref}?v=${APP_ASSET_VERSION}`;
       link.onload = () => resolve(true);
       link.onerror = () => { link.remove(); resolve(false); };
       document.head.appendChild(link);
@@ -201,32 +207,29 @@
       clearThemeBootState();
       return false;
     }
+    await preloadThemeAssets({ preload: [config.headerLogoSrc, config.loaderLogoSrc, ...(Array.isArray(config.preload) ? config.preload : [])] });
     state.secretTheme.config = config;
     state.secretTheme.active = true;
     save(STORAGE_KEYS.secretTheme, true);
     document.body.classList.add(config.bodyClass || 'secret-theme-active');
     setThemeLogos(config);
-    await preloadThemeAssets(config);
     clearThemeBootState();
     if (!silent) {
-      setLoaderVisibility(true);
-      await wait(config.transitionMs || 1050);
-      setLoaderVisibility(false);
+      await wait(Math.min(config.transitionMs || 1050, 180));
     }
     return true;
   }
 
   async function deactivateSecretTheme(options = {}) {
     const { silent = false } = options;
+    await preloadThemeAssets(DEFAULT_THEME);
     state.secretTheme.active = false;
     save(STORAGE_KEYS.secretTheme, false);
-    if (!silent) setLoaderVisibility(true);
     document.body.classList.remove('secret-theme-active');
     setThemeLogos();
     clearThemeBootState();
     if (!silent) {
-      await wait(760);
-      setLoaderVisibility(false);
+      await wait(120);
     }
     return true;
   }
@@ -236,9 +239,9 @@
     state.secretTheme.switching = true;
     try {
       if (document.body.classList.contains('secret-theme-active')) {
-        await deactivateSecretTheme();
+        await deactivateSecretTheme({ silent: true });
       } else {
-        const ok = await activateSecretTheme();
+        const ok = await activateSecretTheme({ silent: true });
         if (!ok) return;
       }
       renderCategories();
@@ -404,7 +407,7 @@ function categories() {
     }
     state.cart = next;
     save(STORAGE_KEYS.cart, state.cart);
-    renderProducts();
+    patchProductCard(product.id);
     renderCart();
     if (state.activeProductId === product.id && !el.productSheet.classList.contains('hidden')) {
       renderProductSheet(product.id, false);
@@ -637,6 +640,117 @@ function syncBanner(index, offsetPx = 0) {
     </div>`;
   }
 
+  function productCardHtml(product) {
+    const isFavorite = state.favorites.includes(product.id);
+    const variant = currentVariant(product);
+    const price = variant?.price ?? product.price;
+    const variantInStock = maxQtyFor(product, variant);
+    return `
+      <article class="product-card ${product.isTop ? 'product-card--top' : ''}" data-open-product="${product.id}" data-product-id="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
+        <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
+          ${productBadgesHtml(product)}
+          ${product.image
+            ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" fetchpriority="low" />`
+            : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
+          <div class="product-actions">
+            <button class="mini-action" type="button" data-share="${product.id}">${icon('share')}</button>
+            <button class="mini-action" type="button" data-favorite="${product.id}">${icon('heart', isFavorite)}</button>
+          </div>
+        </div>
+        <div class="product-name">${escapeHtml(product.name)}</div>
+        ${productSupportsVariants(product) ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
+        <div class="price-row">
+          <div>
+            <div class="product-price">${money(price)}</div>
+            ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${variantInStock <= 0 ? ' • нет в наличии' : ''}</div>` : `<div class="product-variant-caption">остаток ${totalStock(product)}</div>`}
+          </div>
+          ${priceControlHtml(product, variant)}
+        </div>
+      </article>
+    `;
+  }
+
+  function shouldDisplayProduct(productId) {
+    return activeProducts().some(item => item.id === productId);
+  }
+
+  function patchProductCard(productId) {
+    const existing = el.productGrid.querySelector(`[data-product-id="${productId}"]`);
+    const product = productById(productId);
+    const shouldShow = shouldDisplayProduct(productId);
+
+    if (!existing && !shouldShow) return;
+    if (!product) {
+      if (existing) renderProducts();
+      return;
+    }
+    if (!existing || !shouldShow) {
+      renderProducts();
+      return;
+    }
+
+    const template = document.createElement('template');
+    template.innerHTML = productCardHtml(product).trim();
+    const nextCard = template.content.firstElementChild;
+    if (!nextCard) return;
+
+    existing.className = nextCard.className;
+    existing.dataset.hasNoVariants = nextCard.dataset.hasNoVariants || 'true';
+
+    const existingImageWrap = existing.querySelector('.product-image-wrap');
+    const nextImageWrap = nextCard.querySelector('.product-image-wrap');
+    if (!existingImageWrap || !nextImageWrap) {
+      existing.replaceWith(nextCard);
+      return;
+    }
+
+    existingImageWrap.className = nextImageWrap.className;
+
+    const existingBadges = existingImageWrap.querySelector('.product-badges');
+    const nextBadges = nextImageWrap.querySelector('.product-badges');
+    if (nextBadges) {
+      if (existingBadges) {
+        existingBadges.outerHTML = nextBadges.outerHTML;
+      } else {
+        existingImageWrap.insertAdjacentHTML('afterbegin', nextBadges.outerHTML);
+      }
+    } else if (existingBadges) {
+      existingBadges.remove();
+    }
+
+    const existingActions = existingImageWrap.querySelector('.product-actions');
+    const nextActions = nextImageWrap.querySelector('.product-actions');
+    if (existingActions && nextActions) existingActions.innerHTML = nextActions.innerHTML;
+
+    const existingName = existing.querySelector('.product-name');
+    const nextName = nextCard.querySelector('.product-name');
+    if (existingName && nextName) existingName.innerHTML = nextName.innerHTML;
+
+    const existingVariantRow = existing.querySelector('.variant-row, .variant-row-empty');
+    const nextVariantRow = nextCard.querySelector('.variant-row, .variant-row-empty');
+    if (existingVariantRow && nextVariantRow) existingVariantRow.replaceWith(nextVariantRow);
+
+    const existingPriceRow = existing.querySelector('.price-row');
+    const nextPriceRow = nextCard.querySelector('.price-row');
+    if (existingPriceRow && nextPriceRow) existingPriceRow.replaceWith(nextPriceRow);
+  }
+
+  function patchProductCards(productIds = []) {
+    const ids = [...new Set((Array.isArray(productIds) ? productIds : [productIds]).filter(Boolean))];
+    if (!ids.length) return;
+    const visibleIds = new Set(activeProducts().map(item => item.id));
+    const needsFullRender = ids.some(id => {
+      const isVisible = visibleIds.has(id);
+      const hasNode = Boolean(el.productGrid.querySelector(`[data-product-id="${id}"]`));
+      return isVisible !== hasNode;
+    });
+    if (needsFullRender) {
+      renderProducts();
+      return;
+    }
+    ids.forEach(id => patchProductCard(id));
+  }
+
   function renderProducts() {
     const products = activeProducts();
     if (!products.length) {
@@ -644,35 +758,7 @@ function syncBanner(index, offsetPx = 0) {
       return;
     }
 
-    el.productGrid.innerHTML = products.map(product => {
-      const isFavorite = state.favorites.includes(product.id);
-      const variant = currentVariant(product);
-      const price = variant?.price ?? product.price;
-      const variantInStock = maxQtyFor(product, variant);
-      return `
-        <article class="product-card ${product.isTop ? 'product-card--top' : ''}" data-open-product="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
-          <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
-            ${productBadgesHtml(product)}
-            ${product.image
-              ? `<img class="product-image" src="${product.image}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" />`
-              : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
-            <div class="product-actions">
-              <button class="mini-action" type="button" data-share="${product.id}">${icon('share')}</button>
-              <button class="mini-action" type="button" data-favorite="${product.id}">${icon('heart', isFavorite)}</button>
-            </div>
-          </div>
-          <div class="product-name">${escapeHtml(product.name)}</div>
-          ${productSupportsVariants(product) ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
-          <div class="price-row">
-            <div>
-              <div class="product-price">${money(price)}</div>
-              ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${variantInStock <= 0 ? ' • нет в наличии' : ''}</div>` : `<div class="product-variant-caption">остаток ${totalStock(product)}</div>`}
-            </div>
-            ${priceControlHtml(product, variant)}
-          </div>
-        </article>
-      `;
-    }).join('');
+    el.productGrid.innerHTML = products.map(product => productCardHtml(product)).join('');
   }
 
   function renderCart() {
@@ -862,7 +948,11 @@ function syncBanner(index, offsetPx = 0) {
       state.favorites = [...state.favorites, productId];
     }
     save(STORAGE_KEYS.likes, state.favorites);
-    renderProducts();
+    if (state.view === 'favorites') {
+      renderProducts();
+    } else {
+      patchProductCard(productId);
+    }
     if (state.activeProductId === productId && !el.productSheet.classList.contains('hidden')) {
       renderProductSheet(productId, false);
     }
@@ -1285,7 +1375,7 @@ async function shareProduct(productId) {
       if (variantBtn) {
         event.stopPropagation();
         rememberVariant(variantBtn.dataset.variantSelect, variantBtn.dataset.variantId);
-        renderProducts();
+        patchProductCard(variantBtn.dataset.variantSelect);
         if (state.activeProductId === variantBtn.dataset.variantSelect && !el.productSheet.classList.contains('hidden')) {
           renderProductSheet(variantBtn.dataset.variantSelect, false);
         }
@@ -1325,7 +1415,7 @@ async function shareProduct(productId) {
       const variantBtn = event.target.closest('[data-variant-select]');
       if (variantBtn) {
         rememberVariant(variantBtn.dataset.variantSelect, variantBtn.dataset.variantId);
-        renderProducts();
+        patchProductCard(variantBtn.dataset.variantSelect);
         renderProductSheet(variantBtn.dataset.variantSelect, false);
         return;
       }
@@ -1451,6 +1541,7 @@ async function shareProduct(productId) {
     try {
       window.Telegram?.WebApp?.ready?.();
       window.Telegram?.WebApp?.expand?.();
+      await preloadThemeAssets(DEFAULT_THEME);
       if (state.secretTheme.active) {
         await activateSecretTheme({ silent: true });
       } else {
@@ -1472,7 +1563,7 @@ async function shareProduct(productId) {
       });
       save(STORAGE_KEYS.selectedVariants, state.selectedVariants);
       await preloadInitialMedia(data);
-      const minLoaderMs = 900;
+      const minLoaderMs = 320;
       const elapsed = Date.now() - startedAt;
       if (elapsed < minLoaderMs) {
         await new Promise(resolve => setTimeout(resolve, minLoaderMs - elapsed));
@@ -1502,7 +1593,7 @@ async function shareProduct(productId) {
 
   function registerPwa() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/shop-sw.js', { scope: '/shop/' }).catch(() => {});
+      navigator.serviceWorker.register(`/shop-sw.js?v=${APP_ASSET_VERSION}`, { scope: '/shop/', updateViaCache: 'none' }).catch(() => {});
     }
     window.addEventListener('beforeinstallprompt', event => {
       event.preventDefault();
