@@ -530,19 +530,26 @@ body.is-loading-app .sheet-backdrop {
 }
 .product-badges {
   position: absolute;
-  top: 10px;
+  top: auto;
+  bottom: 10px;
   left: 10px;
+  right: 10px;
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 6px;
-  z-index: 2;
-  max-width: calc(100% - 72px);
+  z-index: 3;
+  max-width: calc(100% - 20px);
+  pointer-events: none;
 }
 
 .product-sheet-content > .product-badges {
   position: static;
+  right: auto;
+  bottom: auto;
   max-width: none;
   margin-bottom: 8px;
+  pointer-events: auto;
 }
 
 .product-badge {
