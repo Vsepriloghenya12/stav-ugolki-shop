@@ -20,7 +20,8 @@ import { createOwnerUi } from './modules/owner-ui.js';
     editProductId: '',
     editBannerId: '',
     editBrandId: '',
-    editSupportId: ''
+    editSupportId: '',
+    authExpiredAlertShown: false
   };
 
   const el = {
@@ -207,7 +208,27 @@ import { createOwnerUi } from './modules/owner-ui.js';
     if (card) card.outerHTML = productCardTemplate({ ...draft, id }, false);
   }
 
+
+  function handleOwnerAuthExpired() {
+    if (!state.token && !el.ownerLogin.classList.contains('hidden')) return;
+    localStorage.removeItem(tokenKey);
+    state.token = '';
+    state.authExpiredAlertShown = state.authExpiredAlertShown || false;
+    showApp(false);
+    if (!state.authExpiredAlertShown) {
+      state.authExpiredAlertShown = true;
+      alert('Сессия владельца истекла. Войдите снова.');
+    }
+  }
+
+  function showActionError(error) {
+    if (error && error.ownerAuthExpired) return;
+    alert(error && error.message ? error.message : 'Произошла ошибка');
+  }
+
   function bindEvents() {
+    window.addEventListener('owner-auth-expired', handleOwnerAuthExpired);
+
     el.loginForm.addEventListener('submit', async event => {
       event.preventDefault();
       const formData = new FormData(el.loginForm);
@@ -217,11 +238,12 @@ import { createOwnerUi } from './modules/owner-ui.js';
           password: formData.get('password')
         });
         state.token = data.token;
+        state.authExpiredAlertShown = false;
         localStorage.setItem(tokenKey, data.token);
         showApp(true);
         await loadBootstrap();
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -234,6 +256,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
     el.logoutBtn.addEventListener('click', () => {
       localStorage.removeItem(tokenKey);
       state.token = '';
+      state.authExpiredAlertShown = false;
       showApp(false);
     });
 
@@ -269,7 +292,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
           if (state.editProductId === deleteBtn.dataset.deleteProduct) state.editProductId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
         return;
       }
@@ -367,7 +390,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         await loadBootstrap();
         activateSection('products');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -386,7 +409,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
           state.editBrandId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
@@ -405,7 +428,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         await loadBootstrap();
         activateSection('brands');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -424,7 +447,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
           state.editBannerId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
@@ -444,7 +467,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
           state.editSupportId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
@@ -456,7 +479,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         await window.AppApi.ownerUpdateOrderStatus(state.token, select.dataset.orderStatusId, select.value);
         await loadBootstrap();
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -492,7 +515,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         await loadBootstrap();
         activateSection('banners');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -510,7 +533,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         await loadBootstrap();
         activateSection('support');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -530,7 +553,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         activateSection('posts');
         alert('Пост отправлен');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
   }
@@ -548,6 +571,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
       await loadBootstrap();
     } catch {
       showApp(false);
+      state.authExpiredAlertShown = false;
       localStorage.removeItem(tokenKey);
     }
   }
