@@ -1,170 +1,175 @@
-async function parseResponsePayload(response) {
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
-  if (contentType.includes('application/json')) {
-    try {
-      return await response.json();
-    } catch {
-      return {};
-    }
-  }
-  try {
-    const text = await response.text();
-    return text ? { error: text } : {};
-  } catch {
-    return {};
-  }
-}
-
-async function requestJson(url, options = {}, config = {}) {
-  const response = await fetch(url, options);
-  const data = await parseResponsePayload(response);
-  if (!response.ok) {
-    const message = data.error || config.defaultError || 'Ошибка запроса';
-    const error = new Error(message);
-    error.status = response.status;
-    error.payload = data;
-    if (config.ownerAuth && response.status === 401) {
-      error.ownerAuthExpired = true;
-      window.dispatchEvent(new CustomEvent('owner-auth-expired', {
-        detail: {
-          url,
-          method: options.method || 'GET',
-          status: response.status,
-          message
-        }
-      }));
-    }
-    throw error;
-  }
-  return data;
-}
-
 window.AppApi = {
   async getShopBootstrap() {
-    return requestJson('/api/shop/bootstrap', {}, { defaultError: 'Не удалось загрузить магазин' });
+    const response = await fetch('/api/shop/bootstrap');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить магазин');
+    return data;
   },
 
   async createOrder(payload) {
-    return requestJson('/api/shop/orders', {
+    const response = await fetch('/api/shop/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }, { defaultError: 'Не удалось создать заказ' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось создать заказ');
+    return data;
   },
 
   async getOrderHistory(ids) {
-    return requestJson('/api/shop/orders/history', {
+    const response = await fetch('/api/shop/orders/history', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids })
-    }, { defaultError: 'Не удалось загрузить историю' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить историю');
+    return data;
   },
 
   async ownerLogin(payload) {
-    return requestJson('/api/owner/login', {
+    const response = await fetch('/api/owner/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }, { defaultError: 'Ошибка входа' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Ошибка входа');
+    return data;
   },
 
   async ownerGetBootstrap(token) {
-    return requestJson('/api/owner/bootstrap', {
+    const response = await fetch('/api/owner/bootstrap', {
       headers: { Authorization: `Bearer ${token}` }
-    }, { ownerAuth: true, defaultError: 'Не удалось загрузить кабинет' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить кабинет');
+    return data;
   },
 
   async ownerSaveProduct(token, product, isNew) {
-    return requestJson(isNew ? '/api/owner/products' : `/api/owner/products/${product.id}`, {
+    const response = await fetch(isNew ? '/api/owner/products' : `/api/owner/products/${product.id}`, {
       method: isNew ? 'POST' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(product)
-    }, { ownerAuth: true, defaultError: 'Не удалось сохранить товар' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить товар');
+    return data;
   },
 
   async ownerDeleteProduct(token, id) {
-    return requestJson(`/api/owner/products/${id}`, {
+    const response = await fetch(`/api/owner/products/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
-    }, { ownerAuth: true, defaultError: 'Не удалось удалить товар' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить товар');
+    return data;
   },
 
+
   async ownerSaveBrand(token, brand, isNew) {
-    return requestJson(isNew ? '/api/owner/brands' : `/api/owner/brands/${brand.id}`, {
+    const response = await fetch(isNew ? '/api/owner/brands' : `/api/owner/brands/${brand.id}`, {
       method: isNew ? 'POST' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(brand)
-    }, { ownerAuth: true, defaultError: 'Не удалось сохранить бренд' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить бренд');
+    return data;
   },
 
   async ownerDeleteBrand(token, id) {
-    return requestJson(`/api/owner/brands/${id}`, {
+    const response = await fetch(`/api/owner/brands/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
-    }, { ownerAuth: true, defaultError: 'Не удалось удалить бренд' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить бренд');
+    return data;
   },
 
   async ownerSaveBanner(token, banner, isNew) {
-    return requestJson(isNew ? '/api/owner/banners' : `/api/owner/banners/${banner.id}`, {
+    const response = await fetch(isNew ? '/api/owner/banners' : `/api/owner/banners/${banner.id}`, {
       method: isNew ? 'POST' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(banner)
-    }, { ownerAuth: true, defaultError: 'Не удалось сохранить баннер' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить баннер');
+    return data;
   },
 
   async ownerDeleteBanner(token, id) {
-    return requestJson(`/api/owner/banners/${id}`, {
+    const response = await fetch(`/api/owner/banners/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
-    }, { ownerAuth: true, defaultError: 'Не удалось удалить баннер' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить баннер');
+    return data;
   },
 
   async ownerSaveSupportContact(token, contact, isNew) {
-    return requestJson(isNew ? '/api/owner/support-contacts' : `/api/owner/support-contacts/${contact.id}`, {
+    const response = await fetch(isNew ? '/api/owner/support-contacts' : `/api/owner/support-contacts/${contact.id}`, {
       method: isNew ? 'POST' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(contact)
-    }, { ownerAuth: true, defaultError: 'Не удалось сохранить контакт' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось сохранить контакт');
+    return data;
   },
 
   async ownerDeleteSupportContact(token, id) {
-    return requestJson(`/api/owner/support-contacts/${id}`, {
+    const response = await fetch(`/api/owner/support-contacts/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
-    }, { ownerAuth: true, defaultError: 'Не удалось удалить контакт' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось удалить контакт');
+    return data;
   },
 
   async ownerUpdateOrderStatus(token, id, status) {
-    return requestJson(`/api/owner/orders/${id}`, {
+    const response = await fetch(`/api/owner/orders/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({ status })
-    }, { ownerAuth: true, defaultError: 'Не удалось обновить заказ' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось обновить заказ');
+    return data;
   },
 
   async ownerCreatePost(token, post) {
-    return requestJson('/api/owner/posts', {
+    const response = await fetch('/api/owner/posts', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(post)
-    }, { ownerAuth: true, defaultError: 'Не удалось отправить пост' });
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Не удалось отправить пост');
+    return data;
   }
 };
