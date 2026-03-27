@@ -34,7 +34,7 @@
           <button class="owner-nav-item" data-section="brands" type="button">Бренды</button>
           <button class="owner-nav-item" data-section="banners" type="button">Баннеры</button>
           <button class="owner-nav-item" data-section="support" type="button">Поддержка</button>
-          <button class="owner-nav-item" data-section="orders" type="button">Заказы</button>
+          <button class="owner-nav-item" data-section="orders" type="button">Заявки <span class="owner-nav-count" id="ordersNavCount">0</span></button>
           <button class="owner-nav-item" data-section="posts" type="button">Посты бота</button>
         </nav>
 
@@ -164,7 +164,7 @@
 
           <section class="owner-section hidden" data-section-panel="orders" data-owner-panel="orders">
             <div class="panel surface">
-              <div class="panel-head"><div class="panel-title">Заказы</div></div>
+              <div class="panel-head"><div class="panel-title">Заявки</div></div>
               <div class="orders-list" id="ordersList"></div>
             </div>
           </section>
@@ -201,6 +201,6 @@
     </div>
 
     <script src="/apps/shared/js/api.js"></script>
-    <script src="/apps/owner/js/owner.js"></script>
+    <script type="module" src="/apps/owner/js/owner.js"></script>
   </body>
 </html>

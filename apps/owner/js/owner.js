@@ -1,3 +1,6 @@
+import { createOwnerHelpers } from './modules/owner-helpers.js';
+import { createOwnerUi } from './modules/owner-ui.js';
+
 (function () {
   const tokenKey = 'stav:owner:token';
   const PRODUCT_NEW_ID = '__new__';
@@ -17,7 +20,9 @@
     editProductId: '',
     editBannerId: '',
     editBrandId: '',
-    editSupportId: ''
+    editSupportId: '',
+    editOrderId: '',
+    authExpiredAlertShown: false
   };
 
   const el = {
@@ -34,6 +39,7 @@
     bannersBody: document.getElementById('bannersBody'),
     supportBody: document.getElementById('supportBody'),
     ordersList: document.getElementById('ordersList'),
+    ordersNavCount: document.getElementById('ordersNavCount'),
     postsHistory: document.getElementById('postsHistory'),
     telegramState: document.getElementById('telegramState'),
     lowStockAlerts: document.getElementById('lowStockAlerts'),
@@ -47,286 +53,73 @@
     postForm: document.getElementById('postForm')
   };
 
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;');
-  }
+  const {
+    escapeHtml,
+    money,
+    normalizeVariantDrafts,
+    categoryVariantMeta,
+    variantPlaceholder,
+    totalStock,
+    displayPrice,
+    brandsForCategory,
+    allBrandNames,
+    nameOptionsFor,
+    looksLikeVideo,
+    looksLikeGif,
+    mediaFieldValue
+  } = createOwnerHelpers({ state, resizeImage, fileToDataUrl });
 
-  function money(value) {
-    return `${Number(value || 0).toLocaleString('ru-RU')} VND`;
-  }
+  const {
+    productImageThumb,
+    productBadgeChips,
+    statsData,
+    renderStats,
+    renderTopProducts,
+    renderLastOrders,
+    renderLowStockAlerts,
+    renderBrandsTable,
+    bannerTargetLabel,
+    renderBannersTable,
+    renderSupportTable,
+    renderOrders,
+    renderOrdersNavCount,
+    renderPostsHistory,
+    renderTelegramState,
+    variantRowsHtml,
+    mediaPreview,
+    brandFormTemplate,
+    productFormTemplate,
+    bannerFormTemplate,
+    supportFormTemplate,
+    productCardTemplate,
+    renderProductsList,
+    renderForms,
+    renderAll,
+    activateSection,
+    loadBootstrap,
+    updatePreview
+  } = createOwnerUi({
+    PRODUCT_NEW_ID,
+    state,
+    el,
+    escapeHtml,
+    money,
+    categoryVariantMeta,
+    variantPlaceholder,
+    totalStock,
+    displayPrice,
+    allBrandNames,
+    brandsForCategory,
+    nameOptionsFor,
+    normalizeVariantDrafts,
+    looksLikeVideo,
+    looksLikeGif,
+    mediaFieldValue
+  });
 
   function showApp(isVisible) {
     el.ownerLogin.classList.toggle('hidden', isVisible);
     el.ownerApp.classList.toggle('hidden', !isVisible);
-  }
-
-  function normalizeVariantDrafts(variants, fallbackStock = 0) {
-    return (Array.isArray(variants) ? variants : [])
-      .map((item, index) => ({
-        id: String(item.id || `variant-${Date.now()}-${index}`).slice(0, 60),
-        label: String(item.label || '').trim(),
-        price: Number(item.price || 0),
-        stock: Number(item.stock ?? fallbackStock ?? 0),
-        minStock: Math.max(0, Number(item.minStock ?? 0))
-      }))
-      .filter(item => item.label);
-  }
-
-  function categoryVariantMeta(category) {
-    if (category === 'табак') {
-      return {
-        title: 'Граммовки табака',
-        helper: 'Для каждой граммовки задайте цену и остаток отдельно. Если остаток 0, эта граммовка станет неактивной у клиента.'
-      };
-    }
-    if (category === 'уголь') {
-      return {
-        title: 'Фасовки угля',
-        helper: 'Для каждой фасовки укажите цену и остаток отдельно.'
-      };
-    }
-    return {
-      title: 'Варианты товара',
-      helper: 'При необходимости можно добавить размеры или другие варианты товара.'
-    };
-  }
-
-  function variantPlaceholder(category) {
-    if (category === 'табак') return '20 г';
-    if (category === 'уголь') return '1 кг';
-    return 'Вариант';
-  }
-
-  function totalStock(product) {
-    const variants = Array.isArray(product?.variants) ? product.variants : [];
-    if (!variants.length) return Number(product?.stock || 0);
-    return variants.reduce((sum, item) => sum + Number(item.stock || 0), 0);
-  }
-
-  function displayPrice(product) {
-    const variants = Array.isArray(product?.variants) ? product.variants : [];
-    if (!variants.length) return Number(product?.price || 0);
-    return Math.min(...variants.map(item => Number(item.price || 0)));
-  }
-
-  function brandsForCategory(category, currentBrand = '') {
-    const items = state.brands
-      .filter(item => String(item.category || '') === String(category || ''))
-      .map(item => String(item.name || '').trim())
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, 'ru'));
-    if (currentBrand && !items.includes(currentBrand)) items.unshift(currentBrand);
-    return items;
-  }
-
-  function allBrandNames(currentBrand = '') {
-    const items = [...new Set(state.brands.map(item => String(item.name || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
-    if (currentBrand && !items.includes(currentBrand)) items.unshift(currentBrand);
-    return items;
-  }
-
-  function nameOptionsFor(category, brand = '', currentId = '') {
-    const normalizedBrand = String(brand || '').trim().toLowerCase();
-    const names = new Set();
-    state.products
-      .filter(item => item.id !== currentId)
-      .filter(item => String(item.category || '') === String(category || ''))
-      .filter(item => !normalizedBrand || String(item.brand || '').trim().toLowerCase() === normalizedBrand)
-      .forEach(item => names.add(String(item.name || '').trim()));
-
-    if (!names.size) {
-      state.products
-        .filter(item => item.id !== currentId)
-        .filter(item => String(item.category || '') === String(category || ''))
-        .forEach(item => names.add(String(item.name || '').trim()));
-    }
-
-    return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ru'));
-  }
-
-  function productImageThumb(src, alt = 'Товар') {
-    if (!src) return '<div class="thumb-badge">Фото</div>';
-    return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`;
-  }
-
-  function productBadgeChips(product = {}) {
-    const chips = [];
-    if (product.isNew) chips.push('<span class="owner-badge-chip owner-badge-chip--new">Новинка</span>');
-    if (product.isTop) chips.push('<span class="owner-badge-chip owner-badge-chip--top">Топ</span>');
-    if (product.hiddenFromCatalog) chips.push('<span class="owner-badge-chip">Скрыт</span>');
-    if (totalStock(product) <= 0) chips.push('<span class="owner-badge-chip">Нет в наличии</span>');
-    return chips.join('');
-  }
-
-  function statsData() {
-    const s = state.summary || {};
-    return [
-      ['Выручка', money(s.revenue || 0)],
-      ['Заказы', String(s.orderCount || 0)],
-      ['Средний чек', money(s.averageCheck || 0)],
-      ['Продано единиц', String(s.totalItemsSold || 0)]
-    ];
-  }
-
-  function renderStats() {
-    el.statsGrid.innerHTML = statsData().map(item => `
-      <div class="stat-card">
-        <div class="stat-label">${item[0]}</div>
-        <div class="stat-value">${item[1]}</div>
-      </div>
-    `).join('');
-  }
-
-  function renderTopProducts() {
-    const items = state.summary?.topProducts || [];
-    el.topProducts.innerHTML = items.length
-      ? items.map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}</span><strong>${item.sold || 0}</strong></div>`).join('')
-      : '<div class="empty-box">Пока нет данных</div>';
-  }
-
-  function renderLastOrders() {
-    const items = state.orders.slice(0, 5);
-    el.lastOrders.innerHTML = items.length
-      ? items.map(item => `<div class="mini-row"><span>${escapeHtml(item.customer?.name || 'Клиент')}</span><strong>${money(item.total)}</strong></div>`).join('')
-      : '<div class="empty-box">Заказов пока нет</div>';
-  }
-
-  function renderLowStockAlerts() {
-    const items = Array.isArray(state.lowStockAlerts) ? state.lowStockAlerts : [];
-    el.lowStockAlerts.innerHTML = items.length
-      ? items.map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''}</span><strong>${item.stock}/${item.minStock}</strong></div>`).join('')
-      : '<div class="empty-box">Все остатки в норме</div>';
-  }
-
-  function renderBrandsTable() {
-    el.brandsBody.innerHTML = state.brands.length
-      ? [...state.brands]
-          .sort((a, b) => String(a.category || '').localeCompare(String(b.category || ''), 'ru') || String(a.name || '').localeCompare(String(b.name || ''), 'ru'))
-          .map(item => `
-            <tr>
-              <td>${escapeHtml(item.name)}</td>
-              <td>${escapeHtml(item.category)}</td>
-              <td>
-                <div class="table-actions">
-                  <button class="ghost-btn" type="button" data-edit-brand="${item.id}">Редактировать</button>
-                  <button class="danger-btn" type="button" data-delete-brand="${item.id}">Удалить</button>
-                </div>
-              </td>
-            </tr>
-          `).join('')
-      : '<tr><td colspan="3"><div class="empty-box">Брендов пока нет</div></td></tr>';
-  }
-
-  function bannerTargetLabel(item) {
-    const parts = [];
-    if (item.targetCategory && item.targetCategory !== 'all') parts.push(item.targetCategory);
-    if (item.targetBrand && item.targetBrand !== 'all') parts.push(item.targetBrand);
-    if (item.targetPriceMin) parts.push(`от ${item.targetPriceMin}`);
-    if (item.targetPriceMax) parts.push(`до ${item.targetPriceMax}`);
-    return parts.join(' · ') || 'Без фильтра';
-  }
-
-  function renderBannersTable() {
-    el.bannersBody.innerHTML = state.banners.map(item => `
-      <tr>
-        <td>${item.image ? `<span class="thumb-badge">${looksLikeVideo(item.image) ? 'Видео' : looksLikeGif(item.image) ? 'GIF' : 'Фото'}</span>` : 'Без медиа'}</td>
-        <td>${escapeHtml(bannerTargetLabel(item))}</td>
-        <td>${item.active ? 'Активен' : 'Выключен'}</td>
-        <td>
-          <div class="table-actions">
-            <button class="ghost-btn" type="button" data-edit-banner="${item.id}">Редактировать</button>
-            <button class="danger-btn" type="button" data-delete-banner="${item.id}">Удалить</button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  function renderSupportTable() {
-    el.supportBody.innerHTML = state.supportContacts.length
-      ? state.supportContacts.map(item => `
-          <tr>
-            <td>${escapeHtml(item.title)}</td>
-            <td>${escapeHtml(item.value || '—')}</td>
-            <td>${escapeHtml(item.link)}</td>
-            <td>
-              <div class="table-actions">
-                <button class="ghost-btn" type="button" data-edit-support="${item.id}">Редактировать</button>
-                <button class="danger-btn" type="button" data-delete-support="${item.id}">Удалить</button>
-              </div>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="4"><div class="empty-box">Контактов пока нет</div></td></tr>';
-  }
-
-  function renderOrders() {
-    if (!state.orders.length) {
-      el.ordersList.innerHTML = '<div class="empty-box">Заказов пока нет</div>';
-      return;
-    }
-    el.ordersList.innerHTML = state.orders.map(order => `
-      <div class="order-card">
-        <div class="order-head">
-          <div>
-            <div class="order-title">${escapeHtml(order.customer?.name || 'Клиент')}</div>
-            <div class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')}</div>
-            <div class="order-meta">${escapeHtml(order.customer?.phone || '')}${order.customer?.telegram ? ` · ${escapeHtml(order.customer.telegram)}` : ''}</div>
-          </div>
-          <div class="order-side">
-            <strong>${money(order.total)}</strong>
-            <select class="status-select" data-order-status-id="${order.id}">
-              ${['new', 'paid', 'done', 'cancelled'].map(status => `<option value="${status}" ${order.status === status ? 'selected' : ''}>${status}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="order-items">
-          ${order.items.map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''} × ${item.qty}</span><strong>${money(item.price * item.qty)}</strong></div>`).join('')}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function renderPostsHistory() {
-    el.postsHistory.innerHTML = state.posts.length
-      ? state.posts.map(item => `
-          <div class="post-item">
-            <div class="mini-row"><span>${new Date(item.createdAt).toLocaleString('ru-RU')}</span><strong>${escapeHtml(item.target)}</strong></div>
-            <div class="post-text">${escapeHtml(item.text)}</div>
-          </div>
-        `).join('')
-      : '<div class="empty-box">Постов пока нет</div>';
-  }
-
-  function renderTelegramState() {
-    const cfg = state.telegramConfig || {};
-    const chips = [
-      ['BOT_TOKEN', cfg.hasBotToken],
-      ['ADMIN_GROUP_CHAT_ID', cfg.hasAdminGroup],
-      ['CHANNEL_CHAT_ID', cfg.hasChannel]
-    ];
-    el.telegramState.innerHTML = chips.map(item => `<span class="state-chip ${item[1] ? 'ok' : 'warn'}">${item[0]}</span>`).join('');
-  }
-
-  function variantRowsHtml(category, variants = []) {
-    const rows = normalizeVariantDrafts(variants, 0);
-    if (!rows.length && ['табак', 'уголь'].includes(category)) {
-      rows.push({ id: `variant-${Date.now()}-0`, label: category === 'табак' ? '20 г' : '1 кг', price: 0, stock: 0 });
-    }
-    return rows.map((item, index) => `
-      <div class="variant-editor-row" data-variant-row>
-        <input type="hidden" name="variantId" value="${escapeHtml(item.id)}" />
-        <input name="variantLabel" placeholder="${escapeHtml(variantPlaceholder(category))}" value="${escapeHtml(item.label)}" />
-        <input name="variantPrice" type="number" placeholder="Цена" value="${Number(item.price || 0)}" />
-        <input name="variantStock" type="number" placeholder="Остаток" value="${Number(item.stock || 0)}" />
-        <input name="variantMinStock" type="number" placeholder="Мин. остаток" value="${Number(item.minStock || 0)}" />
-        <button class="danger-btn variant-remove-btn" type="button" data-remove-variant="${index}">Удалить</button>
-      </div>
-    `).join('');
   }
 
   function collectVariantsFromForm(form) {
@@ -376,271 +169,6 @@
     });
   }
 
-  function looksLikeVideo(src = '') {
-    const value = String(src || '').toLowerCase();
-    return value.startsWith('data:video/') || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(value);
-  }
-
-  function looksLikeGif(src = '') {
-    const value = String(src || '').toLowerCase();
-    return value.startsWith('data:image/gif') || /\.gif(\?|$)/i.test(value);
-  }
-
-  async function mediaFieldValue(form) {
-    const urlField = form.querySelector('input[name="image"]');
-    const fileField = form.querySelector('input[name="imageFile"]');
-    if (fileField?.files?.[0]) {
-      const file = fileField.files[0];
-      const type = String(file.type || '').toLowerCase();
-      if (type.startsWith('video/') || type === 'image/gif') return fileToDataUrl(file);
-      if (type.startsWith('image/')) return resizeImage(file);
-      return fileToDataUrl(file);
-    }
-    return String(urlField?.value || '').trim();
-  }
-
-  function mediaPreview(src, alt = 'Изображение') {
-    if (!src) return '<div class="preview-card empty">Изображение не выбрано</div>';
-    if (looksLikeVideo(src)) {
-      return `<div class="preview-card"><video src="${escapeHtml(src)}" playsinline muted loop controls preload="metadata"></video></div>`;
-    }
-    return `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></div>`;
-  }
-
-  function brandFormTemplate(brand = {}) {
-    return `
-      <input type="hidden" name="id" value="${escapeHtml(brand.id || '')}" />
-      <input name="name" placeholder="Название бренда" value="${escapeHtml(brand.name || '')}" required />
-      <select name="category">
-        ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === (brand.category || 'табак') ? 'selected' : ''}>${value}</option>`).join('')}
-      </select>
-      <div class="form-actions">
-        <button class="owner-btn" type="submit">Сохранить бренд</button>
-      </div>
-    `;
-  }
-
-  function productFormTemplate(product = {}, isNew = false) {
-    const category = product.category || 'табак';
-    const variantsMeta = categoryVariantMeta(category);
-    const usesVariantStock = ['табак', 'уголь'].includes(category);
-    const productVariants = normalizeVariantDrafts(product.variants, Number(product.stock || 0));
-    const brandOptions = brandsForCategory(category, product.brand || '');
-    const nameOptions = nameOptionsFor(category, product.brand || '', product.id || '');
-    const formId = isNew ? PRODUCT_NEW_ID : String(product.id || '');
-    return `
-      <form class="owner-form product-inline-form" data-product-inline-form="${escapeHtml(formId)}">
-        <input type="hidden" name="id" value="${escapeHtml(formId === PRODUCT_NEW_ID ? '' : formId)}" />
-        <div class="form-grid-2">
-          <select name="category">
-            ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === category ? 'selected' : ''}>${value}</option>`).join('')}
-          </select>
-          <select name="brand">
-            <option value="">Выбрать бренд</option>
-            ${brandOptions.map(value => `<option value="${escapeHtml(value)}" ${value === (product.brand || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="helper-text">Бренды добавляются в отдельной вкладке «Бренды».</div>
-        <select name="namePreset">
-          <option value="">Выбрать название из списка</option>
-          ${nameOptions.map(value => `<option value="${escapeHtml(value)}" ${value === (product.name || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
-        </select>
-        <input name="name" placeholder="Название" value="${escapeHtml(product.name || '')}" required />
-        <div class="form-grid-2">
-          <input name="price" type="number" placeholder="Базовая цена" value="${Number(product.price || 0)}" />
-          ${usesVariantStock
-            ? `<div class="owner-note-inline">Общий остаток считается по граммовкам / фасовкам</div>`
-            : `<input name="stock" type="number" placeholder="Остаток" value="${Number(product.stock || 0)}" />`}
-        </div>
-        <div class="form-grid-2">
-          <label class="form-check"><input name="favorite" type="checkbox" ${product.favorite ? 'checked' : ''} /> Избранный</label>
-          <input name="homePriority" type="number" placeholder="Приоритет на главной" value="${Number(product.homePriority || 0)}" />
-        </div>
-        <div class="form-grid-2">
-          <label class="form-check"><input name="hiddenFromCatalog" type="checkbox" ${product.hiddenFromCatalog ? 'checked' : ''} /> Скрыть с витрины</label>
-          ${usesVariantStock ? `<div class="owner-note-inline">Для уведомлений используйте мин. остаток у граммовок</div>` : `<input name="minStock" type="number" placeholder="Мин. остаток для уведомления" value="${Number(product.minStock || 0)}" />`}
-        </div>
-        <div class="form-grid-2">
-          <label class="form-check"><input name="isNew" type="checkbox" ${product.isNew ? 'checked' : ''} /> Бирка «Новинка»</label>
-          <label class="form-check"><input name="isTop" type="checkbox" ${product.isTop ? 'checked' : ''} /> Бирка «Топ»</label>
-        </div>
-        <div class="helper-text">Чем больше число, тем выше товар поднимается на главной странице.</div>
-        <textarea name="description" placeholder="Описание">${escapeHtml(product.description || '')}</textarea>
-        <div class="field-title">${escapeHtml(variantsMeta.title)}</div>
-        <div class="helper-text">${escapeHtml(variantsMeta.helper)}</div>
-        <div class="variants-editor" data-variants-editor data-variant-kind="${escapeHtml(category)}">
-          ${variantRowsHtml(category, productVariants)}
-        </div>
-        <div class="form-actions">
-          <button class="secondary-btn" type="button" data-add-variant>${usesVariantStock ? (category === 'табак' ? 'Добавить граммовку' : 'Добавить фасовку') : 'Добавить вариант'}</button>
-        </div>
-        <div class="media-uploader">
-          <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
-          <input class="file-input" name="imageFile" type="file" accept="image/*,.gif" />
-          <div class="helper-text">Фото автоматически сжимается, чтобы каталог грузился быстрее.</div>
-          <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
-        </div>
-        <div class="form-actions">
-          <button class="owner-btn" type="submit">Сохранить</button>
-          <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
-          <button class="ghost-btn" type="button" data-close-product-card="${escapeHtml(formId)}">Закрыть</button>
-        </div>
-      </form>
-    `;
-  }
-
-  function bannerFormTemplate(banner = {}) {
-    return `
-      <input type="hidden" name="id" value="${escapeHtml(banner.id || '')}" />
-      <div class="form-grid-2">
-        <select name="active">
-          <option value="true" ${banner.active !== false ? 'selected' : ''}>Активен</option>
-          <option value="false" ${banner.active === false ? 'selected' : ''}>Выключен</option>
-        </select>
-        <select name="targetCategory">
-          ${['all', 'табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === (banner.targetCategory || 'all') ? 'selected' : ''}>${value === 'all' ? 'Все категории' : value}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-grid-2">
-        <select name="targetBrand">
-          <option value="all">Все бренды</option>
-          ${allBrandNames(banner.targetBrand && banner.targetBrand !== 'all' ? banner.targetBrand : '').map(value => `<option value="${escapeHtml(value)}" ${value === (banner.targetBrand || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
-        </select>
-        <input name="targetPriceMin" type="number" placeholder="Цена от" value="${escapeHtml(banner.targetPriceMin || '')}" />
-      </div>
-      <input name="targetPriceMax" type="number" placeholder="Цена до" value="${escapeHtml(banner.targetPriceMax || '')}" />
-      <div class="media-uploader">
-        <input name="image" placeholder="URL медиа" value="${escapeHtml(banner.image || '')}" />
-        <input class="file-input" name="imageFile" type="file" accept="image/*,video/*,.gif,.webm,.mp4" />
-        <div class="helper-text">Баннер поддерживает фото, gif и видео.</div>
-        <div data-preview>${mediaPreview(banner.image || '', 'Баннер')}</div>
-      </div>
-      <div class="form-actions">
-        <button class="owner-btn" type="submit">Сохранить</button>
-        <button class="secondary-btn" type="button" data-clear-banner-image>Очистить медиа</button>
-      </div>
-    `;
-  }
-
-  function supportFormTemplate(contact = {}) {
-    return `
-      <input type="hidden" name="id" value="${escapeHtml(contact.id || '')}" />
-      <input name="title" placeholder="Название контакта" value="${escapeHtml(contact.title || '')}" required />
-      <input name="value" placeholder="Текст / ник / телефон" value="${escapeHtml(contact.value || '')}" />
-      <input name="link" placeholder="Ссылка" value="${escapeHtml(contact.link || '')}" required />
-      <div class="form-actions">
-        <button class="owner-btn" type="submit">Сохранить</button>
-      </div>
-    `;
-  }
-
-  function productCardTemplate(product, isNew = false) {
-    const open = state.editProductId === (isNew ? PRODUCT_NEW_ID : product.id);
-    const formProduct = isNew ? product : (state.products.find(item => item.id === product.id) || product);
-    return `
-      <article class="product-admin-card ${open ? 'is-open' : ''} ${isNew ? 'is-new' : ''}" data-product-card="${escapeHtml(isNew ? PRODUCT_NEW_ID : product.id)}">
-        <div class="product-admin-card-summary" data-open-product-card="${escapeHtml(isNew ? PRODUCT_NEW_ID : product.id)}">
-          <div class="product-admin-thumb">${productImageThumb(formProduct.image || '', formProduct.name || 'Товар')}</div>
-          <div class="product-admin-info">
-            <div class="product-admin-title">${escapeHtml(formProduct.name || 'Новый товар')}</div>
-            <div class="product-admin-badges">${productBadgeChips(formProduct)}</div>
-            <div class="product-admin-meta">${escapeHtml(formProduct.category || 'табак')}${formProduct.brand ? ` · ${escapeHtml(formProduct.brand)}` : ''}</div>
-            <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Приоритет: ${Number(formProduct.homePriority || 0)}${formProduct.hiddenFromCatalog ? ' · скрыт с витрины' : ''}</div>
-          </div>
-          <div class="product-admin-side">
-            <div class="product-admin-price">${money(displayPrice(formProduct))}</div>
-            <div class="table-actions">
-              ${!isNew ? `<button class="ghost-btn" type="button" data-edit-product="${escapeHtml(product.id)}">Редактировать</button>
-              <button class="danger-btn" type="button" data-delete-product="${escapeHtml(product.id)}">Удалить</button>` : ''}
-            </div>
-          </div>
-        </div>
-        ${open ? `<div class="product-admin-editor">${productFormTemplate(formProduct, isNew)}</div>` : ''}
-      </article>
-    `;
-  }
-
-  function renderProductsList() {
-    const sorted = [...state.products].sort((a, b) => Number(b.homePriority || 0) - Number(a.homePriority || 0) || String(a.name || '').localeCompare(String(b.name || ''), 'ru'));
-    const draft = {
-      id: '',
-      name: '',
-      brand: '',
-      category: 'табак',
-      price: 0,
-      stock: 0,
-      homePriority: 0,
-      favorite: false,
-      isNew: false,
-      isTop: false,
-      description: '',
-      image: '',
-      variants: []
-    };
-    const list = [];
-    if (state.editProductId === PRODUCT_NEW_ID) list.push(productCardTemplate(draft, true));
-    list.push(...sorted.map(item => productCardTemplate(item, false)));
-    el.productsList.innerHTML = list.join('') || '<div class="empty-box">Товаров пока нет</div>';
-  }
-
-  function renderForms() {
-    const banner = state.banners.find(item => item.id === state.editBannerId) || {};
-    el.bannerForm.innerHTML = bannerFormTemplate(banner);
-    const brand = state.brands.find(item => item.id === state.editBrandId) || {};
-    el.brandForm.innerHTML = brandFormTemplate(brand);
-    const contact = state.supportContacts.find(item => item.id === state.editSupportId) || {};
-    el.supportForm.innerHTML = supportFormTemplate(contact);
-  }
-
-  function renderAll() {
-    renderStats();
-    renderTopProducts();
-    renderLastOrders();
-    renderLowStockAlerts();
-    renderProductsList();
-    renderBrandsTable();
-    renderBannersTable();
-    renderSupportTable();
-    renderOrders();
-    renderPostsHistory();
-    renderTelegramState();
-    renderForms();
-  }
-
-  function activateSection(name) {
-    state.activeSection = name;
-    document.querySelectorAll('.owner-nav-item').forEach(node => node.classList.toggle('is-active', node.dataset.section === name));
-    document.querySelectorAll('[data-owner-panel]').forEach(node => {
-      const isCurrent = node.dataset.ownerPanel === name;
-      node.classList.toggle('hidden', !isCurrent);
-      node.classList.toggle('is-active', isCurrent);
-    });
-  }
-
-  async function loadBootstrap() {
-    const data = await window.AppApi.ownerGetBootstrap(state.token);
-    state.products = data.products || [];
-    state.banners = data.banners || [];
-    state.brands = data.brands || [];
-    state.supportContacts = data.supportContacts || [];
-    state.orders = data.orders || [];
-    state.posts = data.posts || [];
-    state.summary = data.summary || null;
-    state.lowStockAlerts = data.summary?.lowStockAlerts || [];
-    state.telegramConfig = data.telegramConfig || null;
-    if (!state.editBannerId && state.banners[0]) state.editBannerId = state.banners[0].id;
-    if (!state.editBrandId && state.brands[0]) state.editBrandId = state.brands[0].id;
-    if (!state.editSupportId && state.supportContacts[0]) state.editSupportId = state.supportContacts[0].id;
-    if (state.editProductId !== PRODUCT_NEW_ID && state.editProductId && !state.products.some(item => item.id === state.editProductId)) state.editProductId = '';
-    renderAll();
-  }
-
-  async function updatePreview(form, fallbackName = 'Изображение') {
-    const src = await mediaFieldValue(form).catch(() => '');
-    const preview = form.querySelector('[data-preview]');
-    if (preview) preview.innerHTML = mediaPreview(src, fallbackName);
-  }
-
   function clearImageFields(form) {
     const file = form.querySelector('input[name="imageFile"]');
     const text = form.querySelector('input[name="image"]');
@@ -672,6 +200,67 @@
     };
   }
 
+  function orderVariantOptionsHtml(productId = '', selectedVariantId = '') {
+    const product = state.products.find(item => item.id === productId);
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!product || !variants.length) {
+      return '<option value="" selected>Без варианта</option>';
+    }
+    const selectedExists = variants.some(item => item.id === selectedVariantId);
+    const list = !selectedExists && selectedVariantId
+      ? [{ id: selectedVariantId, label: 'Старый вариант' }, ...variants]
+      : variants;
+    return list.map(variant => `<option value="${escapeHtml(variant.id || '')}" ${(variant.id || '') === (selectedVariantId || '') ? 'selected' : ''}>${escapeHtml(variant.label || 'Без варианта')}</option>`).join('');
+  }
+
+  function orderProductOptionsHtml(selectedProductId = '') {
+    const list = [...state.products].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ru'));
+    const hasSelected = selectedProductId && list.some(item => item.id === selectedProductId);
+    const items = !hasSelected && selectedProductId
+      ? [{ id: selectedProductId, name: 'Удалённый товар', brand: '' }, ...list]
+      : list;
+    return items.map(product => `<option value="${escapeHtml(product.id)}" ${product.id === selectedProductId ? 'selected' : ''}>${escapeHtml(product.name || 'Товар')}${product.brand ? ` · ${escapeHtml(product.brand)}` : ''}</option>`).join('');
+  }
+
+  function makeOrderItemRow(item = {}) {
+    const row = document.createElement('div');
+    row.className = 'order-editor-row';
+    row.setAttribute('data-order-item-row', '');
+    row.innerHTML = `
+      <select name="orderItemProduct">
+        <option value="">Выбрать товар</option>
+        ${orderProductOptionsHtml(String(item.id || ''))}
+      </select>
+      <select name="orderItemVariant">
+        ${orderVariantOptionsHtml(String(item.id || ''), String(item.variantId || ''))}
+      </select>
+      <input name="orderItemQty" type="number" min="1" placeholder="Кол-во" value="${Number(item.qty || 1)}" />
+      <button class="danger-btn" type="button" data-remove-order-item>Удалить</button>
+    `;
+    return row;
+  }
+
+  function collectOrderItemsFromForm(form) {
+    return [...form.querySelectorAll('[data-order-item-row]')]
+      .map(row => ({
+        id: String(row.querySelector('select[name="orderItemProduct"]')?.value || '').trim(),
+        variantId: String(row.querySelector('select[name="orderItemVariant"]')?.value || '').trim(),
+        qty: Math.max(0, Math.floor(Number(row.querySelector('input[name="orderItemQty"]')?.value || 0)))
+      }))
+      .filter(item => item.id && item.qty > 0);
+  }
+
+  function draftFromOrderForm(form) {
+    return {
+      customer: {
+        name: String(form.querySelector('input[name="customerName"]')?.value || ''),
+        phone: String(form.querySelector('input[name="customerPhone"]')?.value || ''),
+        telegram: String(form.querySelector('input[name="customerTelegram"]')?.value || '')
+      },
+      items: collectOrderItemsFromForm(form)
+    };
+  }
+
   function rerenderOpenProductForm(form) {
     const isNew = form.dataset.productInlineForm === PRODUCT_NEW_ID;
     const draft = draftFromProductForm(form);
@@ -687,7 +276,27 @@
     if (card) card.outerHTML = productCardTemplate({ ...draft, id }, false);
   }
 
+
+  function handleOwnerAuthExpired() {
+    if (!state.token && !el.ownerLogin.classList.contains('hidden')) return;
+    localStorage.removeItem(tokenKey);
+    state.token = '';
+    state.authExpiredAlertShown = state.authExpiredAlertShown || false;
+    showApp(false);
+    if (!state.authExpiredAlertShown) {
+      state.authExpiredAlertShown = true;
+      alert('Сессия владельца истекла. Войдите снова.');
+    }
+  }
+
+  function showActionError(error) {
+    if (error && error.ownerAuthExpired) return;
+    alert(error && error.message ? error.message : 'Произошла ошибка');
+  }
+
   function bindEvents() {
+    window.addEventListener('owner-auth-expired', handleOwnerAuthExpired);
+
     el.loginForm.addEventListener('submit', async event => {
       event.preventDefault();
       const formData = new FormData(el.loginForm);
@@ -697,11 +306,12 @@
           password: formData.get('password')
         });
         state.token = data.token;
+        state.authExpiredAlertShown = false;
         localStorage.setItem(tokenKey, data.token);
         showApp(true);
         await loadBootstrap();
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -714,6 +324,7 @@
     el.logoutBtn.addEventListener('click', () => {
       localStorage.removeItem(tokenKey);
       state.token = '';
+      state.authExpiredAlertShown = false;
       showApp(false);
     });
 
@@ -749,7 +360,7 @@
           if (state.editProductId === deleteBtn.dataset.deleteProduct) state.editProductId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
         return;
       }
@@ -847,7 +458,7 @@
         await loadBootstrap();
         activateSection('products');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -866,7 +477,7 @@
           state.editBrandId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
@@ -885,7 +496,7 @@
         await loadBootstrap();
         activateSection('brands');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -904,7 +515,7 @@
           state.editBannerId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
@@ -924,19 +535,95 @@
           state.editSupportId = '';
           await loadBootstrap();
         } catch (error) {
-          alert(error.message);
+          showActionError(error);
         }
       }
     });
 
-    el.ordersList.addEventListener('change', async event => {
-      const select = event.target.closest('[data-order-status-id]');
-      if (!select) return;
+    el.ordersList.addEventListener('change', event => {
+      const productSelect = event.target.closest('select[name="orderItemProduct"]');
+      if (!productSelect) return;
+      const row = productSelect.closest('[data-order-item-row]');
+      const variantSelect = row?.querySelector('select[name="orderItemVariant"]');
+      if (!variantSelect) return;
+      variantSelect.innerHTML = orderVariantOptionsHtml(productSelect.value, '');
+    });
+
+    el.ordersList.addEventListener('click', async event => {
+      const editBtn = event.target.closest('[data-edit-order]');
+      if (editBtn) {
+        const id = editBtn.dataset.editOrder;
+        state.editOrderId = state.editOrderId === id ? '' : id;
+        renderOrders();
+        return;
+      }
+
+      const closeBtn = event.target.closest('[data-close-order-editor]');
+      if (closeBtn) {
+        state.editOrderId = '';
+        renderOrders();
+        return;
+      }
+
+      const addBtn = event.target.closest('[data-add-order-item]');
+      if (addBtn) {
+        const form = event.target.closest('[data-order-form]');
+        const editor = form?.querySelector('[data-order-items-editor]');
+        if (!editor) return;
+        editor.appendChild(makeOrderItemRow({ id: '', variantId: '', qty: 1 }));
+        return;
+      }
+
+      const removeBtn = event.target.closest('[data-remove-order-item]');
+      if (removeBtn) {
+        removeBtn.closest('[data-order-item-row]')?.remove();
+        return;
+      }
+
+      const completeBtn = event.target.closest('[data-order-complete]');
+      if (completeBtn) {
+        const orderId = completeBtn.dataset.orderComplete;
+        const form = el.ordersList.querySelector(`[data-order-form="${CSS.escape(orderId)}"]`);
+        const payload = form ? draftFromOrderForm(form) : {};
+        try {
+          await window.AppApi.ownerSaveOrder(state.token, orderId, { ...payload, action: 'fulfilled' });
+          state.editOrderId = '';
+          await loadBootstrap();
+          activateSection('orders');
+        } catch (error) {
+          showActionError(error);
+        }
+        return;
+      }
+
+      const failBtn = event.target.closest('[data-order-fail]');
+      if (failBtn) {
+        const orderId = failBtn.dataset.orderFail;
+        const form = el.ordersList.querySelector(`[data-order-form="${CSS.escape(orderId)}"]`);
+        const payload = form ? draftFromOrderForm(form) : {};
+        try {
+          await window.AppApi.ownerSaveOrder(state.token, orderId, { ...payload, action: 'failed' });
+          state.editOrderId = '';
+          await loadBootstrap();
+          activateSection('orders');
+        } catch (error) {
+          showActionError(error);
+        }
+        return;
+      }
+    });
+
+    el.ordersList.addEventListener('submit', async event => {
+      const form = event.target.closest('[data-order-form]');
+      if (!form) return;
+      event.preventDefault();
       try {
-        await window.AppApi.ownerUpdateOrderStatus(state.token, select.dataset.orderStatusId, select.value);
+        await window.AppApi.ownerSaveOrder(state.token, form.dataset.orderForm, { ...draftFromOrderForm(form), action: 'save' });
         await loadBootstrap();
+        state.editOrderId = form.dataset.orderForm;
+        renderOrders();
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -972,7 +659,7 @@
         await loadBootstrap();
         activateSection('banners');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -990,7 +677,7 @@
         await loadBootstrap();
         activateSection('support');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
 
@@ -1010,7 +697,7 @@
         activateSection('posts');
         alert('Пост отправлен');
       } catch (error) {
-        alert(error.message);
+        showActionError(error);
       }
     });
   }
@@ -1028,6 +715,7 @@
       await loadBootstrap();
     } catch {
       showApp(false);
+      state.authExpiredAlertShown = false;
       localStorage.removeItem(tokenKey);
     }
   }

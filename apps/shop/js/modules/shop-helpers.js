@@ -163,8 +163,8 @@ export function createShopHelpers(ctx) {
   }
 
   function historyStatusLabel(status) {
-    const map = { new: 'Новый', paid: 'Оплачен', done: 'Завершён', cancelled: 'Отменён' };
-    return map[status] || 'Новый';
+    const map = { new: 'Новая', fulfilled: 'Состоялась', failed: 'Не состоялась', paid: 'Состоялась', done: 'Состоялась', cancelled: 'Не состоялась' };
+    return map[status] || 'Новая';
   }
 
   function productById(productId) {

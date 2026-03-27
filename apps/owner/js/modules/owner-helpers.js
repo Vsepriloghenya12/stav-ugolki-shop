@@ -1,5 +1,5 @@
 export function createOwnerHelpers(ctx) {
-  const { state } = ctx;
+  const { state, resizeImage, fileToDataUrl } = ctx;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -132,6 +132,7 @@ export function createOwnerHelpers(ctx) {
     allBrandNames,
     nameOptionsFor,
     looksLikeVideo,
-    looksLikeGif
+    looksLikeGif,
+    mediaFieldValue
   };
 }

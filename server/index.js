@@ -158,16 +158,17 @@ function ensureOwner(req, res) {
 }
 
 function summarize(products, orders, banners) {
-  const revenue = orders.reduce((sum, item) => sum + Number(item.total || 0), 0);
-  const paidCount = orders.filter(item => item.status === 'paid').length;
-  const totalItemsSold = orders.reduce((sum, order) => sum + order.items.reduce((s, item) => s + Number(item.qty || 0), 0), 0);
-  const averageCheck = orders.length ? Math.round(revenue / orders.length) : 0;
+  const completedOrders = orders.filter(item => item.status === 'fulfilled');
+  const revenue = completedOrders.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const paidCount = completedOrders.length;
+  const totalItemsSold = completedOrders.reduce((sum, order) => sum + order.items.reduce((s, item) => s + Number(item.qty || 0), 0), 0);
+  const averageCheck = completedOrders.length ? Math.round(revenue / completedOrders.length) : 0;
   const favorites = products.filter(item => item.favorite).length;
   const activeBanners = banners.filter(item => item.active).length;
   const lowStock = collectLowStockAlerts(products).length;
 
   const soldMap = new Map();
-  orders.forEach(order => {
+  completedOrders.forEach(order => {
     order.items.forEach(item => {
       soldMap.set(item.id, (soldMap.get(item.id) || 0) + Number(item.qty || 0));
     });
@@ -193,9 +194,42 @@ function summarize(products, orders, banners) {
 }
 
 
-const ALLOWED_ORDER_STATUSES = new Set(['new', 'paid', 'done', 'cancelled']);
+const ALLOWED_ORDER_STATUSES = new Set(['new', 'fulfilled', 'failed']);
 
-function resolveValidatedOrderItems(inputItems = [], currentProducts = []) {
+function normalizeOrderStatus(status = 'new') {
+  const value = String(status || 'new').trim().toLowerCase();
+  if (value === 'paid' || value === 'done') return 'fulfilled';
+  if (value === 'cancelled') return 'failed';
+  return ALLOWED_ORDER_STATUSES.has(value) ? value : 'new';
+}
+
+function normalizeOrderRecord(order = {}) {
+  const status = normalizeOrderStatus(order.status);
+  return {
+    ...order,
+    status,
+    stockApplied: order.stockApplied !== undefined ? Boolean(order.stockApplied) : status === 'fulfilled',
+    processedAt: String(order.processedAt || (status !== 'new' ? (order.updatedAt || order.createdAt || '') : '')),
+    updatedAt: String(order.updatedAt || '')
+  };
+}
+
+function sanitizeOrderCustomer(input = {}) {
+  return {
+    name: String(input?.name || 'Telegram Client').slice(0, 80),
+    phone: String(input?.phone || '').slice(0, 40),
+    telegram: String(input?.telegram || '').slice(0, 200)
+  };
+}
+
+function ensureCustomerHasContact(customer = {}) {
+  if (!customer.phone && !customer.telegram) {
+    throw new Error('Укажите телефон или ссылку на Telegram');
+  }
+}
+
+function resolveValidatedOrderItems(inputItems = [], currentProducts = [], options = {}) {
+  const enforceStock = options.enforceStock !== false;
   const catalog = currentProducts.map(withVariantStock);
   const prepared = [];
 
@@ -221,15 +255,17 @@ function resolveValidatedOrderItems(inputItems = [], currentProducts = []) {
       }
     }
 
-    const available = variant
-      ? Math.max(0, Number(variant.stock || 0))
-      : Math.max(0, Number(product.stock || 0));
+    if (enforceStock) {
+      const available = variant
+        ? Math.max(0, Number(variant.stock || 0))
+        : Math.max(0, Number(product.stock || 0));
 
-    if (available <= 0) throw new Error(`Товар «${product.name}» закончился`);
-    if (qty > available) {
-      throw new Error(variant
-        ? `Недостаточно остатка для «${product.name} · ${variant.label}»`
-        : `Недостаточно остатка для «${product.name}»`);
+      if (available <= 0) throw new Error(`Товар «${product.name}» закончился`);
+      if (qty > available) {
+        throw new Error(variant
+          ? `Недостаточно остатка для «${product.name} · ${variant.label}»`
+          : `Недостаточно остатка для «${product.name}»`);
+      }
     }
 
     prepared.push({
@@ -244,6 +280,18 @@ function resolveValidatedOrderItems(inputItems = [], currentProducts = []) {
 
   if (!prepared.length) throw new Error('Корзина пуста');
   return prepared;
+}
+
+function prepareOrderDraft(body = {}, currentOrder = {}, currentProducts = [], options = {}) {
+  const nextCustomer = body.customer !== undefined
+    ? sanitizeOrderCustomer(body.customer)
+    : sanitizeOrderCustomer(currentOrder.customer || {});
+  ensureCustomerHasContact(nextCustomer);
+  const nextItems = body.items !== undefined
+    ? resolveValidatedOrderItems(body.items, currentProducts, options)
+    : resolveValidatedOrderItems(currentOrder.items || [], currentProducts, options);
+  const total = nextItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+  return { customer: nextCustomer, items: nextItems, total };
 }
 
 function collectLowStockAlerts(productsList = []) {
@@ -543,7 +591,7 @@ async function handleApi(req, res, pathname) {
   const method = req.method || 'GET';
   const products = () => readJson('products.json');
   const banners = () => readJson('banners.json');
-  const orders = () => readJson('orders.json');
+  const orders = () => readJson('orders.json').map(normalizeOrderRecord);
   const supportContacts = () => readJson('support_contacts.json');
   const brands = () => {
     const current = readJson('brands.json');
@@ -593,35 +641,27 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/shop/orders' && method === 'POST') {
     try {
       const body = await parseBody(req);
-      const customer = {
-        name: String(body.customer?.name || 'Telegram Client').slice(0, 80),
-        phone: String(body.customer?.phone || '').slice(0, 40),
-        telegram: String(body.customer?.telegram || '').slice(0, 200)
-      };
-      if (!customer.phone && !customer.telegram) {
-        return sendJson(res, 400, { error: 'Укажите телефон или ссылку на Telegram' });
-      }
       const current = orders();
       const currentProducts = products();
-      const items = resolveValidatedOrderItems(body.items, currentProducts);
+      const customer = sanitizeOrderCustomer(body.customer || {});
+      ensureCustomerHasContact(customer);
+      const items = resolveValidatedOrderItems(body.items, currentProducts, { enforceStock: true });
       const recalculatedTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
-      const order = {
+      const order = normalizeOrderRecord({
         id: nextId('order'),
         createdAt: new Date().toISOString(),
         customer,
         items,
         total: recalculatedTotal,
-        status: 'new'
-      };
+        status: 'new',
+        stockApplied: false,
+        processedAt: '',
+        updatedAt: ''
+      });
       current.unshift(order);
       writeJson('orders.json', current);
-      const stockResult = applyOrderStock(order, currentProducts);
-      writeJson('products.json', stockResult.products);
       notifyOrder(order).catch(error => console.error('Order telegram notify error:', error.message));
-      if (stockResult.freshAlerts.length) {
-        notifyLowStockAlerts(stockResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
-      }
-      return sendJson(res, 201, { ok: true, order, lowStockAlerts: stockResult.freshAlerts });
+      return sendJson(res, 201, { ok: true, order });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
@@ -915,13 +955,61 @@ async function handleApi(req, res, pathname) {
       const current = orders();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Order not found' });
-      const nextStatus = String(body.status || current[index].status);
-      if (!ALLOWED_ORDER_STATUSES.has(nextStatus)) {
-        return sendJson(res, 400, { error: 'Недопустимый статус заказа' });
+
+      const currentOrder = normalizeOrderRecord(current[index]);
+      const action = String(body.action || body.status || 'save').trim().toLowerCase();
+      const normalizedAction = action === 'done' || action === 'paid' ? 'fulfilled' : action === 'cancelled' ? 'failed' : action;
+      const currentProducts = products();
+
+      if (currentOrder.status !== 'new') {
+        return sendJson(res, 400, { error: 'Заявка уже обработана и находится в истории' });
       }
-      current[index] = { ...current[index], status: nextStatus };
-      writeJson('orders.json', current);
-      return sendJson(res, 200, { ok: true, order: current[index] });
+
+      if (normalizedAction === 'save' || normalizedAction === 'edit') {
+        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: false });
+        current[index] = normalizeOrderRecord({
+          ...currentOrder,
+          ...draft,
+          updatedAt: new Date().toISOString()
+        });
+        writeJson('orders.json', current);
+        return sendJson(res, 200, { ok: true, order: current[index] });
+      }
+
+      if (normalizedAction === 'fulfilled') {
+        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: true });
+        const stockResult = applyOrderStock({ items: draft.items }, currentProducts);
+        current[index] = normalizeOrderRecord({
+          ...currentOrder,
+          ...draft,
+          status: 'fulfilled',
+          stockApplied: true,
+          processedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        writeJson('orders.json', current);
+        writeJson('products.json', stockResult.products);
+        if (stockResult.freshAlerts.length) {
+          notifyLowStockAlerts(stockResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+        }
+        return sendJson(res, 200, { ok: true, order: current[index], lowStockAlerts: stockResult.freshAlerts });
+      }
+
+      if (normalizedAction === 'failed') {
+        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: false });
+        current[index] = normalizeOrderRecord({
+          ...currentOrder,
+          ...draft,
+          status: 'failed',
+          stockApplied: false,
+          processedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        writeJson('orders.json', current);
+        return sendJson(res, 200, { ok: true, order: current[index] });
+      }
+
+      return sendJson(res, 400, { error: 'Недопустимое действие для заявки' });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }

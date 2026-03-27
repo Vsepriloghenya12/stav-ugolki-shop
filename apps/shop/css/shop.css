@@ -1286,6 +1286,8 @@ body.has-success-modal {
 .history-status--paid { background: rgba(100,211,135,.12); }
 .history-status--done { background: rgba(255,173,87,.14); }
 .history-status--cancelled { background: rgba(255,114,114,.12); }
+.history-status--fulfilled { background: rgba(100,211,135,.12); }
+.history-status--failed { background: rgba(255,114,114,.12); }
 .product-card-skeleton { pointer-events:none; }
 .skeleton-box,
 .skeleton-line,

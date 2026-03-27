@@ -619,3 +619,109 @@ body {
 
 
 .owner-note-inline { display:flex; align-items:center; min-height:44px; padding:10px 14px; border-radius:14px; background: rgba(255,255,255,.04); color: rgba(255,255,255,.7); }
+
+
+.owner-nav-count {
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255,110,64,0.16);
+  border: 1px solid rgba(255,110,64,0.28);
+  color: #ffd1c3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.owner-nav-count.is-hidden {
+  display: none;
+}
+
+.orders-list-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.order-actions-row {
+  margin-top: 14px;
+}
+
+.order-card.is-open {
+  border-color: rgba(129,216,208,0.26);
+}
+
+.order-editor-wrap {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(129,216,208,0.12);
+}
+
+.order-editor-items {
+  display: grid;
+  gap: 10px;
+}
+
+.orders-history-box {
+  margin-top: 16px;
+  border: 1px solid rgba(129,216,208,0.12);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.02);
+  overflow: hidden;
+}
+
+.orders-history-box summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 800;
+}
+
+.orders-history-box summary::-webkit-details-marker {
+  display: none;
+}
+
+.orders-history-box[open] summary {
+  border-bottom: 1px solid rgba(129,216,208,0.10);
+}
+
+.orders-history-box .orders-list--history {
+  padding: 14px;
+}
+
+.order-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(129,216,208,0.18);
+  background: rgba(129,216,208,0.10);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.order-status-pill--new {
+  color: #d7fff9;
+}
+
+.order-status-pill--fulfilled {
+  color: #d9ffe3;
+  border-color: rgba(100,211,135,0.28);
+  background: rgba(100,211,135,0.10);
+}
+
+.order-status-pill--failed {
+  color: #ffd1c3;
+  border-color: rgba(255,110,64,0.28);
+  background: rgba(255,110,64,0.10);
+}
+
+.order-card--history {
+  opacity: 0.96;
+}

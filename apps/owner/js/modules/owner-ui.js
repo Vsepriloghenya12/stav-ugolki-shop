@@ -14,7 +14,8 @@ export function createOwnerUi(ctx) {
     nameOptionsFor,
     normalizeVariantDrafts,
     looksLikeVideo,
-    looksLikeGif
+    looksLikeGif,
+    mediaFieldValue
   } = ctx;
 
   function productImageThumb(src, alt = 'Товар') {
@@ -133,31 +134,161 @@ export function createOwnerUi(ctx) {
       : '<tr><td colspan="4"><div class="empty-box">Контактов пока нет</div></td></tr>';
   }
 
-  function renderOrders() {
-    if (!state.orders.length) {
-      el.ordersList.innerHTML = '<div class="empty-box">Заказов пока нет</div>';
-      return;
+  function orderStatusLabel(status = 'new') {
+    const map = {
+      new: 'Новая',
+      fulfilled: 'Состоялась',
+      failed: 'Не состоялась',
+      paid: 'Состоялась',
+      done: 'Состоялась',
+      cancelled: 'Не состоялась'
+    };
+    return map[String(status || 'new')] || 'Новая';
+  }
+
+  function isProcessedOrder(order = {}) {
+    return !['', 'new'].includes(String(order.status || 'new'));
+  }
+
+  function activeOrders() {
+    return state.orders.filter(order => !isProcessedOrder(order));
+  }
+
+  function historyOrders() {
+    return state.orders.filter(order => isProcessedOrder(order));
+  }
+
+  function renderOrdersNavCount() {
+    if (!el.ordersNavCount) return;
+    el.ordersNavCount.textContent = String(activeOrders().length);
+    el.ordersNavCount.classList.toggle('is-hidden', !activeOrders().length);
+  }
+
+  function orderProductOptions(selectedProductId = '') {
+    const options = [...state.products].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ru'));
+    const hasSelected = selectedProductId && options.some(item => item.id === selectedProductId);
+    const dynamic = !hasSelected && selectedProductId
+      ? [{ id: selectedProductId, name: 'Удалённый товар', brand: '', category: '' }]
+      : [];
+    return [...dynamic, ...options].map(product => `<option value="${escapeHtml(product.id)}" ${product.id === selectedProductId ? 'selected' : ''}>${escapeHtml(product.name || 'Товар')}${product.brand ? ` · ${escapeHtml(product.brand)}` : ''}</option>`).join('');
+  }
+
+  function orderVariantOptions(productId = '', selectedVariantId = '') {
+    const product = state.products.find(item => item.id === productId);
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!product || !variants.length) {
+      return '<option value="" selected>Без варианта</option>';
     }
-    el.ordersList.innerHTML = state.orders.map(order => `
-      <div class="order-card">
-        <div class="order-head">
-          <div>
-            <div class="order-title">${escapeHtml(order.customer?.name || 'Клиент')}</div>
-            <div class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')}</div>
-            <div class="order-meta">${escapeHtml(order.customer?.phone || '')}${order.customer?.telegram ? ` · ${escapeHtml(order.customer.telegram)}` : ''}</div>
-          </div>
-          <div class="order-side">
-            <strong>${money(order.total)}</strong>
-            <select class="status-select" data-order-status-id="${order.id}">
-              ${['new', 'paid', 'done', 'cancelled'].map(status => `<option value="${status}" ${order.status === status ? 'selected' : ''}>${status}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="order-items">
-          ${order.items.map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''} × ${item.qty}</span><strong>${money(item.price * item.qty)}</strong></div>`).join('')}
-        </div>
+    const selectedExists = variants.some(item => item.id === selectedVariantId);
+    const dynamic = !selectedExists && selectedVariantId ? [{ id: selectedVariantId, label: 'Старый вариант' }] : [];
+    const items = [...dynamic, ...variants];
+    return items.map(variant => `<option value="${escapeHtml(variant.id || '')}" ${(variant.id || '') === (selectedVariantId || '') ? 'selected' : ''}>${escapeHtml(variant.label || 'Без варианта')}</option>`).join('');
+  }
+
+  function orderItemEditorRowTemplate(item = {}, index = 0) {
+    return `
+      <div class="order-editor-row" data-order-item-row>
+        <select name="orderItemProduct">
+          <option value="">Выбрать товар</option>
+          ${orderProductOptions(item.id || '')}
+        </select>
+        <select name="orderItemVariant" ${orderVariantOptions(item.id || '', item.variantId || '').includes('Без варианта') ? 'data-empty-variant="true"' : ''}>
+          ${orderVariantOptions(item.id || '', item.variantId || '')}
+        </select>
+        <input name="orderItemQty" type="number" min="1" placeholder="Кол-во" value="${Number(item.qty || 1)}" />
+        <button class="danger-btn" type="button" data-remove-order-item="${index}">Удалить</button>
       </div>
-    `).join('');
+    `;
+  }
+
+  function orderEditorTemplate(order = {}) {
+    const items = Array.isArray(order.items) && order.items.length ? order.items : [{ id: '', qty: 1, variantId: '' }];
+    return `
+      <form class="owner-form order-editor" data-order-form="${escapeHtml(order.id || '')}">
+        <div class="form-grid-2">
+          <input name="customerName" placeholder="Имя" value="${escapeHtml(order.customer?.name || '')}" />
+          <input name="customerPhone" placeholder="Телефон" value="${escapeHtml(order.customer?.phone || '')}" />
+        </div>
+        <input name="customerTelegram" placeholder="Ссылка / ник Telegram" value="${escapeHtml(order.customer?.telegram || '')}" />
+        <div class="field-title">Состав заявки</div>
+        <div class="order-editor-items" data-order-items-editor>
+          ${items.map((item, index) => orderItemEditorRowTemplate(item, index)).join('')}
+        </div>
+        <div class="form-actions">
+          <button class="secondary-btn" type="button" data-add-order-item="${escapeHtml(order.id || '')}">Добавить товар</button>
+          <button class="owner-btn" type="submit">Сохранить изменения</button>
+          <button class="ghost-btn" type="button" data-close-order-editor="${escapeHtml(order.id || '')}">Закрыть</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function renderOrders() {
+    const active = activeOrders();
+    const history = historyOrders();
+    renderOrdersNavCount();
+
+    const activeHtml = active.length
+      ? active.map(order => {
+          const isOpen = state.editOrderId === order.id;
+          return `
+            <article class="order-card ${isOpen ? 'is-open' : ''}" data-order-card="${escapeHtml(order.id)}">
+              <div class="order-head">
+                <div>
+                  <div class="order-title">${escapeHtml(order.customer?.name || 'Клиент')}</div>
+                  <div class="order-meta">${new Date(order.createdAt).toLocaleString('ru-RU')}</div>
+                  <div class="order-meta">${escapeHtml(order.customer?.phone || '')}${order.customer?.telegram ? ` · ${escapeHtml(order.customer.telegram)}` : ''}</div>
+                </div>
+                <div class="order-side">
+                  <span class="order-status-pill order-status-pill--new">${orderStatusLabel(order.status)}</span>
+                  <strong>${money(order.total)}</strong>
+                </div>
+              </div>
+              <div class="order-items">
+                ${(order.items || []).map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''} × ${item.qty}</span><strong>${money(item.price * item.qty)}</strong></div>`).join('')}
+              </div>
+              <div class="form-actions order-actions-row">
+                <button class="owner-btn" type="button" data-order-complete="${escapeHtml(order.id)}">Состоялась</button>
+                <button class="secondary-btn" type="button" data-order-fail="${escapeHtml(order.id)}">Не состоялась</button>
+                <button class="ghost-btn" type="button" data-edit-order="${escapeHtml(order.id)}">Редактировать</button>
+              </div>
+              ${isOpen ? `<div class="order-editor-wrap">${orderEditorTemplate(order)}</div>` : ''}
+            </article>
+          `;
+        }).join('')
+      : '<div class="empty-box">Необработанных заявок нет</div>';
+
+    const historyHtml = history.length
+      ? history.map(order => `
+          <article class="order-card order-card--history">
+            <div class="order-head">
+              <div>
+                <div class="order-title">${escapeHtml(order.customer?.name || 'Клиент')}</div>
+                <div class="order-meta">${new Date(order.processedAt || order.createdAt).toLocaleString('ru-RU')}</div>
+                <div class="order-meta">${escapeHtml(order.customer?.phone || '')}${order.customer?.telegram ? ` · ${escapeHtml(order.customer.telegram)}` : ''}</div>
+              </div>
+              <div class="order-side">
+                <span class="order-status-pill order-status-pill--${escapeHtml(String(order.status || 'new'))}">${orderStatusLabel(order.status)}</span>
+                <strong>${money(order.total)}</strong>
+              </div>
+            </div>
+            <div class="order-items">
+              ${(order.items || []).map(item => `<div class="mini-row"><span>${escapeHtml(item.name)}${item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : ''} × ${item.qty}</span><strong>${money(item.price * item.qty)}</strong></div>`).join('')}
+            </div>
+          </article>
+        `).join('')
+      : '<div class="empty-box">История пока пуста</div>';
+
+    el.ordersList.innerHTML = `
+      <div class="orders-list-head">
+        <span class="state-chip ok">Необработано: ${active.length}</span>
+      </div>
+      <div class="orders-list orders-list--active">${activeHtml}</div>
+      <details class="orders-history-box">
+        <summary>История (${history.length})</summary>
+        <div class="orders-list orders-list--history">${historyHtml}</div>
+      </details>
+    `;
   }
 
   function renderPostsHistory() {
@@ -431,6 +562,7 @@ export function createOwnerUi(ctx) {
     if (!state.editBrandId && state.brands[0]) state.editBrandId = state.brands[0].id;
     if (!state.editSupportId && state.supportContacts[0]) state.editSupportId = state.supportContacts[0].id;
     if (state.editProductId !== PRODUCT_NEW_ID && state.editProductId && !state.products.some(item => item.id === state.editProductId)) state.editProductId = '';
+    if (state.editOrderId && !state.orders.some(item => item.id === state.editOrderId && String(item.status || 'new') === 'new')) state.editOrderId = '';
     renderAll();
   }
 
@@ -453,6 +585,7 @@ export function createOwnerUi(ctx) {
     renderBannersTable,
     renderSupportTable,
     renderOrders,
+    renderOrdersNavCount,
     renderPostsHistory,
     renderTelegramState,
     variantRowsHtml,
@@ -465,6 +598,8 @@ export function createOwnerUi(ctx) {
     renderProductsList,
     renderForms,
     renderAll,
-    activateSection
+    activateSection,
+    loadBootstrap,
+    updatePreview
   };
 }
