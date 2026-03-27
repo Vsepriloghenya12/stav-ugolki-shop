@@ -489,6 +489,10 @@ body {
 
 
 .owner-section-single {
+  display: none;
+}
+
+.owner-section-single.is-active {
   display: block !important;
 }
 
