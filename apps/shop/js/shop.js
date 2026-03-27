@@ -142,6 +142,7 @@ import { createShopUi } from './modules/shop-ui.js';
     categories,
     quickCategories,
     brandsForCategory,
+    variantStock,
     hasAvailableVariant,
     currentVariant,
     maxQtyFor,

@@ -8,6 +8,7 @@ export function createShopUi(ctx) {
     categories,
     quickCategories,
     brandsForCategory,
+    variantStock,
     hasAvailableVariant,
     currentVariant,
     maxQtyFor,
