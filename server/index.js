@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { URL } = require('url');
 const { getMimeType } = require('./lib/mime');
 const { readJson, writeJson, nextId, getDataDir, initializeDataStore, uploadsDir } = require('./lib/store');
@@ -17,6 +18,10 @@ const botToken = process.env.BOT_TOKEN || '';
 const adminGroupId = process.env.ADMIN_GROUP_CHAT_ID || '';
 const channelChatId = process.env.CHANNEL_CHAT_ID || '';
 const configSyncSecret = process.env.CONFIG_SYNC_SECRET || '';
+const appBaseUrl = resolveAppBaseUrl();
+const miniAppUrl = resolveMiniAppUrl();
+const telegramWebhookSecret = resolveTelegramWebhookSecret();
+const telegramWebhookPath = `/api/telegram/webhook/${telegramWebhookSecret}`;
 
 function telegramConfigPath() {
   return path.join(getDataDir(), 'telegram_config.json');
@@ -98,6 +103,29 @@ function loadEnv() {
     const value = trimmed.slice(index + 1).trim();
     if (!process.env[key]) process.env[key] = value;
   });
+}
+
+function resolveAppBaseUrl() {
+  const explicit = String(process.env.APP_BASE_URL || process.env.API_BASE_URL || '').trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const publicDomain = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
+  if (publicDomain) return `https://${publicDomain}`;
+  const staticUrl = String(process.env.RAILWAY_STATIC_URL || '').trim();
+  if (staticUrl) return staticUrl.replace(/\/$/, '');
+  return '';
+}
+
+function resolveMiniAppUrl() {
+  const explicit = String(process.env.MINIAPP_URL || '').trim();
+  if (explicit) return explicit;
+  return appBaseUrl ? `${appBaseUrl}/shop/` : '';
+}
+
+function resolveTelegramWebhookSecret() {
+  const explicit = String(process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+  const raw = explicit || String(configSyncSecret || '').trim() || crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex');
+  const sanitized = raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  return sanitized || crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex').slice(0, 32);
 }
 
 function sendJson(res, status, payload) {
@@ -208,6 +236,8 @@ function normalizeOrderRecord(order = {}) {
   return {
     ...order,
     status,
+    reservationApplied: order.reservationApplied !== undefined ? Boolean(order.reservationApplied) : false,
+    reservedAt: String(order.reservedAt || ''),
     stockApplied: order.stockApplied !== undefined ? Boolean(order.stockApplied) : status === 'fulfilled',
     processedAt: String(order.processedAt || (status !== 'new' ? (order.updatedAt || order.createdAt || '') : '')),
     updatedAt: String(order.updatedAt || '')
@@ -230,7 +260,7 @@ function ensureCustomerHasContact(customer = {}) {
 
 function resolveValidatedOrderItems(inputItems = [], currentProducts = [], options = {}) {
   const enforceStock = options.enforceStock !== false;
-  const catalog = currentProducts.map(withVariantStock);
+  const catalog = currentProducts.map(withShopStock);
   const prepared = [];
 
   for (const rawItem of Array.isArray(inputItems) ? inputItems : []) {
@@ -292,62 +322,6 @@ function prepareOrderDraft(body = {}, currentOrder = {}, currentProducts = [], o
     : resolveValidatedOrderItems(currentOrder.items || [], currentProducts, options);
   const total = nextItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
   return { customer: nextCustomer, items: nextItems, total };
-}
-
-function collectLowStockAlerts(productsList = []) {
-  const alerts = [];
-  for (const item of Array.isArray(productsList) ? productsList : []) {
-    const product = withVariantStock(item);
-    if (Array.isArray(product.variants) && product.variants.length) {
-      for (const variant of product.variants) {
-        const minStock = Math.max(0, Number(variant.minStock ?? 0));
-        if (!minStock) continue;
-        const stock = Math.max(0, Number(variant.stock || 0));
-        if (stock <= minStock) alerts.push({ id: `${product.id}:${variant.id}`, productId: product.id, name: product.name, variantId: variant.id, variantLabel: variant.label, stock, minStock });
-      }
-    } else {
-      const minStock = Math.max(0, Number(product.minStock ?? 0));
-      const stock = Math.max(0, Number(product.stock || 0));
-      if (minStock && stock <= minStock) alerts.push({ id: product.id, productId: product.id, name: product.name, stock, minStock });
-    }
-  }
-  return alerts.sort((a,b) => a.stock - b.stock || String(a.name).localeCompare(String(b.name), 'ru'));
-}
-
-function lowStockKey(item) {
-  return `${item.productId || item.id}::${item.variantId || 'base'}`;
-}
-
-async function notifyLowStockAlerts(items = []) {
-  const ordersChatId = resolveOrdersChatId();
-  if (!botToken || !ordersChatId || !items.length) return;
-  const lines = ['Низкий остаток', ''];
-  items.forEach(item => lines.push(`• ${escapeTelegram(item.name)}${item.variantLabel ? ` · ${escapeTelegram(item.variantLabel)}` : ''} — остаток ${item.stock}${item.minStock ? ` / порог ${item.minStock}` : ''}`));
-  await sendTelegramMessage(ordersChatId, lines.join('\n'));
-}
-
-function applyOrderStock(order, productsList = []) {
-  const current = productsList.map(item => JSON.parse(JSON.stringify(item)));
-  const beforeAlerts = collectLowStockAlerts(current);
-  const beforeKeys = new Set(beforeAlerts.map(lowStockKey));
-  for (const orderItem of Array.isArray(order?.items) ? order.items : []) {
-    const product = current.find(item => item.id === orderItem.id);
-    if (!product) continue;
-    if (Array.isArray(product.variants) && product.variants.length) {
-      const target = product.variants.find(variant => variant.id === orderItem.variantId) || null;
-      if (target) {
-        target.stock = Math.max(0, Number(target.stock || 0) - Number(orderItem.qty || 0));
-      } else {
-        product.stock = Math.max(0, Number(product.stock || 0) - Number(orderItem.qty || 0));
-      }
-      product.stock = product.variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stock || 0)), 0);
-    } else {
-      product.stock = Math.max(0, Number(product.stock || 0) - Number(orderItem.qty || 0));
-    }
-  }
-  const nextAlerts = collectLowStockAlerts(current);
-  const freshAlerts = nextAlerts.filter(item => !beforeKeys.has(lowStockKey(item)));
-  return { products: current, freshAlerts };
 }
 
 function safeFilePath(urlPath) {
@@ -416,38 +390,150 @@ function normalizeVariants(input, fallbackStock = 0) {
       label: String(item.label || '').trim().slice(0, 60),
       price: Number(item.price || 0),
       stock: Math.max(0, Number((item.stock ?? fallbackStock ?? 0))),
+      reserved: Math.max(0, Number(item.reserved ?? 0)),
       minStock: Math.max(0, Number(item.minStock ?? 0))
     }))
     .filter(item => item.label && Number.isFinite(item.price) && item.price >= 0);
 }
 
-function withVariantStock(product) {
+function withOwnerStock(product) {
   const baseStock = Math.max(0, Number(product?.stock || 0));
+  const baseReserved = Math.max(0, Number(product?.reserved || 0));
   const variants = Array.isArray(product?.variants) ? product.variants : [];
-  if (!variants.length) return { ...product, stock: baseStock, minStock: Math.max(0, Number(product?.minStock || 0)), variants: [] };
-  const hasExplicitStock = variants.some(item => item.stock !== undefined && item.stock !== null && item.stock !== '');
-  let normalized;
-  if (hasExplicitStock) {
-    normalized = variants.map(item => ({
-      ...item,
-      stock: Math.max(0, Number((item.stock ?? 0))),
-      minStock: Math.max(0, Number(item.minStock ?? 0))
-    }));
-  } else {
-    const perVariant = variants.length ? Math.floor(baseStock / variants.length) : 0;
-    let remainder = variants.length ? baseStock % variants.length : 0;
-    normalized = variants.map(item => {
-      const extra = remainder > 0 ? 1 : 0;
-      remainder = Math.max(0, remainder - 1);
-      return {
-        ...item,
-        stock: perVariant + extra,
-        minStock: Math.max(0, Number(item.minStock ?? 0))
-      };
-    });
+  if (!variants.length) {
+    return {
+      ...product,
+      stock: baseStock,
+      reserved: Math.min(baseStock, baseReserved),
+      availableStock: Math.max(0, baseStock - baseReserved),
+      minStock: Math.max(0, Number(product?.minStock || 0)),
+      variants: []
+    };
   }
-  const total = normalized.reduce((sum, item) => sum + Number(item.stock || 0), 0);
-  return { ...product, variants: normalized, stock: total };
+
+  const normalized = normalizeVariants(variants, baseStock).map(item => {
+    const stock = Math.max(0, Number(item.stock || 0));
+    const reserved = Math.min(stock, Math.max(0, Number(item.reserved || 0)));
+    return {
+      ...item,
+      stock,
+      reserved,
+      availableStock: Math.max(0, stock - reserved),
+      minStock: Math.max(0, Number(item.minStock ?? 0))
+    };
+  });
+
+  const totalStock = normalized.reduce((sum, item) => sum + Number(item.stock || 0), 0);
+  const totalReserved = normalized.reduce((sum, item) => sum + Number(item.reserved || 0), 0);
+  return {
+    ...product,
+    variants: normalized,
+    stock: totalStock,
+    reserved: totalReserved,
+    availableStock: Math.max(0, totalStock - totalReserved),
+    minStock: Math.max(0, Number(product?.minStock || 0))
+  };
+}
+
+function withShopStock(product) {
+  const owner = withOwnerStock(product);
+  if (!Array.isArray(owner.variants) || !owner.variants.length) {
+    return {
+      ...owner,
+      physicalStock: owner.stock,
+      stock: owner.availableStock
+    };
+  }
+  return {
+    ...owner,
+    physicalStock: owner.stock,
+    stock: owner.availableStock,
+    variants: owner.variants.map(item => ({
+      ...item,
+      physicalStock: item.stock,
+      stock: item.availableStock
+    }))
+  };
+}
+
+function cloneProductsList(productsList = []) {
+  return JSON.parse(JSON.stringify(Array.isArray(productsList) ? productsList : []));
+}
+
+function collectLowStockAlerts(productsList = []) {
+  const alerts = [];
+  for (const item of Array.isArray(productsList) ? productsList : []) {
+    const product = withShopStock(item);
+    if (Array.isArray(product.variants) && product.variants.length) {
+      for (const variant of product.variants) {
+        const minStock = Math.max(0, Number(variant.minStock ?? 0));
+        const stock = Math.max(0, Number(variant.availableStock ?? variant.stock ?? 0));
+        if (minStock && stock <= minStock) alerts.push({ id: `${product.id}:${variant.id}`, productId: product.id, name: product.name, variantId: variant.id, variantLabel: variant.label, stock, minStock });
+      }
+    } else {
+      const minStock = Math.max(0, Number(product.minStock ?? 0));
+      const stock = Math.max(0, Number(product.availableStock ?? product.stock ?? 0));
+      if (minStock && stock <= minStock) alerts.push({ id: product.id, productId: product.id, name: product.name, stock, minStock });
+    }
+  }
+  return alerts.sort((a,b) => a.stock - b.stock || String(a.name).localeCompare(String(b.name), 'ru'));
+}
+
+function lowStockKey(item) {
+  return `${item.productId || item.id}::${item.variantId || 'base'}`;
+}
+
+function mutateInventoryByOrderItem(product, orderItem, mode = 'reserve') {
+  const qty = Math.max(0, Number(orderItem?.qty || 0));
+  if (!qty) return;
+
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  if (variants.length) {
+    const target = variants.find(variant => variant.id === orderItem.variantId) || null;
+    if (!target) return;
+    const stock = Math.max(0, Number(target.stock || 0));
+    const reserved = Math.max(0, Number(target.reserved || 0));
+    if (mode === 'reserve') {
+      if (reserved + qty > stock) throw new Error(`Недостаточно остатка для «${product.name} · ${target.label}»`);
+      target.reserved = reserved + qty;
+    } else if (mode === 'release') {
+      target.reserved = Math.max(0, reserved - qty);
+    } else if (mode === 'finalize') {
+      if (qty > stock) throw new Error(`Недостаточно остатка для «${product.name} · ${target.label}»`);
+      target.reserved = Math.max(0, reserved - qty);
+      target.stock = Math.max(0, stock - qty);
+    }
+    product.stock = variants.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0);
+    product.reserved = variants.reduce((sum, item) => sum + Math.max(0, Number(item.reserved || 0)), 0);
+    return;
+  }
+
+  const stock = Math.max(0, Number(product.stock || 0));
+  const reserved = Math.max(0, Number(product.reserved || 0));
+  if (mode === 'reserve') {
+    if (reserved + qty > stock) throw new Error(`Недостаточно остатка для «${product.name}»`);
+    product.reserved = reserved + qty;
+  } else if (mode === 'release') {
+    product.reserved = Math.max(0, reserved - qty);
+  } else if (mode === 'finalize') {
+    if (qty > stock) throw new Error(`Недостаточно остатка для «${product.name}»`);
+    product.reserved = Math.max(0, reserved - qty);
+    product.stock = Math.max(0, stock - qty);
+  }
+}
+
+function applyOrderInventory(order, productsList = [], mode = 'reserve') {
+  const current = cloneProductsList(productsList).map(withOwnerStock);
+  const beforeAlerts = collectLowStockAlerts(current);
+  const beforeKeys = new Set(beforeAlerts.map(lowStockKey));
+  for (const orderItem of Array.isArray(order?.items) ? order.items : []) {
+    const product = current.find(item => item.id === orderItem.id);
+    if (!product) continue;
+    mutateInventoryByOrderItem(product, orderItem, mode);
+  }
+  const nextAlerts = collectLowStockAlerts(current);
+  const freshAlerts = nextAlerts.filter(item => !beforeKeys.has(lowStockKey(item)));
+  return { products: current, freshAlerts };
 }
 
 function escapeTelegram(text) {
@@ -564,6 +650,170 @@ async function notifyOrder(order) {
   await sendTelegramMessage(ordersChatId, lines.join('\n'));
 }
 
+function shopKeyboard() {
+  if (!miniAppUrl) return undefined;
+  return {
+    inline_keyboard: [[{
+      text: 'Открыть магазин',
+      web_app: { url: miniAppUrl }
+    }]]
+  };
+}
+
+function normalizeCommand(text) {
+  const first = String(text || '').trim().split(/\s+/)[0] || '';
+  if (!first.startsWith('/')) return '';
+  return first.split('@')[0].toLowerCase();
+}
+
+function describeChat(chat) {
+  const title = chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || chat.username || 'Без названия';
+  return { id: String(chat.id || ''), title, type: String(chat.type || '') };
+}
+
+function helpText() {
+  return [
+    'Команды бота:',
+    '/shop — открыть магазин',
+    '/manager — назначить этот чат для заявок',
+    '/posts — назначить этот чат для постов',
+    '/where — показать текущий chat_id и сохранённые чаты',
+    '/help — список команд'
+  ].join('\n');
+}
+
+async function isTelegramChatAdmin(updateLike) {
+  const chat = updateLike.chat;
+  if (!chat || !chat.id) return false;
+  if (chat.type === 'private') return true;
+  if (updateLike.channelPost) return true;
+  const userId = updateLike.from && updateLike.from.id;
+  if (!userId) return false;
+  try {
+    const admins = await telegramRequest('getChatAdministrators', { chat_id: chat.id });
+    return admins.some(item => item && item.user && item.user.id === userId);
+  } catch {
+    return false;
+  }
+}
+
+async function replyWithBot(chatId, text, withShop = false) {
+  const payload = { chat_id: chatId, text };
+  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard();
+  return telegramRequest('sendMessage', payload);
+}
+
+async function handleTelegramChatAssignment(updateLike, key) {
+  const chat = describeChat(updateLike.chat);
+  const allowed = await isTelegramChatAdmin(updateLike);
+  if (!allowed) {
+    await replyWithBot(chat.id, 'Эту команду может использовать только админ чата.');
+    return;
+  }
+  const patch = key === 'orders' ? { ordersChatId: chat.id, ordersChatTitle: chat.title } : { postsChatId: chat.id, postsChatTitle: chat.title };
+  updateTelegramConfig(patch);
+  const targetName = key === 'orders' ? 'заявок' : 'постов';
+  await replyWithBot(chat.id, `Готово. Этот чат сохранён для ${targetName}.\nchat_id: ${chat.id}\nНазвание: ${chat.title}`);
+}
+
+async function handleTelegramWhere(chatId, chat) {
+  const current = readTelegramConfig();
+  const info = describeChat(chat);
+  const lines = [
+    `Текущий чат: ${info.title}`,
+    `Тип: ${info.type}`,
+    `chat_id: ${info.id}`,
+    '',
+    `Чат заявок: ${current.ordersChatTitle || 'не задан'}`,
+    current.ordersChatId ? `ID заявок: ${current.ordersChatId}` : 'ID заявок: не задан',
+    '',
+    `Чат постов: ${current.postsChatTitle || 'не задан'}`,
+    current.postsChatId ? `ID постов: ${current.postsChatId}` : 'ID постов: не задан'
+  ];
+  await replyWithBot(chatId, lines.join('\n'));
+}
+
+async function handleTelegramUpdate(update) {
+  const source = update.message || update.channel_post;
+  if (!source || !source.chat) return;
+  const chatId = source.chat.id;
+  const text = String(source.text || '').trim();
+  const command = normalizeCommand(text);
+  const updateLike = { chat: source.chat, from: source.from, channelPost: Boolean(update.channel_post) };
+
+  if (command === '/start' || command === '/shop') {
+    await replyWithBot(chatId, 'Ставь Угольки', true);
+    return;
+  }
+  if (command === '/manager' || command === '/set_orders_here') {
+    await handleTelegramChatAssignment(updateLike, 'orders');
+    return;
+  }
+  if (command === '/posts' || command === '/set_posts_here') {
+    await handleTelegramChatAssignment(updateLike, 'posts');
+    return;
+  }
+  if (command === '/where') {
+    await handleTelegramWhere(chatId, source.chat);
+    return;
+  }
+  if (command === '/help') {
+    await replyWithBot(chatId, helpText(), true);
+    return;
+  }
+  if (command) {
+    await replyWithBot(chatId, 'Не понял команду.\n\n' + helpText(), true);
+  }
+}
+
+
+function mergeReservedIntoVariants(nextVariants = [], prevVariants = [], productName = '') {
+  const prevById = new Map((Array.isArray(prevVariants) ? prevVariants : []).map(item => [String(item.id || ''), item]));
+  const nextIds = new Set((Array.isArray(nextVariants) ? nextVariants : []).map(item => String(item.id || '')));
+  for (const prev of Array.isArray(prevVariants) ? prevVariants : []) {
+    const reserved = Math.max(0, Number(prev?.reserved || 0));
+    if (reserved > 0 && !nextIds.has(String(prev.id || ''))) {
+      throw new Error(`Нельзя удалить вариант с активным резервом${productName ? `: ${productName}` : ''}`);
+    }
+  }
+  return (Array.isArray(nextVariants) ? nextVariants : []).map(item => {
+    const previous = prevById.get(String(item.id || ''));
+    const reserved = Math.max(0, Number(previous?.reserved || 0));
+    if (reserved > Math.max(0, Number(item.stock || 0))) {
+      throw new Error(`Остаток варианта не может быть меньше зарезервированного${productName ? `: ${productName}` : ''}`);
+    }
+    return { ...item, reserved };
+  });
+}
+
+function preserveProductReservations(nextProduct = {}, prevProduct = {}) {
+  const previous = withOwnerStock(prevProduct);
+  const next = { ...nextProduct };
+  const nextVariants = Array.isArray(next.variants) ? next.variants : [];
+  const prevVariants = Array.isArray(previous.variants) ? previous.variants : [];
+
+  if (nextVariants.length) {
+    if (!prevVariants.length && Math.max(0, Number(previous.reserved || 0)) > 0) {
+      throw new Error('Нельзя переключить товар на варианты, пока по нему есть активный резерв');
+    }
+    next.variants = mergeReservedIntoVariants(nextVariants, prevVariants, String(next.name || previous.name || ''));
+    next.stock = next.variants.reduce((sum, item) => sum + Math.max(0, Number(item.stock || 0)), 0);
+    next.reserved = next.variants.reduce((sum, item) => sum + Math.max(0, Number(item.reserved || 0)), 0);
+    return next;
+  }
+
+  if (prevVariants.some(item => Math.max(0, Number(item.reserved || 0)) > 0)) {
+    throw new Error('Нельзя убрать варианты, пока по ним есть активный резерв');
+  }
+
+  const reserved = Math.max(0, Number(previous.reserved || 0));
+  const stock = Math.max(0, Number(next.stock || 0));
+  if (reserved > stock) {
+    throw new Error('Остаток не может быть меньше зарезервированного');
+  }
+  next.reserved = reserved;
+  return next;
+}
 
 function normalizeBrandRecord(body, fallback = {}) {
   return {
@@ -606,6 +856,20 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir(), telegramConfig: telegramConfigStatus() });
   }
 
+  if (pathname === telegramWebhookPath && method === 'POST') {
+    const headerSecret = String(req.headers['x-telegram-bot-api-secret-token'] || '').trim();
+    if (!botToken) return sendJson(res, 503, { error: 'BOT_TOKEN missing' });
+    if (telegramWebhookSecret && headerSecret !== telegramWebhookSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    try {
+      const update = await parseBody(req);
+      await handleTelegramUpdate(update);
+      return sendJson(res, 200, { ok: true });
+    } catch (error) {
+      console.error('Telegram webhook error:', error.message);
+      return sendJson(res, 200, { ok: false });
+    }
+  }
+
   if (pathname === '/api/internal/telegram-config' && method === 'GET') {
     const token = extractConfigSyncToken(req);
     if (configSyncSecret && token !== configSyncSecret) return sendJson(res, 401, { error: 'Unauthorized' });
@@ -631,7 +895,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
     return sendJson(res, 200, {
-      products: products().map(withVariantStock).filter(item => !item.hiddenFromCatalog),
+      products: products().map(withShopStock).filter(item => !item.hiddenFromCatalog),
       banners: banners().filter(item => item.active),
       supportContacts: supportContacts(),
       pwa: { enabled: true }
@@ -647,6 +911,7 @@ async function handleApi(req, res, pathname) {
       ensureCustomerHasContact(customer);
       const items = resolveValidatedOrderItems(body.items, currentProducts, { enforceStock: true });
       const recalculatedTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+      const reserveResult = applyOrderInventory({ items }, currentProducts, 'reserve');
       const order = normalizeOrderRecord({
         id: nextId('order'),
         createdAt: new Date().toISOString(),
@@ -654,12 +919,18 @@ async function handleApi(req, res, pathname) {
         items,
         total: recalculatedTotal,
         status: 'new',
+        reservationApplied: true,
+        reservedAt: new Date().toISOString(),
         stockApplied: false,
         processedAt: '',
         updatedAt: ''
       });
       current.unshift(order);
       writeJson('orders.json', current);
+      writeJson('products.json', reserveResult.products);
+      if (reserveResult.freshAlerts.length) {
+        notifyLowStockAlerts(reserveResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+      }
       notifyOrder(order).catch(error => console.error('Order telegram notify error:', error.message));
       return sendJson(res, 201, { ok: true, order });
     } catch (error) {
@@ -692,7 +963,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/owner/bootstrap' && method === 'GET') {
     if (!ensureOwner(req, res)) return;
-    const p = products().map(withVariantStock);
+    const p = products().map(withOwnerStock);
     const b = banners();
     const s = supportContacts();
     const o = orders();
@@ -747,7 +1018,7 @@ async function handleApi(req, res, pathname) {
       const current = products();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Product not found' });
-      current[index] = {
+      const nextProduct = {
         ...current[index],
         name: String(body.name || current[index].name),
         brand: String(body.brand ?? (current[index].brand || '')),
@@ -765,6 +1036,7 @@ async function handleApi(req, res, pathname) {
         accent: String(body.accent || current[index].accent || 'tiffany'),
         variants: normalizeVariants(body.variants ?? current[index].variants, Number((body.stock ?? current[index].stock ?? 0)))
       };
+      current[index] = preserveProductReservations(nextProduct, current[index]);
       writeJson('products.json', current);
       return sendJson(res, 200, { ok: true, product: current[index] });
     } catch (error) {
@@ -960,52 +1232,64 @@ async function handleApi(req, res, pathname) {
       const action = String(body.action || body.status || 'save').trim().toLowerCase();
       const normalizedAction = action === 'done' || action === 'paid' ? 'fulfilled' : action === 'cancelled' ? 'failed' : action;
       const currentProducts = products();
+      const releasedProducts = currentOrder.reservationApplied ? applyOrderInventory(currentOrder, currentProducts, 'release').products : cloneProductsList(currentProducts);
 
       if (currentOrder.status !== 'new') {
         return sendJson(res, 400, { error: 'Заявка уже обработана и находится в истории' });
       }
 
       if (normalizedAction === 'save' || normalizedAction === 'edit') {
-        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: false });
+        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
+        const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
         current[index] = normalizeOrderRecord({
           ...currentOrder,
           ...draft,
+          reservationApplied: true,
+          reservedAt: currentOrder.reservedAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
         writeJson('orders.json', current);
+        writeJson('products.json', reserveResult.products);
+        if (reserveResult.freshAlerts.length) {
+          notifyLowStockAlerts(reserveResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+        }
         return sendJson(res, 200, { ok: true, order: current[index] });
       }
 
       if (normalizedAction === 'fulfilled') {
-        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: true });
-        const stockResult = applyOrderStock({ items: draft.items }, currentProducts);
+        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
+        const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
+        const finalizeResult = applyOrderInventory({ items: draft.items }, reserveResult.products, 'finalize');
         current[index] = normalizeOrderRecord({
           ...currentOrder,
           ...draft,
           status: 'fulfilled',
+          reservationApplied: false,
           stockApplied: true,
           processedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
         writeJson('orders.json', current);
-        writeJson('products.json', stockResult.products);
-        if (stockResult.freshAlerts.length) {
-          notifyLowStockAlerts(stockResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+        writeJson('products.json', finalizeResult.products);
+        if (finalizeResult.freshAlerts.length) {
+          notifyLowStockAlerts(finalizeResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
         }
-        return sendJson(res, 200, { ok: true, order: current[index], lowStockAlerts: stockResult.freshAlerts });
+        return sendJson(res, 200, { ok: true, order: current[index], lowStockAlerts: finalizeResult.freshAlerts });
       }
 
       if (normalizedAction === 'failed') {
-        const draft = prepareOrderDraft(body, currentOrder, currentProducts, { enforceStock: false });
+        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: false });
         current[index] = normalizeOrderRecord({
           ...currentOrder,
           ...draft,
           status: 'failed',
+          reservationApplied: false,
           stockApplied: false,
           processedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
         writeJson('orders.json', current);
+        writeJson('products.json', releasedProducts);
         return sendJson(res, 200, { ok: true, order: current[index] });
       }
 
@@ -1049,6 +1333,9 @@ if ((process.env.JWT_SECRET || '') === '' || process.env.JWT_SECRET === 'stav-ug
 }
 if (!configSyncSecret) {
   console.warn('⚠️ CONFIG_SYNC_SECRET не задан. /api/internal/telegram-config доступен без секрета.');
+}
+if (botToken) {
+  console.log(`Telegram webhook endpoint готов: ${telegramWebhookPath}`);
 }
 
 const server = http.createServer(async (req, res) => {

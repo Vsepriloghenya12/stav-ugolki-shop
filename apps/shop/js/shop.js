@@ -877,6 +877,12 @@ async function shareProduct(productId) {
       pushOrderToHistory(created.order);
       state.cart = [];
       save(STORAGE_KEYS.cart, state.cart);
+      try {
+        const fresh = await window.AppApi.getShopBootstrap();
+        state.products = fresh.products || state.products;
+        state.banners = fresh.banners || state.banners;
+        state.supportContacts = fresh.supportContacts || state.supportContacts;
+      } catch {}
       renderCart();
       renderProducts();
       el.checkoutForm.reset();

@@ -475,7 +475,7 @@ export function createOwnerUi(ctx) {
             <div class="product-admin-title">${escapeHtml(formProduct.name || 'Новый товар')}</div>
             <div class="product-admin-badges">${productBadgeChips(formProduct)}</div>
             <div class="product-admin-meta">${escapeHtml(formProduct.category || 'табак')}${formProduct.brand ? ` · ${escapeHtml(formProduct.brand)}` : ''}</div>
-            <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Приоритет: ${Number(formProduct.homePriority || 0)}${formProduct.hiddenFromCatalog ? ' · скрыт с витрины' : ''}</div>
+            <div class="product-admin-note">Остаток: ${totalStock(formProduct)} · Доступно: ${Number(formProduct.availableStock ?? totalStock(formProduct))}${Number(formProduct.reserved || 0) ? ` · Резерв: ${Number(formProduct.reserved || 0)}` : ''} · Приоритет: ${Number(formProduct.homePriority || 0)}${formProduct.hiddenFromCatalog ? ' · скрыт с витрины' : ''}</div>
           </div>
           <div class="product-admin-side">
             <div class="product-admin-price">${money(displayPrice(formProduct))}</div>
