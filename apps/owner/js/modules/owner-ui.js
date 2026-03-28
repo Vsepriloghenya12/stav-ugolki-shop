@@ -192,7 +192,7 @@ export function createOwnerUi(ctx) {
           <option value="">Выбрать товар</option>
           ${orderProductOptions(item.id || '')}
         </select>
-        <select name="orderItemVariant" ${orderVariantOptions(item.id || '', item.variantId || '').includes('Без варианта') ? 'data-empty-variant="true"' : ''}>
+        <select name="orderItemVariant">
           ${orderVariantOptions(item.id || '', item.variantId || '')}
         </select>
         <input name="orderItemQty" type="number" min="1" placeholder="Кол-во" value="${Number(item.qty || 1)}" />
@@ -573,31 +573,11 @@ export function createOwnerUi(ctx) {
   }
 
   return {
-    productImageThumb,
-    productBadgeChips,
-    statsData,
-    renderStats,
-    renderTopProducts,
-    renderLastOrders,
-    renderLowStockAlerts,
-    renderBrandsTable,
-    bannerTargetLabel,
-    renderBannersTable,
-    renderSupportTable,
     renderOrders,
-    renderOrdersNavCount,
-    renderPostsHistory,
-    renderTelegramState,
     variantRowsHtml,
-    mediaPreview,
-    brandFormTemplate,
-    productFormTemplate,
-    bannerFormTemplate,
-    supportFormTemplate,
     productCardTemplate,
     renderProductsList,
     renderForms,
-    renderAll,
     activateSection,
     loadBootstrap,
     updatePreview

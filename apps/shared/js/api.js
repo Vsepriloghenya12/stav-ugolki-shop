@@ -157,10 +157,6 @@ window.AppApi = {
     }, { ownerAuth: true, defaultError: 'Не удалось обновить заявку' });
   },
 
-  async ownerUpdateOrderStatus(token, id, status) {
-    return window.AppApi.ownerSaveOrder(token, id, { action: status });
-  },
-
   async ownerCreatePost(token, post) {
     return requestJson('/api/owner/posts', {
       method: 'POST',
