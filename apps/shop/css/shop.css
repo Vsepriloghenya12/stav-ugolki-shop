@@ -720,6 +720,20 @@ body.is-loading-app .sheet-backdrop {
   flex: 0 0 52px;
 }
 
+.price-row .cart-icon-button,
+.price-row .cart-stepper-card {
+  width: 94px;
+  max-width: 94px;
+  flex-basis: 94px;
+}
+
+.price-row .cart-icon-button {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 999px;
+  padding: 0;
+}
+
 .cart-icon-button.is-disabled,
 .sheet-add-button.is-disabled {
   background: rgba(128, 140, 142, 0.32);
