@@ -358,6 +358,7 @@ export function createOwnerUi(ctx) {
     const brandOptions = brandsForCategory(category, product.brand || '');
     const nameOptions = nameOptionsFor(category, product.brand || '', product.id || '');
     const formId = isNew ? PRODUCT_NEW_ID : String(product.id || '');
+    const brandListId = `brand-options-${isNew ? 'new' : String(product.id || 'draft')}`;
     return `
       <form class="owner-form product-inline-form" data-product-inline-form="${escapeHtml(formId)}">
         <input type="hidden" name="id" value="${escapeHtml(formId === PRODUCT_NEW_ID ? '' : formId)}" />
@@ -365,12 +366,14 @@ export function createOwnerUi(ctx) {
           <select name="category">
             ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === category ? 'selected' : ''}>${value}</option>`).join('')}
           </select>
-          <select name="brand">
-            <option value="">Выбрать бренд</option>
-            ${brandOptions.map(value => `<option value="${escapeHtml(value)}" ${value === (product.brand || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
-          </select>
+          <div>
+            <input name="brand" list="${escapeHtml(brandListId)}" placeholder="Бренд" value="${escapeHtml(product.brand || '')}" autocomplete="off" />
+            <datalist id="${escapeHtml(brandListId)}">
+              ${brandOptions.map(value => `<option value="${escapeHtml(value)}"></option>`).join('')}
+            </datalist>
+          </div>
         </div>
-        <div class="helper-text">Бренды добавляются в отдельной вкладке «Бренды».</div>
+        <div class="helper-text">Можно выбрать бренд из подсказок или ввести вручную. Для общего справочника брендов используйте вкладку «Бренды».</div>
         <select name="namePreset">
           <option value="">Выбрать название из списка</option>
           ${nameOptions.map(value => `<option value="${escapeHtml(value)}" ${value === (product.name || '') ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}

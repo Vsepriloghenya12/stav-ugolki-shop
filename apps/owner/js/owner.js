@@ -403,7 +403,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         if (nameInput && event.target.value) nameInput.value = event.target.value;
         return;
       }
-      if (event.target.matches('select[name="category"], select[name="brand"]')) {
+      if (event.target.matches('select[name="category"], input[name="brand"]')) {
         rerenderOpenProductForm(form);
       }
     });
