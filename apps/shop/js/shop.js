@@ -426,46 +426,7 @@ import { createShopUi } from './modules/shop-ui.js';
     template.innerHTML = productCardHtml(product).trim();
     const nextCard = template.content.firstElementChild;
     if (!nextCard) return;
-
-    existing.className = nextCard.className;
-    existing.dataset.hasNoVariants = nextCard.dataset.hasNoVariants || 'true';
-
-    const existingImageWrap = existing.querySelector('.product-image-wrap');
-    const nextImageWrap = nextCard.querySelector('.product-image-wrap');
-    if (!existingImageWrap || !nextImageWrap) {
-      existing.replaceWith(nextCard);
-      return;
-    }
-
-    existingImageWrap.className = nextImageWrap.className;
-
-    const existingBadges = existingImageWrap.querySelector('.product-badges');
-    const nextBadges = nextImageWrap.querySelector('.product-badges');
-    if (nextBadges) {
-      if (existingBadges) {
-        existingBadges.outerHTML = nextBadges.outerHTML;
-      } else {
-        existingImageWrap.insertAdjacentHTML('afterbegin', nextBadges.outerHTML);
-      }
-    } else if (existingBadges) {
-      existingBadges.remove();
-    }
-
-    const existingActions = existingImageWrap.querySelector('.product-actions');
-    const nextActions = nextImageWrap.querySelector('.product-actions');
-    if (existingActions && nextActions) existingActions.innerHTML = nextActions.innerHTML;
-
-    const existingName = existing.querySelector('.product-name');
-    const nextName = nextCard.querySelector('.product-name');
-    if (existingName && nextName) existingName.innerHTML = nextName.innerHTML;
-
-    const existingVariantRow = existing.querySelector('.variant-row, .variant-row-empty');
-    const nextVariantRow = nextCard.querySelector('.variant-row, .variant-row-empty');
-    if (existingVariantRow && nextVariantRow) existingVariantRow.replaceWith(nextVariantRow);
-
-    const existingPriceRow = existing.querySelector('.price-row');
-    const nextPriceRow = nextCard.querySelector('.price-row');
-    if (existingPriceRow && nextPriceRow) existingPriceRow.replaceWith(nextPriceRow);
+    existing.replaceWith(nextCard);
   }
 
   function patchProductCards(productIds = []) {
