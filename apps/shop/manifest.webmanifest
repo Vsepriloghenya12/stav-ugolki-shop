@@ -9,7 +9,7 @@
   "theme_color": "#0d171a",
   "icons": [
     {
-      "src": "/apps/shared/assets/img/logo-ember.png?v=50",
+      "src": "/apps/shared/assets/img/logo-ember.png?v=51",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"

@@ -1150,6 +1150,52 @@ body.has-cart-sheet-open #cartSheet {
     padding-inline: 8px;
   }
 
+  .product-grid {
+    gap: 10px;
+  }
+
+  .product-card {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 20px;
+  }
+
+  .product-image-wrap {
+    border-radius: 18px;
+  }
+
+  .product-actions {
+    top: 8px;
+    right: 8px;
+    gap: 6px;
+  }
+
+  .mini-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    padding: 7px;
+  }
+
+  .mini-action svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .product-badges {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-width: calc(100% - 16px);
+  }
+
+  .price-row .cart-icon-button,
+  .price-row .cart-stepper-card {
+    width: 84px;
+    max-width: 84px;
+    flex-basis: 84px;
+  }
+
   .product-name {
     font-size: 14px;
   }
