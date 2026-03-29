@@ -158,11 +158,33 @@ export function createShopUi(ctx) {
     </div>`;
   }
 
-  function productCardHtml(product) {
-    const isFavorite = state.favorites.includes(product.id);
-    const variant = currentVariant(product);
+  function productPriceCopyHtml(product, variant = currentVariant(product)) {
     const price = variant?.price ?? product.price;
     const variantInStock = maxQtyFor(product, variant);
+    return `
+      <div class="price-row-copy">
+        <div class="product-price">${money(price)}</div>
+        ${variant
+          ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${variantInStock <= 0 ? ' • нет в наличии' : ''}</div>`
+          : `<div class="product-variant-caption">остаток ${totalStock(product)}</div>`}
+      </div>
+    `;
+  }
+
+  function productPriceRowHtml(product) {
+    const variant = currentVariant(product);
+    return `
+      <div class="price-row">
+        ${productPriceCopyHtml(product, variant)}
+        <div class="price-row-cart-slot">
+          ${priceControlHtml(product, variant)}
+        </div>
+      </div>
+    `;
+  }
+
+  function productCardHtml(product) {
+    const isFavorite = state.favorites.includes(product.id);
     return `
       <article class="product-card ${product.isTop ? 'product-card--top' : ''}" data-open-product="${product.id}" data-product-id="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
         <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
@@ -177,13 +199,7 @@ export function createShopUi(ctx) {
         </div>
         <div class="product-name">${escapeHtml(product.name)}</div>
         ${productSupportsVariants(product) ? variantChipsHtml(product) : '<div class="variant-row variant-row-empty" aria-hidden="true"></div>'}
-        <div class="price-row">
-          <div>
-            <div class="product-price">${money(price)}</div>
-            ${variant ? `<div class="product-variant-caption">${escapeHtml(variant.label)}${variantInStock <= 0 ? ' • нет в наличии' : ''}</div>` : `<div class="product-variant-caption">остаток ${totalStock(product)}</div>`}
-          </div>
-          ${priceControlHtml(product, variant)}
-        </div>
+        ${productPriceRowHtml(product)}
       </article>
     `;
   }
@@ -289,6 +305,8 @@ export function createShopUi(ctx) {
     syncBanner,
     priceControlHtml,
     variantChipsHtml,
+    productPriceCopyHtml,
+    productPriceRowHtml,
     productCardHtml,
     renderProducts,
     renderCart,

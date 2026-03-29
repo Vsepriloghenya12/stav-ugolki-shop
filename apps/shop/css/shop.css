@@ -681,10 +681,34 @@ body.is-loading-app .sheet-backdrop {
   gap: 10px;
 }
 
+.price-row {
+  min-height: 42px;
+}
+
 .price-row > div:first-child,
 .product-sheet-price-row > div:first-child {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.price-row-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 42px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+}
+
+.price-row-cart-slot {
+  width: 94px;
+  min-width: 94px;
+  max-width: 94px;
+  flex: 0 0 94px;
+  min-height: 42px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
 }
 
 .product-price,
@@ -724,9 +748,10 @@ body.is-loading-app .sheet-backdrop {
 
 .price-row .cart-icon-button,
 .price-row .cart-stepper-card {
-  width: 94px;
-  max-width: 94px;
-  flex-basis: 94px;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto;
 }
 
 .price-row .cart-icon-button {
@@ -734,6 +759,11 @@ body.is-loading-app .sheet-backdrop {
   height: 42px;
   border-radius: 999px;
   padding: 0;
+}
+
+.price-row .cart-stepper-card {
+  min-height: 42px;
+  height: 42px;
 }
 
 .cart-icon-button.is-disabled,
@@ -1189,11 +1219,29 @@ body.has-cart-sheet-open #cartSheet {
     max-width: calc(100% - 16px);
   }
 
-  .price-row .cart-icon-button,
-  .price-row .cart-stepper-card {
+  .price-row-cart-slot {
     width: 84px;
+    min-width: 84px;
     max-width: 84px;
     flex-basis: 84px;
+  }
+
+  .price-row .cart-stepper-card {
+    min-height: 42px;
+    height: 42px;
+    padding: 0 6px;
+    gap: 6px;
+  }
+
+  .price-row .cart-stepper-card .cart-stepper-button {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+  }
+
+  .price-row .cart-stepper-card .cart-stepper-value {
+    min-width: 12px;
+    font-size: 13px;
   }
 
   .product-name {

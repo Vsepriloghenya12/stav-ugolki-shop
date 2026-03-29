@@ -127,6 +127,7 @@ import { createShopUi } from './modules/shop-ui.js';
     syncBanner,
     priceControlHtml,
     variantChipsHtml,
+    productPriceRowHtml,
     productCardHtml,
     renderProducts,
     renderCart,
@@ -168,7 +169,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '51';
+  const APP_ASSET_VERSION = '53';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -360,7 +361,7 @@ import { createShopUi } from './modules/shop-ui.js';
     }
     state.cart = next;
     save(STORAGE_KEYS.cart, state.cart);
-    patchProductCard(product.id);
+    patchProductCard(product.id, 'price');
     renderCart();
     if (state.activeProductId === product.id && !el.productSheet.classList.contains('hidden')) {
       renderProductSheet(product.id, false);
@@ -407,7 +408,7 @@ import { createShopUi } from './modules/shop-ui.js';
     setTimeout(() => { state.suppressBannerClick = false; }, 120);
   }
 
-  function patchProductCard(productId) {
+  function patchProductCard(productId, mode = 'full') {
     const existing = el.productGrid.querySelector(`[data-product-id="${productId}"]`);
     const product = productById(productId);
     const shouldShow = shouldDisplayProduct(productId);
@@ -419,6 +420,23 @@ import { createShopUi } from './modules/shop-ui.js';
     }
     if (!existing || !shouldShow) {
       renderProducts();
+      return;
+    }
+
+    if (mode === 'price') {
+      const currentRow = existing.querySelector('.price-row');
+      if (!currentRow) {
+        renderProducts();
+        return;
+      }
+      const template = document.createElement('template');
+      template.innerHTML = productPriceRowHtml(product).trim();
+      const nextRow = template.content.firstElementChild;
+      if (!nextRow) {
+        renderProducts();
+        return;
+      }
+      currentRow.replaceWith(nextRow);
       return;
     }
 
