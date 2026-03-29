@@ -491,6 +491,8 @@ body.is-loading-app .sheet-backdrop {
 .product-sheet-media {
   position: relative;
   display: block;
+  width: 100%;
+  justify-self: stretch;
   overflow: hidden;
   isolation: isolate;
   background: rgba(255,255,255,0.03);
