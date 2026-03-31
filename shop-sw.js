@@ -1,8 +1,8 @@
-const CACHE = 'stav-ugolki-v55-brand-pill';
+const CACHE = 'stav-ugolki-v56-brand-transparent';
 const APP_SHELL = [
-  '/apps/shared/assets/img/logo-ember.png?v=55',
-  '/apps/shared/assets/img/header-logo.png?v=55',
-  '/apps/shop/secret-theme/assets/secret-logo.png?v=55',
+  '/apps/shared/assets/img/logo-ember.png?v=56',
+  '/apps/shared/assets/img/header-logo.png?v=56',
+  '/apps/shop/secret-theme/assets/secret-logo.png?v=56',
   '/shop/',
   '/apps/shop/index.html',
   '/apps/shop/css/shop.css',
