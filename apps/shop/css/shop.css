@@ -504,63 +504,66 @@ body.is-loading-app .sheet-backdrop {
 }
 
 .subfilter-chip--brand {
-  width: 58px;
-  min-width: 58px;
-  height: 58px;
-  min-height: 58px;
-  padding: 8px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(11, 19, 23, 0.94), rgba(6, 12, 16, 0.98));
+  width: auto;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, rgba(245, 252, 251, 0.96), rgba(212, 236, 233, 0.90));
   border-color: var(--filter-neon);
   box-shadow:
-    inset 0 0 0 1px rgba(152, 255, 247, 0.06),
-    0 0 0 1px rgba(26, 64, 67, 0.34),
-    0 0 18px rgba(73, 200, 190, 0.14),
-    0 10px 20px rgba(0, 0, 0, 0.24);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.74),
+    0 0 0 1px rgba(62, 152, 148, 0.22),
+    0 0 20px rgba(73, 200, 190, 0.18),
+    0 10px 22px rgba(0, 0, 0, 0.18);
 }
 
 .subfilter-chip-media {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 50% 18%, rgba(129, 216, 208, 0.12), transparent 28%),
-    rgba(255,255,255,0.02);
+  width: auto;
+  max-width: min(34vw, 132px);
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
 }
 
 .subfilter-chip-logo {
-  width: 100%;
-  height: 100%;
+  display: block;
+  width: auto;
+  height: 28px;
+  max-width: min(34vw, 132px);
   object-fit: contain;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.24));
+  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.10));
 }
 
 .subfilter-chip-fallback {
-  width: 100%;
-  height: 100%;
+  min-width: 28px;
+  min-height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  padding: 0 2px;
+  border-radius: 999px;
   background:
-    radial-gradient(circle at 50% 18%, rgba(129, 216, 208, 0.18), transparent 34%),
-    linear-gradient(180deg, rgba(23, 45, 49, 0.96), rgba(8, 18, 22, 0.98));
-  color: #dffdfa;
+    radial-gradient(circle at 50% 18%, rgba(129, 216, 208, 0.16), transparent 34%),
+    rgba(255,255,255,0.18);
+  color: #183238;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.08em;
 }
 
 .subfilter-chip--brand.is-active {
-  background: linear-gradient(180deg, rgba(20, 54, 58, 0.98), rgba(8, 20, 24, 0.98));
+  background: linear-gradient(180deg, rgba(231, 255, 252, 0.98), rgba(193, 243, 237, 0.92));
   border-color: var(--filter-neon-strong);
   box-shadow:
-    inset 0 0 0 1px rgba(166, 255, 249, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.88),
     0 0 0 1px rgba(62, 152, 148, 0.28),
-    0 0 22px rgba(73, 200, 190, 0.28),
-    0 14px 28px rgba(0, 0, 0, 0.28);
+    0 0 24px rgba(73, 200, 190, 0.26),
+    0 12px 24px rgba(0, 0, 0, 0.18);
 }
 
 .variant-chip.is-disabled {
@@ -1333,12 +1336,17 @@ body.has-cart-sheet-open #cartSheet {
   }
 
   .subfilter-chip--brand {
-    width: 54px;
-    min-width: 54px;
-    height: 54px;
-    min-height: 54px;
-    padding: 7px;
-    border-radius: 16px;
+    min-height: 44px;
+    padding: 6px 12px;
+  }
+
+  .subfilter-chip-media,
+  .subfilter-chip-logo {
+    max-width: min(32vw, 104px);
+  }
+
+  .subfilter-chip-logo {
+    height: 24px;
   }
 
   .price-row-cart-slot {
