@@ -7,6 +7,7 @@ export function createShopUi(ctx) {
     mediaKind,
     categories,
     quickCategories,
+    brandRecordsForCategory,
     brandsForCategory,
     variantStock,
     hasAvailableVariant,
@@ -68,10 +69,35 @@ export function createShopUi(ctx) {
       return;
     }
 
-    const brands = brandsForCategory('табак');
-    el.brandSubfilters.innerHTML = brands.map(brand => `
-      <button class="subfilter-chip ${state.filters.brand === brand ? 'is-active' : ''}" data-sub-brand="${escapeHtml(brand)}" type="button">${escapeHtml(brand)}</button>
-    `).join('');
+    const brands = brandRecordsForCategory('табак');
+    el.brandSubfilters.innerHTML = brands.map(brandLogoButtonHtml).join('');
+  }
+
+  function brandFallbackLabel(name = '') {
+    const normalized = String(name || '').trim();
+    if (!normalized) return 'BR';
+    const letters = normalized
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+    return escapeHtml((letters || normalized.slice(0, 2)).toUpperCase());
+  }
+
+  function brandLogoButtonHtml(brand = {}) {
+    const name = String(brand.name || '').trim();
+    if (!name) return '';
+    const activeClass = state.filters.brand === name ? ' is-active' : '';
+    const media = brand.logo
+      ? `<img class="subfilter-chip-logo" src="${escapeHtml(brand.logo)}" alt="${escapeHtml(name)}" loading="lazy" decoding="async" />`
+      : `<span class="subfilter-chip-fallback" aria-hidden="true">${brandFallbackLabel(name)}</span>`;
+    return `
+      <button class="subfilter-chip subfilter-chip--brand${activeClass}" data-sub-brand="${escapeHtml(name)}" type="button" aria-label="${escapeHtml(name)}" title="${escapeHtml(name)}">
+        <span class="subfilter-chip-media">${media}</span>
+      </button>
+    `;
   }
 
   function renderFilterOptions() {

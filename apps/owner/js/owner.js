@@ -149,9 +149,9 @@ import { createOwnerUi } from './modules/owner-ui.js';
     });
   }
 
-  function clearImageFields(form) {
-    const file = form.querySelector('input[name="imageFile"]');
-    const text = form.querySelector('input[name="image"]');
+  function clearImageFields(form, urlFieldName = 'image', fileFieldName = 'imageFile') {
+    const file = form.querySelector(`input[name="${fileFieldName}"]`);
+    const text = form.querySelector(`input[name="${urlFieldName}"]`);
     if (file) file.value = '';
     if (text) text.value = '';
   }
@@ -468,7 +468,13 @@ import { createOwnerUi } from './modules/owner-ui.js';
       const payload = {
         id: formData.get('id') || '',
         name: formData.get('name') || '',
-        category: formData.get('category') || 'табак'
+        category: formData.get('category') || 'табак',
+        logo: await mediaFieldValue(el.brandForm, {
+          urlFieldName: 'logo',
+          fileFieldName: 'logoFile',
+          maxSize: 640,
+          quality: 0.88
+        })
       };
       try {
         const result = await window.AppApi.ownerSaveBrand(state.token, payload, !payload.id);
@@ -478,6 +484,29 @@ import { createOwnerUi } from './modules/owner-ui.js';
       } catch (error) {
         showActionError(error);
       }
+    });
+
+    el.brandForm.addEventListener('click', event => {
+      if (!event.target.closest('[data-clear-brand-logo]')) return;
+      clearImageFields(el.brandForm, 'logo', 'logoFile');
+      updatePreview(el.brandForm, 'Логотип бренда', {
+        urlFieldName: 'logo',
+        fileFieldName: 'logoFile',
+        maxSize: 640,
+        quality: 0.88,
+        mode: 'contain'
+      });
+    });
+
+    el.brandForm.addEventListener('change', async event => {
+      if (!event.target.matches('input[name="logo"], input[name="logoFile"]')) return;
+      await updatePreview(el.brandForm, 'Логотип бренда', {
+        urlFieldName: 'logo',
+        fileFieldName: 'logoFile',
+        maxSize: 640,
+        quality: 0.88,
+        mode: 'contain'
+      });
     });
 
     el.bannersBody.addEventListener('click', async event => {

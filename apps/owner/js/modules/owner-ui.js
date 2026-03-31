@@ -23,6 +23,21 @@ export function createOwnerUi(ctx) {
     return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`;
   }
 
+  function brandLogoThumb(brand = {}) {
+    const name = String(brand.name || '').trim();
+    if (brand.logo) {
+      return `<div class="brand-logo-thumb"><img src="${escapeHtml(brand.logo)}" alt="${escapeHtml(name || 'Бренд')}" loading="lazy" decoding="async" /></div>`;
+    }
+    const letters = (name || 'BR')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0])
+      .join('')
+      .toUpperCase() || 'BR';
+    return `<div class="brand-logo-thumb brand-logo-thumb--fallback">${escapeHtml(letters)}</div>`;
+  }
+
   function productBadgeChips(product = {}) {
     const chips = [];
     if (product.isNew) chips.push('<span class="owner-badge-chip owner-badge-chip--new">Новинка</span>');
@@ -78,6 +93,7 @@ export function createOwnerUi(ctx) {
           .sort((a, b) => String(a.category || '').localeCompare(String(b.category || ''), 'ru') || String(a.name || '').localeCompare(String(b.name || ''), 'ru'))
           .map(item => `
             <tr>
+              <td>${brandLogoThumb(item)}</td>
               <td>${escapeHtml(item.name)}</td>
               <td>${escapeHtml(item.category)}</td>
               <td>
@@ -88,7 +104,7 @@ export function createOwnerUi(ctx) {
               </td>
             </tr>
           `).join('')
-      : '<tr><td colspan="3"><div class="empty-box">Брендов пока нет</div></td></tr>';
+      : '<tr><td colspan="4"><div class="empty-box">Брендов пока нет</div></td></tr>';
   }
 
   function bannerTargetLabel(item) {
@@ -329,12 +345,13 @@ export function createOwnerUi(ctx) {
     `).join('');
   }
 
-  function mediaPreview(src, alt = 'Изображение') {
-    if (!src) return '<div class="preview-card empty">Изображение не выбрано</div>';
+  function mediaPreview(src, alt = 'Изображение', mode = 'cover') {
+    const containClass = mode === 'contain' ? ' preview-card--contain' : '';
+    if (!src) return `<div class="preview-card${containClass} empty">Изображение не выбрано</div>`;
     if (looksLikeVideo(src)) {
-      return `<div class="preview-card"><video src="${escapeHtml(src)}" playsinline muted loop controls preload="metadata"></video></div>`;
+      return `<div class="preview-card${containClass}"><video src="${escapeHtml(src)}" playsinline muted loop controls preload="metadata"></video></div>`;
     }
-    return `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></div>`;
+    return `<div class="preview-card${containClass}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></div>`;
   }
 
   function brandFormTemplate(brand = {}) {
@@ -344,7 +361,14 @@ export function createOwnerUi(ctx) {
       <select name="category">
         ${['табак', 'уголь', 'кальяны', 'прочее'].map(value => `<option value="${value}" ${value === (brand.category || 'табак') ? 'selected' : ''}>${value}</option>`).join('')}
       </select>
+      <div class="media-uploader">
+        <input name="logo" placeholder="URL логотипа" value="${escapeHtml(brand.logo || '')}" />
+        <input class="file-input" name="logoFile" type="file" accept="image/*,.gif,.svg" />
+        <div class="helper-text">Логотип используется на кнопке быстрого бренд-фильтра в магазине.</div>
+        <div data-preview>${mediaPreview(brand.logo || '', brand.name || 'Логотип бренда', 'contain')}</div>
+      </div>
       <div class="form-actions">
+        <button class="secondary-btn" type="button" data-clear-brand-logo>Очистить логотип</button>
         <button class="owner-btn" type="submit">Сохранить бренд</button>
       </div>
     `;
@@ -569,10 +593,11 @@ export function createOwnerUi(ctx) {
     renderAll();
   }
 
-  async function updatePreview(form, fallbackName = 'Изображение') {
-    const src = await mediaFieldValue(form).catch(() => '');
+  async function updatePreview(form, fallbackName = 'Изображение', options = {}) {
+    const src = await mediaFieldValue(form, options).catch(() => '');
     const preview = form.querySelector('[data-preview]');
-    if (preview) preview.innerHTML = mediaPreview(src, fallbackName);
+    const mode = options.mode === 'contain' ? 'contain' : 'cover';
+    if (preview) preview.innerHTML = mediaPreview(src, fallbackName, mode);
   }
 
   return {

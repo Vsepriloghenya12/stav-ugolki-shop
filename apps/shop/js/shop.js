@@ -12,6 +12,7 @@ import { createShopUi } from './modules/shop-ui.js';
 
   const state = {
     products: [],
+    brands: [],
     banners: [],
     supportContacts: [],
     filters: {
@@ -99,6 +100,7 @@ import { createShopUi } from './modules/shop-ui.js';
     productSupportsVariants,
     categories,
     quickCategories,
+    brandRecordsForCategory,
     brandsForCategory,
     variantStock,
     hasAvailableVariant,
@@ -142,6 +144,7 @@ import { createShopUi } from './modules/shop-ui.js';
     mediaKind,
     categories,
     quickCategories,
+    brandRecordsForCategory,
     brandsForCategory,
     variantStock,
     hasAvailableVariant,
@@ -169,7 +172,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '53';
+  const APP_ASSET_VERSION = '54';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -1163,11 +1166,12 @@ async function shareProduct(productId) {
       bindEvents();
       registerPwa();
       renderProductSkeletons(window.matchMedia('(min-width: 900px)').matches ? 8 : 6);
-      renderOrderHistory();
-      const data = await window.AppApi.getShopBootstrap();
-      state.products = data.products || [];
-      state.banners = data.banners || [];
-      state.supportContacts = data.supportContacts || [];
+        renderOrderHistory();
+        const data = await window.AppApi.getShopBootstrap();
+        state.products = data.products || [];
+        state.brands = data.brands || [];
+        state.banners = data.banners || [];
+        state.supportContacts = data.supportContacts || [];
       state.products.forEach(product => {
         if (product.variants?.length && !state.selectedVariants[product.id]) {
           state.selectedVariants[product.id] = (product.variants.find(item => variantStock(product, item) > 0) || product.variants[0]).id;

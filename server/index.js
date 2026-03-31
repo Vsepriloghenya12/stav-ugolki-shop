@@ -336,6 +336,7 @@ function mediaExtensionFromMime(mime = '') {
   if (value.includes('jpeg')) return 'jpg';
   if (value.includes('png')) return 'png';
   if (value.includes('gif')) return 'gif';
+  if (value.includes('svg')) return 'svg';
   if (value.includes('webp')) return 'webp';
   if (value.includes('mp4')) return 'mp4';
   if (value.includes('webm')) return 'webm';
@@ -819,7 +820,8 @@ function normalizeBrandRecord(body, fallback = {}) {
   return {
     id: String(body.id || fallback.id || '').slice(0, 80),
     name: String(body.name || fallback.name || '').trim().slice(0, 80),
-    category: String(body.category || fallback.category || 'прочее').trim().slice(0, 40)
+    category: String(body.category || fallback.category || 'прочее').trim().slice(0, 40),
+    logo: String(body.logo ?? fallback.logo ?? '').trim()
   };
 }
 
@@ -831,7 +833,7 @@ function uniqueBrandsFromProducts(items = []) {
     if (!name) continue;
     const key = `${category}::${name.toLowerCase()}`;
     if (!map.has(key)) {
-      map.set(key, { id: nextId('brand'), name, category });
+      map.set(key, { id: nextId('brand'), name, category, logo: '' });
     }
   }
   return [...map.values()].sort((a, b) => a.category.localeCompare(b.category, 'ru') || a.name.localeCompare(b.name, 'ru'));
@@ -845,10 +847,10 @@ async function handleApi(req, res, pathname) {
   const supportContacts = () => readJson('support_contacts.json');
   const brands = () => {
     const current = readJson('brands.json');
-    if (Array.isArray(current) && current.length) return current;
-    const derived = uniqueBrandsFromProducts(readJson('products.json'));
-    if (derived.length) writeJson('brands.json', derived);
-    return derived;
+    if (Array.isArray(current) && current.length) {
+      return current.map(item => normalizeBrandRecord(item)).filter(item => item.name);
+    }
+    return uniqueBrandsFromProducts(readJson('products.json'));
   };
   const posts = () => readJson('posts.json');
 
@@ -896,6 +898,7 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/shop/bootstrap' && method === 'GET') {
     return sendJson(res, 200, {
       products: products().map(withShopStock).filter(item => !item.hiddenFromCatalog),
+      brands: brands(),
       banners: banners().filter(item => item.active),
       supportContacts: supportContacts(),
       pwa: { enabled: true }
@@ -1058,7 +1061,11 @@ async function handleApi(req, res, pathname) {
     try {
       const body = await parseBody(req);
       const current = brands();
-      const item = normalizeBrandRecord({ ...body, id: nextId('brand') });
+      const item = normalizeBrandRecord({
+        ...body,
+        id: nextId('brand'),
+        logo: await persistMediaAsset(body.logo, 'brand')
+      });
       if (!item.name) return sendJson(res, 400, { error: 'Введите название бренда' });
       const duplicate = current.some(entry => String(entry.category || '') === item.category && String(entry.name || '').trim().toLowerCase() === item.name.toLowerCase());
       if (duplicate) return sendJson(res, 400, { error: 'Такой бренд уже есть в этой категории' });
@@ -1078,7 +1085,12 @@ async function handleApi(req, res, pathname) {
       const current = brands();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Brand not found' });
-      const next = normalizeBrandRecord({ ...current[index], ...body, id });
+      const next = normalizeBrandRecord({
+        ...current[index],
+        ...body,
+        id,
+        logo: body.logo !== undefined ? await persistMediaAsset(body.logo, 'brand') : current[index].logo
+      });
       if (!next.name) return sendJson(res, 400, { error: 'Введите название бренда' });
       const duplicate = current.some((entry, entryIndex) => entryIndex !== index && String(entry.category || '') === next.category && String(entry.name || '').trim().toLowerCase() === next.name.toLowerCase());
       if (duplicate) return sendJson(res, 400, { error: 'Такой бренд уже есть в этой категории' });

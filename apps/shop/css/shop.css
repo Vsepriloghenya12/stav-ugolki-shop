@@ -8,6 +8,9 @@
   --accent-green: #81d8d0;
   --accent-strong: #49c8be;
   --accent-red: #ff7544;
+  --filter-neon: rgba(129, 216, 208, 0.44);
+  --filter-neon-strong: rgba(152, 255, 247, 0.78);
+  --filter-neon-glow: rgba(73, 200, 190, 0.24);
   --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.34);
   --shadow-sheet: 0 -18px 44px rgba(0, 0, 0, 0.52);
   --bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 108px);
@@ -137,7 +140,25 @@ body.is-loading-app .sheet-backdrop {
 }
 
 .topbar {
+  position: relative;
   margin: 0 -12px 2px;
+  padding-bottom: 8px;
+}
+
+.topbar::before {
+  content: "";
+  position: absolute;
+  top: -24px;
+  right: -18px;
+  bottom: -18px;
+  left: -18px;
+  border-bottom-left-radius: 34px;
+  border-bottom-right-radius: 34px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.04), transparent 26%),
+    linear-gradient(180deg, rgba(1, 5, 8, 0.98) 0%, rgba(3, 9, 12, 0.94) 48%, rgba(6, 14, 18, 0.66) 76%, rgba(6, 14, 18, 0) 100%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hero-logo-button,
@@ -154,6 +175,7 @@ body.is-loading-app .sheet-backdrop {
   justify-content: center;
   isolation: isolate;
   overflow: hidden;
+  z-index: 1;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
@@ -305,6 +327,27 @@ body.is-loading-app .sheet-backdrop {
   padding: 0;
 }
 
+.quickbar .category-button,
+.quickbar .quick-action-button {
+  position: relative;
+  border-color: var(--filter-neon);
+  box-shadow:
+    inset 0 0 0 1px rgba(152, 255, 247, 0.06),
+    0 0 0 1px rgba(26, 64, 67, 0.34),
+    0 0 18px rgba(73, 200, 190, 0.16),
+    0 12px 24px rgba(0, 0, 0, 0.24);
+}
+
+.quickbar .category-button::after,
+.quickbar .quick-action-button::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid rgba(152, 255, 247, 0.08);
+  pointer-events: none;
+}
+
 .quick-action-icon {
   width: 20px;
   height: 20px;
@@ -411,7 +454,7 @@ body.is-loading-app .sheet-backdrop {
 .brand-subfilters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -448,6 +491,76 @@ body.is-loading-app .sheet-backdrop {
   border-color: rgba(129, 216, 208, 0.44);
   color: #e1fffb;
   box-shadow: 0 0 0 1px rgba(129, 216, 208, 0.08) inset, 0 8px 18px rgba(54, 166, 159, 0.16);
+}
+
+.quickbar .category-button.is-active,
+.quickbar .quick-action-button:focus-visible {
+  border-color: var(--filter-neon-strong);
+  box-shadow:
+    inset 0 0 0 1px rgba(166, 255, 249, 0.16),
+    0 0 0 1px rgba(62, 152, 148, 0.28),
+    0 0 22px rgba(73, 200, 190, 0.28),
+    0 14px 30px rgba(0, 0, 0, 0.30);
+}
+
+.subfilter-chip--brand {
+  width: 58px;
+  min-width: 58px;
+  height: 58px;
+  min-height: 58px;
+  padding: 8px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(11, 19, 23, 0.94), rgba(6, 12, 16, 0.98));
+  border-color: var(--filter-neon);
+  box-shadow:
+    inset 0 0 0 1px rgba(152, 255, 247, 0.06),
+    0 0 0 1px rgba(26, 64, 67, 0.34),
+    0 0 18px rgba(73, 200, 190, 0.14),
+    0 10px 20px rgba(0, 0, 0, 0.24);
+}
+
+.subfilter-chip-media {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(129, 216, 208, 0.12), transparent 28%),
+    rgba(255,255,255,0.02);
+}
+
+.subfilter-chip-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.24));
+}
+
+.subfilter-chip-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(129, 216, 208, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(23, 45, 49, 0.96), rgba(8, 18, 22, 0.98));
+  color: #dffdfa;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.subfilter-chip--brand.is-active {
+  background: linear-gradient(180deg, rgba(20, 54, 58, 0.98), rgba(8, 20, 24, 0.98));
+  border-color: var(--filter-neon-strong);
+  box-shadow:
+    inset 0 0 0 1px rgba(166, 255, 249, 0.16),
+    0 0 0 1px rgba(62, 152, 148, 0.28),
+    0 0 22px rgba(73, 200, 190, 0.28),
+    0 14px 28px rgba(0, 0, 0, 0.28);
 }
 
 .variant-chip.is-disabled {
@@ -1217,6 +1330,15 @@ body.has-cart-sheet-open #cartSheet {
     right: 8px;
     bottom: 8px;
     max-width: calc(100% - 16px);
+  }
+
+  .subfilter-chip--brand {
+    width: 54px;
+    min-width: 54px;
+    height: 54px;
+    min-height: 54px;
+    padding: 7px;
+    border-radius: 16px;
   }
 
   .price-row-cart-slot {

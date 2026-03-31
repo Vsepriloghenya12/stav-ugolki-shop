@@ -55,18 +55,45 @@ export function createShopHelpers(ctx) {
     return categories().filter(item => item.value !== 'all');
   }
 
-  function brandsForCategory(category) {
-    const seen = new Set();
+  function normalizeBrandName(value = '') {
+    return String(value || '').trim();
+  }
+
+  function brandRecordsForCategory(category) {
+    const normalizedCategory = String(category || 'all');
     const values = [];
-    state.products
-      .filter(item => category === 'all' ? true : item.category === category)
-      .forEach(item => {
-        const brand = String(item.brand || '').trim();
-        if (!brand || seen.has(brand)) return;
-        seen.add(brand);
-        values.push(brand);
+    const seen = new Set();
+
+    const pushBrand = (entry = {}) => {
+      const name = normalizeBrandName(entry.name || entry.brand || '');
+      const entryCategory = String(entry.category || 'прочее').trim() || 'прочее';
+      if (!name) return;
+      if (normalizedCategory !== 'all' && entryCategory !== normalizedCategory) return;
+      const key = normalizedCategory === 'all'
+        ? name.toLowerCase()
+        : `${entryCategory}::${name.toLowerCase()}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      values.push({
+        id: String(entry.id || ''),
+        name,
+        category: entryCategory,
+        logo: String(entry.logo || '').trim()
       });
-    return values.sort((a, b) => a.localeCompare(b, 'ru'));
+    };
+
+    state.brands.forEach(pushBrand);
+    state.products.forEach(item => pushBrand({
+      name: item.brand,
+      category: item.category,
+      logo: ''
+    }));
+
+    return values.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  }
+
+  function brandsForCategory(category) {
+    return brandRecordsForCategory(category).map(item => item.name);
   }
 
   function variantStock(product, variant = null) {
@@ -190,6 +217,7 @@ export function createShopHelpers(ctx) {
     productSupportsVariants,
     categories,
     quickCategories,
+    brandRecordsForCategory,
     brandsForCategory,
     variantStock,
     hasAvailableVariant,

@@ -1,8 +1,8 @@
-const CACHE = 'stav-ugolki-v53-stable-card';
+const CACHE = 'stav-ugolki-v54-brand-logos';
 const APP_SHELL = [
-  '/apps/shared/assets/img/logo-ember.png?v=53',
-  '/apps/shared/assets/img/header-logo.png?v=53',
-  '/apps/shop/secret-theme/assets/secret-logo.png?v=53',
+  '/apps/shared/assets/img/logo-ember.png?v=54',
+  '/apps/shared/assets/img/header-logo.png?v=54',
+  '/apps/shop/secret-theme/assets/secret-logo.png?v=54',
   '/shop/',
   '/apps/shop/index.html',
   '/apps/shop/css/shop.css',
