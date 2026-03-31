@@ -114,7 +114,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
       .filter(item => String(item.label || '').trim());
   }
 
-  async function resizeImage(file, maxSize = 1080, quality = 0.8) {
+  async function resizeImage(file, maxSize = 1080, quality = 0.8, outputType = 'image/jpeg') {
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -137,7 +137,8 @@ import { createOwnerUi } from './modules/owner-ui.js';
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(image, 0, 0, width, height);
-    return canvas.toDataURL('image/jpeg', quality);
+    if (outputType === 'image/png') return canvas.toDataURL('image/png');
+    return canvas.toDataURL(outputType || 'image/jpeg', quality);
   }
 
   async function fileToDataUrl(file) {
@@ -473,7 +474,8 @@ import { createOwnerUi } from './modules/owner-ui.js';
           urlFieldName: 'logo',
           fileFieldName: 'logoFile',
           maxSize: 640,
-          quality: 0.88
+          quality: 0.88,
+          outputType: 'image/png'
         })
       };
       try {
@@ -494,6 +496,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         fileFieldName: 'logoFile',
         maxSize: 640,
         quality: 0.88,
+        outputType: 'image/png',
         mode: 'contain'
       });
     });
@@ -505,6 +508,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
         fileFieldName: 'logoFile',
         maxSize: 640,
         quality: 0.88,
+        outputType: 'image/png',
         mode: 'contain'
       });
     });

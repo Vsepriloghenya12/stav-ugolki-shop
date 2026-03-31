@@ -112,6 +112,7 @@ export function createOwnerHelpers(ctx) {
     const fileFieldName = String(options.fileFieldName || 'imageFile');
     const maxSize = Number(options.maxSize || 1080);
     const quality = Number(options.quality || 0.8);
+    const outputType = String(options.outputType || 'image/jpeg');
     const urlField = form.querySelector(`input[name="${urlFieldName}"]`);
     const fileField = form.querySelector(`input[name="${fileFieldName}"]`);
     if (fileField?.files?.[0]) {
@@ -119,7 +120,7 @@ export function createOwnerHelpers(ctx) {
       const type = String(file.type || '').toLowerCase();
       if (type.startsWith('video/') || type === 'image/gif') return fileToDataUrl(file);
       if (type === 'image/svg+xml') return fileToDataUrl(file);
-      if (type.startsWith('image/')) return resizeImage(file, maxSize, quality);
+      if (type.startsWith('image/')) return resizeImage(file, maxSize, quality, outputType);
       return fileToDataUrl(file);
     }
     return String(urlField?.value || '').trim();
