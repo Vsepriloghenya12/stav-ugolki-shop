@@ -520,7 +520,7 @@ body.is-loading-app .sheet-backdrop {
 
 .subfilter-chip-media {
   width: auto;
-  max-width: min(34vw, 132px);
+  max-width: min(46vw, 190px);
   height: auto;
   display: inline-flex;
   align-items: center;
@@ -533,19 +533,13 @@ body.is-loading-app .sheet-backdrop {
 .subfilter-chip-logo {
   display: block;
   width: auto;
-  height: 28px;
-  max-width: min(34vw, 132px);
+  height: 34px;
+  max-width: min(46vw, 190px);
   object-fit: contain;
   filter:
     brightness(0)
-    saturate(100%)
-    invert(92%)
-    sepia(14%)
-    saturate(624%)
-    hue-rotate(121deg)
-    brightness(104%)
-    contrast(97%)
-    drop-shadow(0 2px 8px rgba(129, 216, 208, 0.22));
+    invert(98%)
+    drop-shadow(0 2px 8px rgba(129, 216, 208, 0.18));
 }
 
 .subfilter-chip-fallback {
@@ -1349,11 +1343,11 @@ body.has-cart-sheet-open #cartSheet {
 
   .subfilter-chip-media,
   .subfilter-chip-logo {
-    max-width: min(32vw, 104px);
+    max-width: min(42vw, 156px);
   }
 
   .subfilter-chip-logo {
-    height: 24px;
+    height: 30px;
   }
 
   .price-row-cart-slot {
