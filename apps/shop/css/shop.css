@@ -536,7 +536,16 @@ body.is-loading-app .sheet-backdrop {
   height: 28px;
   max-width: min(34vw, 132px);
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(255, 255, 255, 0.10));
+  filter:
+    brightness(0)
+    saturate(100%)
+    invert(92%)
+    sepia(14%)
+    saturate(624%)
+    hue-rotate(121deg)
+    brightness(104%)
+    contrast(97%)
+    drop-shadow(0 2px 8px rgba(129, 216, 208, 0.22));
 }
 
 .subfilter-chip-fallback {
