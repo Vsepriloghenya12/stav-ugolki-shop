@@ -1,8 +1,8 @@
-const CACHE = 'stav-ugolki-v58-brand-clean';
+const CACHE = 'stav-ugolki-v60-search-keyboard-submit';
 const APP_SHELL = [
-  '/apps/shared/assets/img/logo-ember.png?v=58',
-  '/apps/shared/assets/img/header-logo.png?v=58',
-  '/apps/shop/secret-theme/assets/secret-logo.png?v=58',
+  '/apps/shared/assets/img/logo-ember.png?v=60',
+  '/apps/shared/assets/img/header-logo.png?v=60',
+  '/apps/shop/secret-theme/assets/secret-logo.png?v=60',
   '/shop/',
   '/apps/shop/index.html',
   '/apps/shop/css/shop.css',

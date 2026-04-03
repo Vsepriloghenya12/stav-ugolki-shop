@@ -117,9 +117,9 @@
         <div class="sheet-title">Поиск</div>
         <button class="sheet-close" data-close-sheet="searchSheet" type="button">✕</button>
       </div>
-      <div class="sheet-body">
-        <input class="sheet-input" id="searchInput" type="search" placeholder="Поиск" autocomplete="off" />
-      </div>
+      <form class="sheet-body search-sheet-body" id="searchForm">
+        <input class="sheet-input" id="searchInput" type="search" placeholder="Поиск" autocomplete="off" enterkeyhint="search" />
+      </form>
     </section>
 
     <section class="sheet hidden" id="filterSheet">

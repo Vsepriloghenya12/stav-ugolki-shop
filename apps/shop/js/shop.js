@@ -61,6 +61,7 @@ import { createShopUi } from './modules/shop-ui.js';
     successModalCloseBtn: document.getElementById('successModalCloseBtn'),
     quickFilterToggle: document.getElementById('quickFilterToggle'),
     heroLogoButton: document.getElementById('heroLogoButton'),
+    searchForm: document.getElementById('searchForm'),
     searchInput: document.getElementById('searchInput'),
     menuCatalogBtn: document.getElementById('menuCatalogBtn'),
     menuOrdersBtn: document.getElementById('menuOrdersBtn'),
@@ -172,7 +173,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '58';
+  const APP_ASSET_VERSION = '60';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -189,6 +190,8 @@ import { createShopUi } from './modules/shop-ui.js';
     headerLogoSrc: `/apps/shop/secret-theme/assets/secret-logo.png?v=${APP_ASSET_VERSION}`,
     loaderLogoSrc: `/apps/shop/secret-theme/assets/secret-logo.png?v=${APP_ASSET_VERSION}`
   } : null;
+  let searchViewportSyncFrame = 0;
+  let searchViewportBaseHeight = 0;
 
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -800,6 +803,69 @@ async function shareProduct(productId) {
     document.body.classList.toggle('has-product-sheet-open', activeSheet === el.productSheet);
   }
 
+  function requestSearchSheetViewportSync() {
+    if (searchViewportSyncFrame) cancelAnimationFrame(searchViewportSyncFrame);
+    searchViewportSyncFrame = requestAnimationFrame(() => {
+      searchViewportSyncFrame = 0;
+      syncSearchSheetViewport();
+    });
+  }
+
+  function currentSearchViewportMetrics() {
+    const viewport = window.visualViewport;
+    return {
+      height: Math.round(viewport?.height || window.innerHeight || document.documentElement.clientHeight || 0),
+      offsetTop: Math.max(0, Math.round(viewport?.offsetTop || 0))
+    };
+  }
+
+  function resetSearchViewportBase() {
+    const { height } = currentSearchViewportMetrics();
+    if (height > 0) searchViewportBaseHeight = height;
+  }
+
+  function syncSearchSheetViewport() {
+    if (!el.searchSheet) return;
+    const searchOpen = !el.searchSheet.classList.contains('hidden');
+    const searchFocused = document.activeElement === el.searchInput;
+    const { height: viewportHeight, offsetTop: viewportOffsetTop } = currentSearchViewportMetrics();
+    if (!searchOpen || !searchFocused || viewportHeight >= searchViewportBaseHeight) {
+      searchViewportBaseHeight = viewportHeight || searchViewportBaseHeight;
+    }
+    const keyboardOffset = searchOpen && searchFocused
+      ? Math.max(0, searchViewportBaseHeight - viewportHeight - viewportOffsetTop)
+      : 0;
+    el.searchSheet.style.setProperty('--search-sheet-keyboard-offset', `${keyboardOffset}px`);
+    el.searchSheet.style.setProperty('--search-sheet-viewport-height', `${viewportHeight || searchViewportBaseHeight || window.innerHeight}px`);
+    el.searchSheet.classList.toggle('sheet-keyboard-active', keyboardOffset > 0);
+    if (keyboardOffset > 0 && searchFocused) {
+      el.searchInput?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
+
+  function blurFocusedElementWithin(container) {
+    const active = document.activeElement;
+    if (!container || !active || typeof active.blur !== 'function') return;
+    if (container.contains(active)) active.blur();
+  }
+
+  function submitSearch() {
+    state.search = String(el.searchInput?.value || '');
+    renderProducts();
+    const shouldDelayClose = document.activeElement === el.searchInput;
+    blurFocusedElementWithin(el.searchSheet);
+    requestSearchSheetViewportSync();
+    const finishSearchClose = () => {
+      closeSheet(el.searchSheet);
+      window.setTimeout(requestSearchSheetViewportSync, 180);
+    };
+    if (shouldDelayClose) {
+      window.setTimeout(finishSearchClose, 90);
+      return;
+    }
+    finishSearchClose();
+  }
+
   function openSheet(sheet, activeNav = '', sheetKind = '') {
     closeAllSheets(false);
     el.sheetBackdrop.classList.remove('hidden');
@@ -807,16 +873,19 @@ async function shareProduct(productId) {
     requestAnimationFrame(() => sheet.classList.add('sheet-visible'));
     if (sheetKind === 'product' || sheet === el.productSheet) el.sheetBackdrop.classList.add('backdrop-blur-strong');
     syncOpenSheetState(sheet);
+    requestSearchSheetViewportSync();
     renderBottomNav(activeNav || (sheet === el.cartSheet ? 'cart' : sheet === el.searchSheet ? 'search' : sheet === el.supportSheet ? 'support' : 'catalog'));
   }
 
   function closeSheet(sheet) {
+    blurFocusedElementWithin(sheet);
     sheet.classList.remove('sheet-visible');
     sheet.classList.add('hidden');
     el.sheetBackdrop.classList.remove('backdrop-blur-strong');
     const openSheets = [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet, el.historySheet].filter(node => !node.classList.contains('hidden'));
     const activeSheet = openSheets[openSheets.length - 1] || null;
     syncOpenSheetState(activeSheet);
+    requestSearchSheetViewportSync();
     if (!activeSheet) {
       el.sheetBackdrop.classList.add('hidden');
       renderBottomNav(state.view === 'favorites' ? 'favorites' : 'catalog');
@@ -824,9 +893,11 @@ async function shareProduct(productId) {
   }
 
   function closeAllSheets(shouldHideBackdrop = true) {
+    blurFocusedElementWithin(el.searchSheet);
     [el.menuSheet, el.searchSheet, el.filterSheet, el.productSheet, el.cartSheet, el.supportSheet, el.historySheet].forEach(node => { node.classList.remove('sheet-visible'); node.classList.add('hidden'); });
     el.sheetBackdrop.classList.remove('backdrop-blur-strong');
     syncOpenSheetState(null);
+    requestSearchSheetViewportSync();
     if (shouldHideBackdrop) el.sheetBackdrop.classList.add('hidden');
     renderBottomNav(state.view === 'favorites' ? 'favorites' : 'catalog');
   }
@@ -914,9 +985,29 @@ async function shareProduct(productId) {
       if (sheet) closeSheet(sheet);
     });
 
+    el.searchForm?.addEventListener('submit', event => {
+      event.preventDefault();
+      submitSearch();
+    });
     el.searchInput.addEventListener('input', event => {
       state.search = String(event.target.value || '');
       renderProducts();
+    });
+    el.searchInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      submitSearch();
+    });
+    el.searchInput.addEventListener('focus', () => {
+      resetSearchViewportBase();
+      requestSearchSheetViewportSync();
+      window.setTimeout(requestSearchSheetViewportSync, 140);
+      window.setTimeout(requestSearchSheetViewportSync, 300);
+    });
+    el.searchInput.addEventListener('blur', () => {
+      requestSearchSheetViewportSync();
+      window.setTimeout(requestSearchSheetViewportSync, 140);
+      window.setTimeout(requestSearchSheetViewportSync, 300);
     });
 
     el.categoryRow.addEventListener('click', event => {
@@ -973,6 +1064,9 @@ async function shareProduct(productId) {
     window.addEventListener('mousemove', event => onBannerGestureMove(event.clientX));
     window.addEventListener('mouseup', onBannerGestureEnd);
     window.addEventListener('resize', () => syncBanner(state.activeBanner));
+    window.addEventListener('resize', requestSearchSheetViewportSync);
+    window.visualViewport?.addEventListener('resize', requestSearchSheetViewportSync);
+    window.visualViewport?.addEventListener('scroll', requestSearchSheetViewportSync);
 
     el.productGrid.addEventListener('click', event => {
       const shareBtn = event.target.closest('[data-share]');
@@ -1108,7 +1202,17 @@ async function shareProduct(productId) {
     el.navCart.addEventListener('click', () => openSheet(el.cartSheet, 'cart'));
     el.navSearch.addEventListener('click', () => {
       openSheet(el.searchSheet, 'search');
-      setTimeout(() => el.searchInput.focus(), 60);
+      resetSearchViewportBase();
+      window.setTimeout(() => {
+        try {
+          el.searchInput.focus({ preventScroll: true });
+        } catch {
+          el.searchInput.focus();
+        }
+        requestSearchSheetViewportSync();
+      }, 60);
+      window.setTimeout(requestSearchSheetViewportSync, 220);
+      window.setTimeout(requestSearchSheetViewportSync, 360);
     });
     el.navSupport.addEventListener('click', () => openSheet(el.supportSheet, 'support'));
   }
