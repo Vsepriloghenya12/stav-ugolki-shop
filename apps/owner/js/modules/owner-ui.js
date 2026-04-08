@@ -517,8 +517,25 @@ export function createOwnerUi(ctx) {
     `;
   }
 
+  function normalizeProductSearch(value = '') {
+    return String(value || '').trim().toLowerCase().replace(/ё/g, 'е');
+  }
+
+  function productMatchesSearch(product = {}, query = '') {
+    if (!query) return true;
+    const haystack = [
+      product.name,
+      product.brand,
+      product.category
+    ].map(normalizeProductSearch).join(' ');
+    return haystack.includes(query);
+  }
+
   function renderProductsList() {
-    const sorted = [...state.products].sort((a, b) => Number(b.homePriority || 0) - Number(a.homePriority || 0) || String(a.name || '').localeCompare(String(b.name || ''), 'ru'));
+    const query = normalizeProductSearch(state.productSearch || '');
+    const sorted = [...state.products]
+      .filter(item => productMatchesSearch(item, query))
+      .sort((a, b) => Number(b.homePriority || 0) - Number(a.homePriority || 0) || String(a.name || '').localeCompare(String(b.name || ''), 'ru'));
     const draft = {
       id: '',
       name: '',
@@ -537,7 +554,10 @@ export function createOwnerUi(ctx) {
     const list = [];
     if (state.editProductId === PRODUCT_NEW_ID) list.push(productCardTemplate(draft, true));
     list.push(...sorted.map(item => productCardTemplate(item, false)));
-    el.productsList.innerHTML = list.join('') || '<div class="empty-box">Товаров пока нет</div>';
+    const emptyText = query
+      ? `По запросу «${escapeHtml(state.productSearch || '')}» товары не найдены`
+      : 'Товаров пока нет';
+    el.productsList.innerHTML = list.join('') || `<div class="empty-box">${emptyText}</div>`;
   }
 
   function renderForms() {

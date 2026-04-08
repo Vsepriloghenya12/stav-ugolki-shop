@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
     <title>Ставь угольки — владелец</title>
-    <link rel="stylesheet" href="/apps/shared/css/theme.css?v=62" />
-    <link rel="stylesheet" href="/apps/shared/css/base.css?v=62" />
-    <link rel="stylesheet" href="/apps/owner/css/owner.css?v=62" />
+    <link rel="stylesheet" href="/apps/shared/css/theme.css?v=63" />
+    <link rel="stylesheet" href="/apps/shared/css/base.css?v=63" />
+    <link rel="stylesheet" href="/apps/owner/css/owner.css?v=63" />
   </head>
   <body>
     <div class="owner-login surface" id="ownerLogin">
@@ -21,7 +21,7 @@
     <div class="owner-layout hidden" id="ownerApp">
       <aside class="owner-sidebar surface">
         <div class="owner-brand">
-          <img src="/apps/shared/assets/img/header-logo.png?v=62" alt="Ставь угольки" />
+          <img src="/apps/shared/assets/img/header-logo.png?v=63" alt="Ставь угольки" />
           <div>
             <div class="owner-brand-title">Ставь угольки</div>
             <div class="owner-brand-sub">Владелец</div>
@@ -80,6 +80,10 @@
                   <div class="helper-text">Нажмите на карточку товара, чтобы открыть её редактор.</div>
                 </div>
                 <button class="owner-btn" id="newProductBtn" type="button">Новый товар</button>
+              </div>
+              <div class="product-search-bar">
+                <input id="productSearch" type="search" placeholder="Найти товар по названию" autocomplete="off" />
+                <button class="ghost-btn" id="clearProductSearchBtn" type="button">Очистить</button>
               </div>
               <div class="product-cards" id="productsList"></div>
             </div>
@@ -201,7 +205,7 @@
       </main>
     </div>
 
-    <script src="/apps/shared/js/api.js?v=62"></script>
-    <script type="module" src="/apps/owner/js/owner.js?v=62"></script>
+    <script src="/apps/shared/js/api.js?v=63"></script>
+    <script type="module" src="/apps/owner/js/owner.js?v=63"></script>
   </body>
 </html>

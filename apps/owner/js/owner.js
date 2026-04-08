@@ -1,5 +1,5 @@
 import { createOwnerHelpers } from './modules/owner-helpers.js';
-import { createOwnerUi } from './modules/owner-ui.js';
+import { createOwnerUi } from './modules/owner-ui.js?v=63';
 
 (function () {
   const tokenKey = 'stav:owner:token';
@@ -22,6 +22,7 @@ import { createOwnerUi } from './modules/owner-ui.js';
     editBrandId: '',
     editSupportId: '',
     editOrderId: '',
+    productSearch: '',
     authExpiredAlertShown: false
   };
 
@@ -35,6 +36,8 @@ import { createOwnerUi } from './modules/owner-ui.js';
     topProducts: document.getElementById('topProducts'),
     lastOrders: document.getElementById('lastOrders'),
     productsList: document.getElementById('productsList'),
+    productSearch: document.getElementById('productSearch'),
+    clearProductSearchBtn: document.getElementById('clearProductSearchBtn'),
     brandsBody: document.getElementById('brandsBody'),
     bannersBody: document.getElementById('bannersBody'),
     supportBody: document.getElementById('supportBody'),
@@ -313,6 +316,19 @@ import { createOwnerUi } from './modules/owner-ui.js';
       state.editProductId = PRODUCT_NEW_ID;
       renderProductsList();
       activateSection('products');
+    });
+
+    el.productSearch?.addEventListener('input', event => {
+      state.productSearch = event.target.value || '';
+      if (state.editProductId && state.editProductId !== PRODUCT_NEW_ID) state.editProductId = '';
+      renderProductsList();
+    });
+
+    el.clearProductSearchBtn?.addEventListener('click', () => {
+      state.productSearch = '';
+      if (el.productSearch) el.productSearch.value = '';
+      renderProductsList();
+      el.productSearch?.focus();
     });
 
     el.newBrandBtn?.addEventListener('click', () => {
