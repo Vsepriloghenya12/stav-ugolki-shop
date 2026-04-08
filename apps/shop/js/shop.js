@@ -173,7 +173,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '60';
+  const APP_ASSET_VERSION = '61';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -1313,6 +1313,15 @@ async function shareProduct(productId) {
 
   function registerPwa() {
     if ('serviceWorker' in navigator) {
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let isReloadingForFreshWorker = false;
+      if (hadController) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (isReloadingForFreshWorker) return;
+          isReloadingForFreshWorker = true;
+          window.location.reload();
+        }, { once: true });
+      }
       navigator.serviceWorker.register(`/shop-sw.js?v=${APP_ASSET_VERSION}`, { scope: '/shop/', updateViaCache: 'none' }).catch(() => {});
     }
     window.addEventListener('beforeinstallprompt', event => {

@@ -366,6 +366,14 @@ function mediaTypeFromValue(input = '') {
   return 'image';
 }
 
+function staticCacheControl(filePath) {
+  const relative = path.relative(rootDir, filePath).replace(/\\/g, '/');
+  const ext = path.extname(filePath).toLowerCase();
+  if (relative === 'shop-sw.js' || ext === '.html') return 'no-store';
+  if (['.js', '.css', '.webmanifest'].includes(ext)) return 'no-cache, max-age=0, must-revalidate';
+  return 'public, max-age=3600, must-revalidate';
+}
+
 function serveStatic(res, relativePath) {
   const cleanPath = safeFilePath(relativePath);
   let filePath = path.join(rootDir, cleanPath);
@@ -379,7 +387,10 @@ function serveStatic(res, relativePath) {
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': getMimeType(filePath) });
+  res.writeHead(200, {
+    'Content-Type': getMimeType(filePath),
+    'Cache-Control': staticCacheControl(filePath)
+  });
   fs.createReadStream(filePath).pipe(res);
 }
 

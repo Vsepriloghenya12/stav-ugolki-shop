@@ -1,20 +1,23 @@
-const CACHE = 'stav-ugolki-v60-search-keyboard-submit';
+const ASSET_VERSION = '61';
+const CACHE = `stav-ugolki-v${ASSET_VERSION}-cache-safe`;
+const versioned = path => `${path}?v=${ASSET_VERSION}`;
 const APP_SHELL = [
-  '/apps/shared/assets/img/logo-ember.png?v=60',
-  '/apps/shared/assets/img/header-logo.png?v=60',
-  '/apps/shop/secret-theme/assets/secret-logo.png?v=60',
   '/shop/',
   '/apps/shop/index.html',
-  '/apps/shop/css/shop.css',
-  '/apps/shop/js/shop.js',
-  '/apps/shared/css/theme.css',
-  '/apps/shared/css/base.css',
-  '/apps/shared/js/api.js',
-  '/apps/shared/assets/img/logo-ember.png',
-  '/apps/shared/assets/img/header-logo.png',
-  '/apps/shop/secret-theme/index.js',
-  '/apps/shop/secret-theme/theme.css',
-  '/apps/shop/secret-theme/assets/secret-logo.png'
+  versioned('/apps/shop/manifest.webmanifest'),
+  versioned('/apps/shared/css/theme.css'),
+  versioned('/apps/shared/css/base.css'),
+  versioned('/apps/shop/css/shop.css'),
+  versioned('/apps/shared/js/api.js'),
+  versioned('/apps/shop/js/shop.js'),
+  '/apps/shop/js/modules/shop-helpers.js',
+  '/apps/shop/js/modules/shop-ui.js',
+  versioned('/apps/shared/assets/img/logo-ember.png'),
+  versioned('/apps/shared/assets/img/header-logo.png'),
+  versioned('/apps/shop/secret-theme/index.js'),
+  versioned('/apps/shop/secret-theme/theme.css'),
+  versioned('/apps/shop/secret-theme/assets/secret-logo.png'),
+  versioned('/apps/shop/secret-theme/assets/secret-reference.png')
 ];
 
 const NETWORK_FIRST_PATTERNS = [
@@ -46,13 +49,13 @@ function isNetworkFirst(pathname) {
 
 
 async function matchCached(request) {
-  return caches.match(request, { ignoreSearch: true });
+  return caches.match(request);
 }
 
 async function networkFirst(request) {
   const cache = await caches.open(CACHE);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     if (response && response.ok) {
       cache.put(request, response.clone()).catch(() => {});
     }
@@ -67,7 +70,7 @@ async function networkFirst(request) {
 async function cacheFirst(request) {
   const cached = await matchCached(request);
   if (cached) return cached;
-  const response = await fetch(request);
+  const response = await fetch(request, { cache: 'no-store' });
   const cache = await caches.open(CACHE);
   if (response && response.ok) {
     cache.put(request, response.clone()).catch(() => {});
