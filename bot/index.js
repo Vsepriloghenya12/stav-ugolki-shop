@@ -46,6 +46,10 @@ function loadEnv() {
 function resolveAppBaseUrl() {
   const explicit = String(process.env.APP_BASE_URL || process.env.API_BASE_URL || '').trim();
   if (explicit) return explicit.replace(/\/$/, '');
+  const publicDomain = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
+  if (publicDomain) return `https://${publicDomain}`;
+  const staticUrl = String(process.env.RAILWAY_STATIC_URL || '').trim();
+  if (staticUrl) return staticUrl.replace(/\/$/, '');
   const source = String(process.env.MINIAPP_URL || '').trim();
   if (!source) return '';
   try {

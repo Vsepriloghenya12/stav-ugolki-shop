@@ -1,4 +1,4 @@
-const ASSET_VERSION = '61';
+const ASSET_VERSION = '62';
 const CACHE = `stav-ugolki-v${ASSET_VERSION}-cache-safe`;
 const versioned = path => `${path}?v=${ASSET_VERSION}`;
 const APP_SHELL = [
@@ -13,11 +13,7 @@ const APP_SHELL = [
   '/apps/shop/js/modules/shop-helpers.js',
   '/apps/shop/js/modules/shop-ui.js',
   versioned('/apps/shared/assets/img/logo-ember.png'),
-  versioned('/apps/shared/assets/img/header-logo.png'),
-  versioned('/apps/shop/secret-theme/index.js'),
-  versioned('/apps/shop/secret-theme/theme.css'),
-  versioned('/apps/shop/secret-theme/assets/secret-logo.png'),
-  versioned('/apps/shop/secret-theme/assets/secret-reference.png')
+  versioned('/apps/shared/assets/img/header-logo.png')
 ];
 
 const NETWORK_FIRST_PATTERNS = [

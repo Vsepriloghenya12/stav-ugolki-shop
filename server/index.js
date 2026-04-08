@@ -260,6 +260,7 @@ function ensureCustomerHasContact(customer = {}) {
 
 function resolveValidatedOrderItems(inputItems = [], currentProducts = [], options = {}) {
   const enforceStock = options.enforceStock !== false;
+  const allowHistoricalVariantFallback = options.allowHistoricalVariantFallback === true;
   const catalog = currentProducts.map(withShopStock);
   const prepared = [];
 
@@ -276,16 +277,19 @@ function resolveValidatedOrderItems(inputItems = [], currentProducts = [], optio
     const variants = Array.isArray(product.variants) ? product.variants : [];
     const requestedVariantId = String(rawItem?.variantId || '').trim();
     let variant = null;
+    let historicalVariantItem = false;
     if (variants.length) {
       if (requestedVariantId) {
         variant = variants.find(item => item.id === requestedVariantId) || null;
         if (!variant) throw new Error(`Вариант товара «${product.name}» больше недоступен`);
+      } else if (allowHistoricalVariantFallback) {
+        historicalVariantItem = true;
       } else {
-        variant = variants.find(item => Math.max(0, Number(item.stock || 0)) > 0) || variants[0] || null;
+        throw new Error(`Выберите вариант товара «${product.name}»`);
       }
     }
 
-    if (enforceStock) {
+    if (enforceStock && !historicalVariantItem) {
       const available = variant
         ? Math.max(0, Number(variant.stock || 0))
         : Math.max(0, Number(product.stock || 0));
@@ -300,11 +304,11 @@ function resolveValidatedOrderItems(inputItems = [], currentProducts = [], optio
 
     prepared.push({
       id: product.id,
-      name: String(product.name || '').slice(0, 120),
+      name: String(historicalVariantItem ? (rawItem?.name || product.name || '') : (product.name || '')).slice(0, 120),
       qty,
-      price: Number(variant?.price ?? product.price ?? 0),
-      variantId: variant?.id || '',
-      variantLabel: variant?.label || ''
+      price: Number(historicalVariantItem ? (rawItem?.price ?? product.price ?? 0) : (variant?.price ?? product.price ?? 0)),
+      variantId: historicalVariantItem ? String(rawItem?.variantId || '') : (variant?.id || ''),
+      variantLabel: historicalVariantItem ? String(rawItem?.variantLabel || '').slice(0, 80) : (variant?.label || '')
     });
   }
 
@@ -319,7 +323,7 @@ function prepareOrderDraft(body = {}, currentOrder = {}, currentProducts = [], o
   ensureCustomerHasContact(nextCustomer);
   const nextItems = body.items !== undefined
     ? resolveValidatedOrderItems(body.items, currentProducts, options)
-    : resolveValidatedOrderItems(currentOrder.items || [], currentProducts, options);
+    : resolveValidatedOrderItems(currentOrder.items || [], currentProducts, { ...options, allowHistoricalVariantFallback: true });
   const total = nextItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
   return { customer: nextCustomer, items: nextItems, total };
 }
@@ -997,6 +1001,7 @@ async function handleApi(req, res, pathname) {
     if (!ensureOwner(req, res)) return;
     try {
       const body = await parseBody(req);
+      const image = await persistMediaAsset(body.image, 'product');
       const current = products();
       const product = {
         id: nextId('prod'),
@@ -1012,7 +1017,7 @@ async function handleApi(req, res, pathname) {
         stock: Number(body.stock || 0),
         minStock: Math.max(0, Number(body.minStock || 0)),
         hiddenFromCatalog: Boolean(body.hiddenFromCatalog),
-        image: await persistMediaAsset(body.image, 'product'),
+        image,
         accent: String(body.accent || 'tiffany'),
         variants: normalizeVariants(body.variants, Number(body.stock || 0))
       };
@@ -1029,6 +1034,7 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     try {
       const body = await parseBody(req);
+      const image = body.image !== undefined ? await persistMediaAsset(body.image, 'product') : undefined;
       const current = products();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Product not found' });
@@ -1046,7 +1052,7 @@ async function handleApi(req, res, pathname) {
         stock: Number(body.stock ?? current[index].stock),
         minStock: Math.max(0, Number(body.minStock ?? current[index].minStock ?? 0)),
         hiddenFromCatalog: body.hiddenFromCatalog !== undefined ? Boolean(body.hiddenFromCatalog) : Boolean(current[index].hiddenFromCatalog),
-        image: body.image !== undefined ? await persistMediaAsset(body.image, 'product') : current[index].image,
+        image: image !== undefined ? image : current[index].image,
         accent: String(body.accent || current[index].accent || 'tiffany'),
         variants: normalizeVariants(body.variants ?? current[index].variants, Number((body.stock ?? current[index].stock ?? 0)))
       };
@@ -1071,11 +1077,12 @@ async function handleApi(req, res, pathname) {
     if (!ensureOwner(req, res)) return;
     try {
       const body = await parseBody(req);
+      const logo = await persistMediaAsset(body.logo, 'brand');
       const current = brands();
       const item = normalizeBrandRecord({
         ...body,
         id: nextId('brand'),
-        logo: await persistMediaAsset(body.logo, 'brand')
+        logo
       });
       if (!item.name) return sendJson(res, 400, { error: 'Введите название бренда' });
       const duplicate = current.some(entry => String(entry.category || '') === item.category && String(entry.name || '').trim().toLowerCase() === item.name.toLowerCase());
@@ -1093,6 +1100,7 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     try {
       const body = await parseBody(req);
+      const logo = body.logo !== undefined ? await persistMediaAsset(body.logo, 'brand') : undefined;
       const current = brands();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Brand not found' });
@@ -1100,7 +1108,7 @@ async function handleApi(req, res, pathname) {
         ...current[index],
         ...body,
         id,
-        logo: body.logo !== undefined ? await persistMediaAsset(body.logo, 'brand') : current[index].logo
+        logo: logo !== undefined ? logo : current[index].logo
       });
       if (!next.name) return sendJson(res, 400, { error: 'Введите название бренда' });
       const duplicate = current.some((entry, entryIndex) => entryIndex !== index && String(entry.category || '') === next.category && String(entry.name || '').trim().toLowerCase() === next.name.toLowerCase());
@@ -1136,12 +1144,13 @@ async function handleApi(req, res, pathname) {
     if (!ensureOwner(req, res)) return;
     try {
       const body = await parseBody(req);
+      const image = await persistMediaAsset(body.image, 'banner');
       const current = banners();
       const banner = {
         id: nextId('banner'),
         title: String(body.title || ''),
         subtitle: String(body.subtitle || ''),
-        image: await persistMediaAsset(body.image, 'banner'),
+        image,
         theme: String(body.theme || 'tiffany'),
         active: Boolean(body.active ?? true),
         targetCategory: String(body.targetCategory || 'all'),
@@ -1162,6 +1171,7 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     try {
       const body = await parseBody(req);
+      const image = body.image !== undefined ? await persistMediaAsset(body.image, 'banner') : undefined;
       const current = banners();
       const index = current.findIndex(item => item.id === id);
       if (index === -1) return sendJson(res, 404, { error: 'Banner not found' });
@@ -1169,7 +1179,7 @@ async function handleApi(req, res, pathname) {
         ...current[index],
         title: String(body.title ?? current[index].title),
         subtitle: String(body.subtitle ?? current[index].subtitle),
-        image: body.image !== undefined ? await persistMediaAsset(body.image, 'banner') : current[index].image,
+        image: image !== undefined ? image : current[index].image,
         theme: String(body.theme || current[index].theme),
         active: typeof body.active === 'boolean' ? body.active : Boolean(current[index].active),
         targetCategory: String(body.targetCategory ?? current[index].targetCategory ?? 'all'),
@@ -1329,13 +1339,14 @@ async function handleApi(req, res, pathname) {
       const text = String(body.text || '').trim();
       if (!text) return sendJson(res, 400, { error: 'Введите текст поста' });
       await publishOwnerPost(body);
+      const image = await persistMediaAsset(body.image, 'post');
       const current = posts();
       const entry = {
         id: nextId('post'),
         createdAt: new Date().toISOString(),
         target: String(body.target || 'group'),
         text: text.slice(0, 4000),
-        image: await persistMediaAsset(body.image, 'post')
+        image
       };
       current.unshift(entry);
       writeJson('posts.json', current);
