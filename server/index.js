@@ -692,7 +692,7 @@ function helpText() {
     'Команды бота:',
     '/shop — открыть магазин',
     '/manager — назначить этот чат для заявок',
-    '/posts — назначить этот чат для постов',
+    '/post или /posts — назначить этот чат для постов',
     '/where — показать текущий chat_id и сохранённые чаты',
     '/help — список команд'
   ].join('\n');
@@ -765,7 +765,7 @@ async function handleTelegramUpdate(update) {
     await handleTelegramChatAssignment(updateLike, 'orders');
     return;
   }
-  if (command === '/posts' || command === '/set_posts_here') {
+  if (command === '/post' || command === '/posts' || command === '/set_posts_here') {
     await handleTelegramChatAssignment(updateLike, 'posts');
     return;
   }

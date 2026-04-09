@@ -6,14 +6,14 @@ const crypto = require('crypto');
 loadEnv();
 
 const token = process.env.BOT_TOKEN || '';
-const appBaseUrl = resolveAppBaseUrl();
+const appBaseUrl = resolveWebhookBaseUrl();
 const webhookSecret = resolveWebhookSecret();
 const webhookPath = `/api/telegram/webhook/${webhookSecret}`;
 const webhookUrl = appBaseUrl ? `${appBaseUrl}${webhookPath}` : '';
 const port = Number(process.env.PORT || 8080);
 
 if (!token || !appBaseUrl) {
-  console.error('Нужны BOT_TOKEN и APP_BASE_URL для webhook-режима');
+  console.error('Нужны BOT_TOKEN и адрес серверного webhook. Задайте APP_BASE_URL/API_BASE_URL, WEBHOOK_BASE_URL, SERVER_BASE_URL или MINIAPP_URL.');
   process.exit(1);
 }
 
@@ -43,21 +43,36 @@ function loadEnv() {
   });
 }
 
-function resolveAppBaseUrl() {
-  const explicit = String(process.env.APP_BASE_URL || process.env.API_BASE_URL || '').trim();
-  if (explicit) return explicit.replace(/\/$/, '');
-  const publicDomain = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
-  if (publicDomain) return `https://${publicDomain}`;
-  const staticUrl = String(process.env.RAILWAY_STATIC_URL || '').trim();
-  if (staticUrl) return staticUrl.replace(/\/$/, '');
-  const source = String(process.env.MINIAPP_URL || '').trim();
+function resolveOrigin(value) {
+  const source = String(value || '').trim();
   if (!source) return '';
   try {
     const url = new URL(source);
     return `${url.protocol}//${url.host}`;
   } catch {
-    return '';
+    return source.replace(/\/$/, '');
   }
+}
+
+function resolveWebhookBaseUrl() {
+  const explicit = String(process.env.WEBHOOK_BASE_URL || process.env.SERVER_BASE_URL || process.env.APP_BASE_URL || process.env.API_BASE_URL || '').trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const source = String(process.env.MINIAPP_URL || '').trim();
+  if (source) {
+    const miniAppOrigin = resolveOrigin(source);
+    if (miniAppOrigin) return miniAppOrigin;
+  }
+  const publicDomain = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
+  if (publicDomain) {
+    console.warn('[bot] APP_BASE_URL/MINIAPP_URL не заданы. Использую RAILWAY_PUBLIC_DOMAIN для webhook. Если bot и server разнесены по разным сервисам, задайте APP_BASE_URL сервера явно.');
+    return `https://${publicDomain}`;
+  }
+  const staticUrl = String(process.env.RAILWAY_STATIC_URL || '').trim();
+  if (staticUrl) {
+    console.warn('[bot] APP_BASE_URL/MINIAPP_URL не заданы. Использую RAILWAY_STATIC_URL для webhook. Если bot и server разнесены по разным сервисам, задайте APP_BASE_URL сервера явно.');
+    return resolveOrigin(staticUrl);
+  }
+  return '';
 }
 
 function resolveWebhookSecret() {
