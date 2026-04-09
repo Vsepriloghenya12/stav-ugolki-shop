@@ -121,11 +121,22 @@ function resolveMiniAppUrl() {
   return appBaseUrl ? `${appBaseUrl}/shop/` : '';
 }
 
+function telegramWebhookSecrets() {
+  const rawCandidates = [
+    String(process.env.TELEGRAM_WEBHOOK_SECRET || '').trim(),
+    String(configSyncSecret || '').trim(),
+    crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex')
+  ];
+  const unique = [];
+  for (const raw of rawCandidates) {
+    const sanitized = String(raw || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+    if (sanitized && !unique.includes(sanitized)) unique.push(sanitized);
+  }
+  return unique.length ? unique : [crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex').slice(0, 32)];
+}
+
 function resolveTelegramWebhookSecret() {
-  const explicit = String(process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
-  const raw = explicit || String(configSyncSecret || '').trim() || crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex');
-  const sanitized = raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
-  return sanitized || crypto.createHash('sha256').update(String(botToken || 'stav-ugolki')).digest('hex').slice(0, 32);
+  return telegramWebhookSecrets()[0];
 }
 
 function sendJson(res, status, payload) {
@@ -914,7 +925,11 @@ async function handleApi(req, res, pathname) {
   if (pathname === telegramWebhookPath && method === 'POST') {
     const headerSecret = String(req.headers['x-telegram-bot-api-secret-token'] || '').trim();
     if (!botToken) return sendJson(res, 503, { error: 'BOT_TOKEN missing' });
-    if (telegramWebhookSecret && headerSecret !== telegramWebhookSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    const acceptedSecrets = telegramWebhookSecrets();
+    if (acceptedSecrets.length && !acceptedSecrets.includes(headerSecret)) {
+      console.warn('Telegram webhook rejected: secret mismatch');
+      return sendJson(res, 401, { error: 'Unauthorized' });
+    }
     try {
       const update = await parseBody(req);
       await handleTelegramUpdate(update);

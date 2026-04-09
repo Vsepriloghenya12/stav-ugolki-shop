@@ -11,10 +11,14 @@ const webhookSecret = resolveWebhookSecret();
 const webhookPath = `/api/telegram/webhook/${webhookSecret}`;
 const webhookUrl = appBaseUrl ? `${appBaseUrl}${webhookPath}` : '';
 const port = Number(process.env.PORT || 8080);
+const webhookModeEnabled = Boolean(token && appBaseUrl);
+const passiveReason = !token ? 'BOT_TOKEN missing' : (!appBaseUrl ? 'webhook base url missing' : '');
 
-if (!token || !appBaseUrl) {
-  console.error('Нужны BOT_TOKEN и адрес серверного webhook. Задайте APP_BASE_URL/API_BASE_URL, WEBHOOK_BASE_URL, SERVER_BASE_URL или MINIAPP_URL.');
-  process.exit(1);
+if (!token) {
+  console.warn('[bot] BOT_TOKEN не задан. Сервис запущен в пассивном режиме.');
+}
+if (token && !appBaseUrl) {
+  console.warn('[bot] Не задан адрес server webhook. Сервис запущен в пассивном режиме и не будет вызывать setWebhook.');
 }
 
 async function telegram(method, payload = {}) {
@@ -62,16 +66,6 @@ function resolveWebhookBaseUrl() {
     const miniAppOrigin = resolveOrigin(source);
     if (miniAppOrigin) return miniAppOrigin;
   }
-  const publicDomain = String(process.env.RAILWAY_PUBLIC_DOMAIN || '').trim();
-  if (publicDomain) {
-    console.warn('[bot] APP_BASE_URL/MINIAPP_URL не заданы. Использую RAILWAY_PUBLIC_DOMAIN для webhook. Если bot и server разнесены по разным сервисам, задайте APP_BASE_URL сервера явно.');
-    return `https://${publicDomain}`;
-  }
-  const staticUrl = String(process.env.RAILWAY_STATIC_URL || '').trim();
-  if (staticUrl) {
-    console.warn('[bot] APP_BASE_URL/MINIAPP_URL не заданы. Использую RAILWAY_STATIC_URL для webhook. Если bot и server разнесены по разным сервисам, задайте APP_BASE_URL сервера явно.');
-    return resolveOrigin(staticUrl);
-  }
   return '';
 }
 
@@ -104,7 +98,13 @@ async function ensureWebhook() {
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/_health' || req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ ok: true, mode: 'webhook-config', webhookUrl, webhookPath }));
+    res.end(JSON.stringify({
+      ok: true,
+      mode: webhookModeEnabled ? 'webhook-config' : 'passive',
+      webhookUrl,
+      webhookPath,
+      passiveReason
+    }));
     return;
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -112,11 +112,13 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, '0.0.0.0', async () => {
-  console.log('Бот Ставь Угольки запущен в webhook-режиме');
-  console.log('[bot] Ожидаемый webhook URL:', webhookUrl);
-  try {
-    await ensureWebhook();
-  } catch (error) {
-    console.error('Ошибка настройки webhook:', error.message);
+  console.log(`Бот Ставь Угольки запущен в режиме: ${webhookModeEnabled ? 'webhook-config' : 'passive'}`);
+  console.log('[bot] Ожидаемый webhook URL:', webhookUrl || '(не задан)');
+  if (webhookModeEnabled) {
+    try {
+      await ensureWebhook();
+    } catch (error) {
+      console.error('Ошибка настройки webhook:', error.message);
+    }
   }
 });
