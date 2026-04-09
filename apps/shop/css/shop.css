@@ -628,13 +628,17 @@ body.is-loading-app .sheet-backdrop {
 .product-image,
 .product-sheet-image {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 50%;
+  left: 50%;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  max-width: none;
+  max-height: none;
   object-fit: cover;
+  object-position: center center;
   display: block;
   backface-visibility: hidden;
-  transform: translateZ(0);
+  transform: translate(-50%, -50%);
 }
 
 .product-fallback,

@@ -173,7 +173,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '62';
+  const APP_ASSET_VERSION = '64';
 
   const DEFAULT_THEME = {
     bodyClass: '',

@@ -628,37 +628,48 @@ function dataUriToFile(dataUri, fallbackName = 'image.png') {
   };
 }
 
-async function sendTelegramMessage(chatId, text) {
-  return telegramRequest('sendMessage', { chat_id: chatId, text });
+async function sendTelegramMessage(chatId, text, withShop = false) {
+  const payload = { chat_id: chatId, text };
+  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard();
+  return telegramRequest('sendMessage', payload);
 }
 
 
-async function sendTelegramPhoto(chatId, text, image) {
-  if (!image) return sendTelegramMessage(chatId, text);
+async function sendTelegramPhoto(chatId, text, image, withShop = false) {
+  const replyMarkup = withShop && miniAppUrl ? shopKeyboard() : undefined;
+  if (!image) return sendTelegramMessage(chatId, text, withShop);
   const mediaType = mediaTypeFromValue(image);
   const remote = /^https?:\/\//i.test(image);
   if (mediaType === 'video') {
-    if (remote) return telegramRequest('sendVideo', { chat_id: chatId, video: image, caption: text });
+    if (remote) {
+      const payload = { chat_id: chatId, video: image, caption: text };
+      if (replyMarkup) payload.reply_markup = replyMarkup;
+      return telegramRequest('sendVideo', payload);
+    }
     const file = dataUriToFile(image, 'post-video');
-    if (!file) return sendTelegramMessage(chatId, text);
+    if (!file) return sendTelegramMessage(chatId, text, withShop);
     const form = new FormData();
     form.append('chat_id', String(chatId));
     form.append('caption', text);
+    if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
     form.append('video', file.blob, file.name);
     return telegramRequest('sendVideo', form, true);
   }
   if (remote) {
-    return telegramRequest('sendPhoto', {
+    const payload = {
       chat_id: chatId,
       photo: image,
       caption: text
-    });
+    };
+    if (replyMarkup) payload.reply_markup = replyMarkup;
+    return telegramRequest('sendPhoto', payload);
   }
   const file = dataUriToFile(image, 'post-image');
-  if (!file) return sendTelegramMessage(chatId, text);
+  if (!file) return sendTelegramMessage(chatId, text, withShop);
   const form = new FormData();
   form.append('chat_id', String(chatId));
   form.append('caption', text);
+  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
   form.append('photo', file.blob, file.name);
   return telegramRequest('sendPhoto', form, true);
 }
@@ -679,7 +690,7 @@ async function publishOwnerPost(payload) {
   }
   if (!chats.length) throw new Error('Не выбран получатель поста');
   for (const chatId of chats) {
-    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), String(payload.image || ''));
+    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), String(payload.image || ''), true);
   }
 }
 
