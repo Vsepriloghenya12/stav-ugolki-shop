@@ -615,6 +615,17 @@ body.is-loading-app .sheet-backdrop {
   background: rgba(255,255,255,0.03);
 }
 
+.product-image-wrap::after,
+.product-sheet-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(129, 216, 208, 0.14);
+  pointer-events: none;
+  z-index: 2;
+}
+
 .product-image-wrap {
   aspect-ratio: 1 / 1;
   border-radius: 22px;
@@ -628,17 +639,14 @@ body.is-loading-app .sheet-backdrop {
 .product-image,
 .product-sheet-image {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
-  max-width: none;
-  max-height: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center center;
   display: block;
   backface-visibility: hidden;
-  transform: translate(-50%, -50%);
+  transform: none;
 }
 
 .product-fallback,
