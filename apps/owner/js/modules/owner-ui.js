@@ -449,6 +449,7 @@ export function createOwnerUi(ctx) {
         <div class="form-actions">
           <button class="owner-btn" type="submit">Сохранить</button>
           <button class="secondary-btn" type="button" data-clear-product-image>Очистить фото</button>
+          ${!isNew ? `<button class="danger-btn" type="button" data-delete-product="${escapeHtml(product.id || '')}">Удалить товар</button>` : ''}
           <button class="ghost-btn" type="button" data-close-product-card="${escapeHtml(formId)}">Закрыть</button>
         </div>
       </form>

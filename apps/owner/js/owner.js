@@ -1,5 +1,5 @@
 import { createOwnerHelpers } from './modules/owner-helpers.js';
-import { createOwnerUi } from './modules/owner-ui.js?v=67';
+import { createOwnerUi } from './modules/owner-ui.js?v=69';
 
 (function () {
   const tokenKey = 'stav:owner:token';
