@@ -17,6 +17,15 @@ export function createOwnerUi(ctx) {
     looksLikeGif,
     mediaFieldValue
   } = ctx;
+  const sectionTitles = {
+    dashboard: 'Аналитика',
+    products: 'Товары',
+    brands: 'Бренды',
+    banners: 'Баннеры',
+    support: 'Поддержка',
+    orders: 'Заявки',
+    posts: 'Посты бота'
+  };
 
   function productImageThumb(src, alt = 'Товар') {
     if (!src) return '<div class="thumb-badge">Фото</div>';
@@ -494,10 +503,11 @@ export function createOwnerUi(ctx) {
   function productCardTemplate(product, isNew = false) {
     const open = state.editProductId === (isNew ? PRODUCT_NEW_ID : product.id);
     const formProduct = isNew ? product : (state.products.find(item => item.id === product.id) || product);
+    const thumbClass = formProduct.category === 'кальяны' ? ' product-admin-thumb--contain' : '';
     return `
       <article class="product-admin-card ${open ? 'is-open' : ''} ${isNew ? 'is-new' : ''}" data-product-card="${escapeHtml(isNew ? PRODUCT_NEW_ID : product.id)}">
         <div class="product-admin-card-summary" data-open-product-card="${escapeHtml(isNew ? PRODUCT_NEW_ID : product.id)}">
-          <div class="product-admin-thumb">${productImageThumb(formProduct.image || '', formProduct.name || 'Товар')}</div>
+          <div class="product-admin-thumb${thumbClass}">${productImageThumb(formProduct.image || '', formProduct.name || 'Товар')}</div>
           <div class="product-admin-info">
             <div class="product-admin-title">${escapeHtml(formProduct.name || 'Новый товар')}</div>
             <div class="product-admin-badges">${productBadgeChips(formProduct)}</div>
@@ -592,6 +602,9 @@ export function createOwnerUi(ctx) {
       node.classList.toggle('hidden', !isCurrent);
       node.classList.toggle('is-active', isCurrent);
     });
+    if (el.ownerMobileSectionTitle) {
+      el.ownerMobileSectionTitle.textContent = sectionTitles[name] || 'Кабинет владельца';
+    }
   }
 
   async function loadBootstrap() {

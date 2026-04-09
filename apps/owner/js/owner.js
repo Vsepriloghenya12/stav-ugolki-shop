@@ -1,9 +1,19 @@
 import { createOwnerHelpers } from './modules/owner-helpers.js';
-import { createOwnerUi } from './modules/owner-ui.js?v=63';
+import { createOwnerUi } from './modules/owner-ui.js?v=67';
 
 (function () {
   const tokenKey = 'stav:owner:token';
   const PRODUCT_NEW_ID = '__new__';
+  const mobileNavMedia = window.matchMedia('(max-width: 820px)');
+  const sectionTitles = {
+    dashboard: 'Аналитика',
+    products: 'Товары',
+    brands: 'Бренды',
+    banners: 'Баннеры',
+    support: 'Поддержка',
+    orders: 'Заявки',
+    posts: 'Посты бота'
+  };
 
   const state = {
     token: localStorage.getItem(tokenKey) || '',
@@ -29,8 +39,14 @@ import { createOwnerUi } from './modules/owner-ui.js?v=63';
   const el = {
     ownerLogin: document.getElementById('ownerLogin'),
     ownerApp: document.getElementById('ownerApp'),
+    ownerLayout: document.getElementById('ownerApp'),
+    ownerSidebar: document.getElementById('ownerSidebar'),
     loginForm: document.getElementById('loginForm'),
     ownerNav: document.getElementById('ownerNav'),
+    ownerNavBackdrop: document.getElementById('ownerNavBackdrop'),
+    ownerNavCloseBtn: document.getElementById('ownerNavCloseBtn'),
+    ownerMobileMenuBtn: document.getElementById('ownerMobileMenuBtn'),
+    ownerMobileSectionTitle: document.getElementById('ownerMobileSectionTitle'),
     logoutBtn: document.getElementById('logoutBtn'),
     statsGrid: document.getElementById('statsGrid'),
     topProducts: document.getElementById('topProducts'),
@@ -100,9 +116,37 @@ import { createOwnerUi } from './modules/owner-ui.js?v=63';
     mediaFieldValue
   });
 
+  function isMobileNavMode() {
+    return Boolean(mobileNavMedia.matches);
+  }
+
+  function syncMobileSectionTitle(section = state.activeSection) {
+    if (!el.ownerMobileSectionTitle) return;
+    el.ownerMobileSectionTitle.textContent = sectionTitles[section] || 'Кабинет владельца';
+  }
+
+  function setMobileNavOpen(isOpen) {
+    const open = Boolean(isOpen && isMobileNavMode() && state.token);
+    el.ownerLayout?.classList.toggle('is-mobile-nav-open', open);
+    document.body.classList.toggle('owner-mobile-nav-open', open);
+    if (el.ownerMobileMenuBtn) el.ownerMobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (el.ownerSidebar) el.ownerSidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function closeMobileNav() {
+    setMobileNavOpen(false);
+  }
+
+  function handleMobileViewportChange() {
+    if (!isMobileNavMode()) closeMobileNav();
+    syncMobileSectionTitle();
+  }
+
   function showApp(isVisible) {
     el.ownerLogin.classList.toggle('hidden', isVisible);
     el.ownerApp.classList.toggle('hidden', !isVisible);
+    if (!isVisible) closeMobileNav();
+    syncMobileSectionTitle();
   }
 
   function collectVariantsFromForm(form) {
@@ -303,7 +347,25 @@ import { createOwnerUi } from './modules/owner-ui.js?v=63';
       const btn = event.target.closest('[data-section]');
       if (!btn) return;
       activateSection(btn.dataset.section);
+      closeMobileNav();
     });
+
+    el.ownerMobileMenuBtn?.addEventListener('click', () => {
+      setMobileNavOpen(!el.ownerLayout?.classList.contains('is-mobile-nav-open'));
+    });
+
+    el.ownerNavBackdrop?.addEventListener('click', closeMobileNav);
+    el.ownerNavCloseBtn?.addEventListener('click', closeMobileNav);
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeMobileNav();
+    });
+
+    if (typeof mobileNavMedia.addEventListener === 'function') {
+      mobileNavMedia.addEventListener('change', handleMobileViewportChange);
+    } else if (typeof mobileNavMedia.addListener === 'function') {
+      mobileNavMedia.addListener(handleMobileViewportChange);
+    }
 
     el.logoutBtn.addEventListener('click', () => {
       localStorage.removeItem(tokenKey);
@@ -734,6 +796,7 @@ import { createOwnerUi } from './modules/owner-ui.js?v=63';
   async function init() {
     bindEvents();
     activateSection(state.activeSection);
+    syncMobileSectionTitle(state.activeSection);
     await updatePreview(el.postForm, 'Пост');
     if (!state.token) {
       showApp(false);

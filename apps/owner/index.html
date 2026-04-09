@@ -6,7 +6,7 @@
     <title>Ставь угольки — владелец</title>
     <link rel="stylesheet" href="/apps/shared/css/theme.css?v=63" />
     <link rel="stylesheet" href="/apps/shared/css/base.css?v=63" />
-    <link rel="stylesheet" href="/apps/owner/css/owner.css?v=63" />
+    <link rel="stylesheet" href="/apps/owner/css/owner.css?v=67" />
   </head>
   <body>
     <div class="owner-login surface" id="ownerLogin">
@@ -19,7 +19,14 @@
     </div>
 
     <div class="owner-layout hidden" id="ownerApp">
-      <aside class="owner-sidebar surface">
+      <aside class="owner-sidebar surface" id="ownerSidebar">
+        <div class="owner-sidebar-sheet-head">
+          <div class="owner-sheet-handle" aria-hidden="true"></div>
+          <div class="owner-sheet-top">
+            <div class="owner-sheet-title">Разделы</div>
+            <button class="ghost-btn owner-sheet-close" id="ownerNavCloseBtn" type="button">Закрыть</button>
+          </div>
+        </div>
         <div class="owner-brand">
           <img src="/apps/shared/assets/img/header-logo.png?v=63" alt="Ставь угольки" />
           <div>
@@ -41,7 +48,24 @@
         <button class="logout-btn" id="logoutBtn" type="button">Выйти</button>
       </aside>
 
+      <button class="owner-nav-backdrop" id="ownerNavBackdrop" type="button" aria-label="Закрыть меню"></button>
+
       <main class="owner-main">
+        <div class="owner-mobilebar surface">
+          <div class="owner-mobilebar-brand">
+            <img src="/apps/shared/assets/img/header-logo.png?v=63" alt="Ставь угольки" />
+            <div class="owner-mobilebar-copy">
+              <div class="owner-mobilebar-kicker">Владелец</div>
+              <div class="owner-mobilebar-title" id="ownerMobileSectionTitle">Аналитика</div>
+            </div>
+          </div>
+          <button class="owner-mobilebar-menu" id="ownerMobileMenuBtn" type="button" aria-label="Открыть меню разделов" aria-controls="ownerSidebar" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+
         <div class="owner-app">
           <section class="owner-header">
             <h1>Кабинет владельца</h1>
@@ -206,6 +230,6 @@
     </div>
 
     <script src="/apps/shared/js/api.js?v=63"></script>
-    <script type="module" src="/apps/owner/js/owner.js?v=63"></script>
+    <script type="module" src="/apps/owner/js/owner.js?v=67"></script>
   </body>
 </html>
