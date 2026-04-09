@@ -572,6 +572,36 @@ async function telegramRequest(method, payload, isMultipart = false) {
   return data.result;
 }
 
+function telegramWebhookUrl() {
+  return appBaseUrl ? `${appBaseUrl}${telegramWebhookPath}` : '';
+}
+
+async function syncTelegramWebhook() {
+  if (!botToken) return;
+  const webhookUrl = telegramWebhookUrl();
+  if (!webhookUrl) {
+    console.warn('Telegram webhook auto-config skipped: не задан APP_BASE_URL/API_BASE_URL или Railway домен app service.');
+    return;
+  }
+  try {
+    await telegramRequest('setWebhook', {
+      url: webhookUrl,
+      secret_token: telegramWebhookSecret,
+      allowed_updates: ['message', 'channel_post'],
+      drop_pending_updates: false
+    });
+    const info = await telegramRequest('getWebhookInfo', {});
+    console.log('Telegram webhook настроен server-процессом:', {
+      url: info.url || '(empty)',
+      pendingUpdateCount: info.pending_update_count || 0,
+      lastErrorDate: info.last_error_date || 0,
+      lastErrorMessage: info.last_error_message || ''
+    });
+  } catch (error) {
+    console.error('Ошибка автонастройки Telegram webhook:', error.message);
+  }
+}
+
 function dataUriToFile(dataUri, fallbackName = 'image.png') {
   const match = /^data:(.+?);base64,(.+)$/.exec(String(dataUri || ''));
   if (!match) return null;
@@ -870,7 +900,15 @@ async function handleApi(req, res, pathname) {
   const posts = () => readJson('posts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
-    return sendJson(res, 200, { ok: true, name: 'stav-ugolki', dataDir: getDataDir(), telegramConfig: telegramConfigStatus() });
+    return sendJson(res, 200, {
+      ok: true,
+      name: 'stav-ugolki',
+      dataDir: getDataDir(),
+      telegramConfig: telegramConfigStatus(),
+      telegramWebhookPath,
+      telegramWebhookTarget: telegramWebhookUrl(),
+      hasBotToken: Boolean(botToken)
+    });
   }
 
   if (pathname === telegramWebhookPath && method === 'POST') {
@@ -1370,6 +1408,7 @@ if (!configSyncSecret) {
 }
 if (botToken) {
   console.log(`Telegram webhook endpoint готов: ${telegramWebhookPath}`);
+  console.log(`Telegram webhook target: ${telegramWebhookUrl() || '(не определён)'}`);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1415,6 +1454,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', async () => {
   console.log(`Ставь Угольки запущен на порту ${port}`);
+  await syncTelegramWebhook();
 });
