@@ -628,16 +628,16 @@ function dataUriToFile(dataUri, fallbackName = 'image.png') {
   };
 }
 
-async function sendTelegramMessage(chatId, text, withShop = false) {
+async function sendTelegramMessage(chatId, text, withShop = false, buttonMode = 'webapp') {
   const payload = { chat_id: chatId, text };
-  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard();
+  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard(buttonMode);
   return telegramRequest('sendMessage', payload);
 }
 
 
-async function sendTelegramPhoto(chatId, text, image, withShop = false) {
-  const replyMarkup = withShop && miniAppUrl ? shopKeyboard() : undefined;
-  if (!image) return sendTelegramMessage(chatId, text, withShop);
+async function sendTelegramPhoto(chatId, text, image, withShop = false, buttonMode = 'url') {
+  const replyMarkup = withShop && miniAppUrl ? shopKeyboard(buttonMode) : undefined;
+  if (!image) return sendTelegramMessage(chatId, text, withShop, buttonMode);
   const mediaType = mediaTypeFromValue(image);
   const remote = /^https?:\/\//i.test(image);
   if (mediaType === 'video') {
@@ -647,7 +647,7 @@ async function sendTelegramPhoto(chatId, text, image, withShop = false) {
       return telegramRequest('sendVideo', payload);
     }
     const file = dataUriToFile(image, 'post-video');
-    if (!file) return sendTelegramMessage(chatId, text, withShop);
+    if (!file) return sendTelegramMessage(chatId, text, withShop, buttonMode);
     const form = new FormData();
     form.append('chat_id', String(chatId));
     form.append('caption', text);
@@ -665,7 +665,7 @@ async function sendTelegramPhoto(chatId, text, image, withShop = false) {
     return telegramRequest('sendPhoto', payload);
   }
   const file = dataUriToFile(image, 'post-image');
-  if (!file) return sendTelegramMessage(chatId, text, withShop);
+  if (!file) return sendTelegramMessage(chatId, text, withShop, buttonMode);
   const form = new FormData();
   form.append('chat_id', String(chatId));
   form.append('caption', text);
@@ -690,7 +690,7 @@ async function publishOwnerPost(payload) {
   }
   if (!chats.length) throw new Error('Не выбран получатель поста');
   for (const chatId of chats) {
-    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), String(payload.image || ''), true);
+    await sendTelegramPhoto(chatId, String(payload.text || '').slice(0, 4000), String(payload.image || ''), true, 'url');
   }
 }
 
@@ -718,8 +718,16 @@ async function notifyOrder(order) {
   await sendTelegramMessage(ordersChatId, lines.join('\n'));
 }
 
-function shopKeyboard() {
+function shopKeyboard(mode = 'webapp') {
   if (!miniAppUrl) return undefined;
+  if (mode === 'url') {
+    return {
+      inline_keyboard: [[{
+        text: 'Открыть магазин',
+        url: miniAppUrl
+      }]]
+    };
+  }
   return {
     inline_keyboard: [[{
       text: 'Открыть магазин',
@@ -765,9 +773,9 @@ async function isTelegramChatAdmin(updateLike) {
   }
 }
 
-async function replyWithBot(chatId, text, withShop = false) {
+async function replyWithBot(chatId, text, withShop = false, buttonMode = 'webapp') {
   const payload = { chat_id: chatId, text };
-  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard();
+  if (withShop && miniAppUrl) payload.reply_markup = shopKeyboard(buttonMode);
   return telegramRequest('sendMessage', payload);
 }
 
@@ -808,9 +816,10 @@ async function handleTelegramUpdate(update) {
   const text = String(source.text || '').trim();
   const command = normalizeCommand(text);
   const updateLike = { chat: source.chat, from: source.from, channelPost: Boolean(update.channel_post) };
+  const shopButtonMode = source.chat.type === 'private' ? 'webapp' : 'url';
 
   if (command === '/start' || command === '/shop') {
-    await replyWithBot(chatId, 'Ставь Угольки', true);
+    await replyWithBot(chatId, 'Ставь Угольки', true, shopButtonMode);
     return;
   }
   if (command === '/manager' || command === '/set_orders_here') {
@@ -826,11 +835,11 @@ async function handleTelegramUpdate(update) {
     return;
   }
   if (command === '/help') {
-    await replyWithBot(chatId, helpText(), true);
+    await replyWithBot(chatId, helpText(), true, shopButtonMode);
     return;
   }
   if (command) {
-    await replyWithBot(chatId, 'Не понял команду.\n\n' + helpText(), true);
+    await replyWithBot(chatId, 'Не понял команду.\n\n' + helpText(), true, shopButtonMode);
   }
 }
 
