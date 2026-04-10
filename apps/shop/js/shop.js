@@ -173,7 +173,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '70';
+  const APP_ASSET_VERSION = '71';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -504,7 +504,7 @@ import { createShopUi } from './modules/shop-ui.js';
     el.productSheetTitle.textContent = product.name;
     el.productSheetBody.innerHTML = `
       <div class="product-sheet-card">
-        <div class="product-sheet-media ${product.category === 'кальяны' ? 'product-sheet-media--hookah' : ''} theme-${product.accent || 'tiffany'}">
+        <div class="product-sheet-media theme-${product.accent || 'tiffany'}">
           ${product.image
             ? `<img class="product-sheet-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="eager" decoding="async" />`
             : `<div class="product-fallback product-fallback-sheet">${fallbackVisual(product)}</div>`}

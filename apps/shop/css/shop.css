@@ -649,24 +649,6 @@ body.is-loading-app .sheet-backdrop {
   transform: none;
 }
 
-.product-image-wrap--hookah,
-.product-sheet-media--hookah {
-  background: rgba(255,255,255,0.03);
-}
-
-.product-image-wrap--hookah .product-image,
-.product-sheet-media--hookah .product-sheet-image {
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 108%;
-  height: 100%;
-  max-width: none;
-  object-fit: cover;
-  object-position: center center;
-  transform: translateX(-54%);
-}
-
 .product-fallback,
 .product-fallback-sheet,
 .fallback-art {

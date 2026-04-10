@@ -211,10 +211,9 @@ export function createShopUi(ctx) {
 
   function productCardHtml(product) {
     const isFavorite = state.favorites.includes(product.id);
-    const mediaFitClass = product.category === 'кальяны' ? ' product-image-wrap--hookah' : '';
     return `
       <article class="product-card ${product.isTop ? 'product-card--top' : ''}" data-open-product="${product.id}" data-product-id="${product.id}" data-has-no-variants="${productSupportsVariants(product) ? 'false' : 'true'}">
-        <div class="product-image-wrap${mediaFitClass} theme-${product.accent || 'tiffany'}">
+        <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
           ${productBadgesHtml(product)}
           ${product.image
             ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" fetchpriority="low" />`
