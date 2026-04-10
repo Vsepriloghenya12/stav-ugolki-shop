@@ -423,18 +423,6 @@ function normalizeVariants(input, fallbackStock = 0) {
     .filter(item => item.label && Number.isFinite(item.price) && item.price >= 0);
 }
 
-function clampProductImageAxis(value, fallback = 50) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.min(100, Math.max(0, Math.round(numeric * 10) / 10));
-}
-
-function clampProductImageZoom(value, fallback = 100) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.min(160, Math.max(60, Math.round(numeric)));
-}
-
 function withOwnerStock(product) {
   const baseStock = Math.max(0, Number(product?.stock || 0));
   const baseReserved = Math.max(0, Number(product?.reserved || 0));
@@ -1103,9 +1091,6 @@ async function handleApi(req, res, pathname) {
         minStock: Math.max(0, Number(body.minStock || 0)),
         hiddenFromCatalog: Boolean(body.hiddenFromCatalog),
         image,
-        imageFocusX: clampProductImageAxis(body.imageFocusX, 50),
-        imageFocusY: clampProductImageAxis(body.imageFocusY, 50),
-        imageZoom: clampProductImageZoom(body.imageZoom, 100),
         accent: String(body.accent || 'tiffany'),
         variants: normalizeVariants(body.variants, Number(body.stock || 0))
       };
@@ -1141,9 +1126,6 @@ async function handleApi(req, res, pathname) {
         minStock: Math.max(0, Number(body.minStock ?? current[index].minStock ?? 0)),
         hiddenFromCatalog: body.hiddenFromCatalog !== undefined ? Boolean(body.hiddenFromCatalog) : Boolean(current[index].hiddenFromCatalog),
         image: image !== undefined ? image : current[index].image,
-        imageFocusX: clampProductImageAxis(body.imageFocusX, clampProductImageAxis(current[index].imageFocusX, 50)),
-        imageFocusY: clampProductImageAxis(body.imageFocusY, clampProductImageAxis(current[index].imageFocusY, 50)),
-        imageZoom: clampProductImageZoom(body.imageZoom, clampProductImageZoom(current[index].imageZoom, 100)),
         accent: String(body.accent || current[index].accent || 'tiffany'),
         variants: normalizeVariants(body.variants ?? current[index].variants, Number((body.stock ?? current[index].stock ?? 0)))
       };

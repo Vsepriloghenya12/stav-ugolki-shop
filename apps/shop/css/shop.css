@@ -592,7 +592,9 @@ body.is-loading-app .sheet-backdrop {
 .product-card {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto auto;
+  justify-items: stretch;
   align-content: start;
   gap: 10px;
   border-radius: 24px;
@@ -609,10 +611,15 @@ body.is-loading-app .sheet-backdrop {
   position: relative;
   display: block;
   width: 100%;
+  min-width: 100%;
+  max-width: 100%;
   justify-self: stretch;
+  align-self: start;
   overflow: hidden;
   isolation: isolate;
   background: rgba(255,255,255,0.03);
+  box-sizing: border-box;
+  margin: 0;
 }
 
 .product-image-wrap::after,
@@ -643,11 +650,10 @@ body.is-loading-app .sheet-backdrop {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: var(--product-image-x, 50%) var(--product-image-y, 50%);
+  object-position: center center;
   display: block;
   backface-visibility: hidden;
-  transform: scale(var(--product-image-zoom, 1));
-  transform-origin: center center;
+  transform: none;
 }
 
 .product-fallback,
