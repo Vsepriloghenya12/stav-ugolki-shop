@@ -1,4 +1,4 @@
-const ASSET_VERSION = '67';
+const ASSET_VERSION = '68';
 const CACHE = `stav-ugolki-v${ASSET_VERSION}-cache-safe`;
 const versioned = path => `${path}?v=${ASSET_VERSION}`;
 const APP_SHELL = [
