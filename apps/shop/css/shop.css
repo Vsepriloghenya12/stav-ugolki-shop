@@ -649,6 +649,20 @@ body.is-loading-app .sheet-backdrop {
   transform: none;
 }
 
+.product-image-wrap--contain,
+.product-sheet-media--contain {
+  background:
+    radial-gradient(circle at 50% 14%, rgba(129,216,208,0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+}
+
+.product-image-wrap--contain .product-image,
+.product-sheet-media--contain .product-sheet-image {
+  object-fit: contain;
+  object-position: center center;
+  padding: 6px;
+}
+
 .product-fallback,
 .product-fallback-sheet,
 .fallback-art {
