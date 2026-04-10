@@ -658,9 +658,14 @@ body.is-loading-app .sheet-backdrop {
 
 .product-image-wrap--contain .product-image,
 .product-sheet-media--contain .product-sheet-image {
+  inset: 50% auto auto 50%;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 12px);
+  max-height: calc(100% - 12px);
   object-fit: contain;
   object-position: center center;
-  padding: 6px;
+  transform: translate(-50%, -50%);
 }
 
 .product-fallback,
