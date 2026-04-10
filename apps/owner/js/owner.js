@@ -1,5 +1,5 @@
 import { createOwnerHelpers } from './modules/owner-helpers.js';
-import { createOwnerUi } from './modules/owner-ui.js?v=69';
+import { createOwnerUi } from './modules/owner-ui.js?v=70';
 
 (function () {
   const tokenKey = 'stav:owner:token';
@@ -222,6 +222,9 @@ import { createOwnerUi } from './modules/owner-ui.js?v=69';
       homePriority: Number(formData.get('homePriority') || existing.homePriority || 0),
       hiddenFromCatalog: formData.get('hiddenFromCatalog') === 'on',
       minStock: Number(formData.get('minStock') || existing.minStock || 0),
+      imageFocusX: Number(formData.get('imageFocusX') || existing.imageFocusX || 50),
+      imageFocusY: Number(formData.get('imageFocusY') || existing.imageFocusY || 50),
+      imageZoom: Number(formData.get('imageZoom') || existing.imageZoom || 100),
       description: String(formData.get('description') || existing.description || ''),
       image: String(form.querySelector('input[name="image"]')?.value || existing.image || ''),
       variants: collectVariantsFromForm(form)
@@ -473,7 +476,7 @@ import { createOwnerUi } from './modules/owner-ui.js?v=69';
     el.productsList.addEventListener('change', async event => {
       const form = event.target.closest('[data-product-inline-form]');
       if (!form) return;
-      if (event.target.matches('input[name="image"], input[name="imageFile"]')) {
+      if (event.target.matches('input[name="image"], input[name="imageFile"], input[name="imageFocusX"], input[name="imageFocusY"], input[name="imageZoom"]')) {
         await updatePreview(form, 'Товар');
         return;
       }
@@ -485,6 +488,13 @@ import { createOwnerUi } from './modules/owner-ui.js?v=69';
       if (event.target.matches('select[name="category"], input[name="brand"]')) {
         rerenderOpenProductForm(form);
       }
+    });
+
+    el.productsList.addEventListener('input', async event => {
+      const form = event.target.closest('[data-product-inline-form]');
+      if (!form) return;
+      if (!event.target.matches('input[name="imageFocusX"], input[name="imageFocusY"], input[name="imageZoom"]')) return;
+      await updatePreview(form, 'Товар');
     });
 
     el.productsList.addEventListener('submit', async event => {
@@ -509,6 +519,9 @@ import { createOwnerUi } from './modules/owner-ui.js?v=69';
         homePriority: Number(formData.get('homePriority') || 0),
         hiddenFromCatalog: formData.get('hiddenFromCatalog') === 'on',
         minStock: Number(formData.get('minStock') || 0),
+        imageFocusX: Number(formData.get('imageFocusX') || 50),
+        imageFocusY: Number(formData.get('imageFocusY') || 50),
+        imageZoom: Number(formData.get('imageZoom') || 100),
         variants
       };
       try {

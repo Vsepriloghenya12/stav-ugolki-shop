@@ -173,7 +173,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '71';
+  const APP_ASSET_VERSION = '72';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -494,6 +494,25 @@ import { createShopUi } from './modules/shop-ui.js';
     renderOrderHistory();
   }
 
+  function clampProductImageAxis(value, fallback = 50) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(100, Math.max(0, numeric));
+  }
+
+  function clampProductImageZoom(value, fallback = 100) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(160, Math.max(60, numeric));
+  }
+
+  function productImageStyle(product = {}) {
+    const focusX = clampProductImageAxis(product.imageFocusX, 50);
+    const focusY = clampProductImageAxis(product.imageFocusY, 50);
+    const zoom = clampProductImageZoom(product.imageZoom, 100) / 100;
+    return `--product-image-x:${focusX}%;--product-image-y:${focusY}%;--product-image-zoom:${zoom};`;
+  }
+
   function renderProductSheet(productId, shouldOpen = true) {
     const product = state.products.find(item => item.id === productId);
     if (!product) return;
@@ -506,7 +525,7 @@ import { createShopUi } from './modules/shop-ui.js';
       <div class="product-sheet-card">
         <div class="product-sheet-media theme-${product.accent || 'tiffany'}">
           ${product.image
-            ? `<img class="product-sheet-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="eager" decoding="async" />`
+            ? `<img class="product-sheet-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="eager" decoding="async" style="${escapeHtml(productImageStyle(product))}" />`
             : `<div class="product-fallback product-fallback-sheet">${fallbackVisual(product)}</div>`}
         </div>
         <div class="product-sheet-content">

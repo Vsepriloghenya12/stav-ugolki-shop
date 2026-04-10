@@ -363,6 +363,46 @@ export function createOwnerUi(ctx) {
     return `<div class="preview-card${containClass}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></div>`;
   }
 
+  function clampFrameAxis(value, fallback = 50) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(100, Math.max(0, numeric));
+  }
+
+  function clampFrameZoom(value, fallback = 100) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(160, Math.max(60, numeric));
+  }
+
+  function productFrameStyle(product = {}) {
+    const focusX = clampFrameAxis(product.imageFocusX, 50);
+    const focusY = clampFrameAxis(product.imageFocusY, 50);
+    const zoom = clampFrameZoom(product.imageZoom, 100) / 100;
+    return `--media-focus-x:${focusX}%;--media-focus-y:${focusY}%;--media-zoom:${zoom};`;
+  }
+
+  function productFrameControls(product = {}) {
+    return `
+      <div class="field-title">Кадр фото на витрине</div>
+      <div class="helper-text">Если фото в карточке выглядит смещённым, подправьте фокус и масштаб именно для этого товара.</div>
+      <div class="media-frame-grid">
+        <label class="owner-field-stack">
+          <span>Фокус X</span>
+          <input name="imageFocusX" type="number" min="0" max="100" step="1" value="${Number(product.imageFocusX ?? 50)}" />
+        </label>
+        <label class="owner-field-stack">
+          <span>Фокус Y</span>
+          <input name="imageFocusY" type="number" min="0" max="100" step="1" value="${Number(product.imageFocusY ?? 50)}" />
+        </label>
+        <label class="owner-field-stack">
+          <span>Масштаб %</span>
+          <input name="imageZoom" type="number" min="60" max="160" step="1" value="${Number(product.imageZoom ?? 100)}" />
+        </label>
+      </div>
+    `;
+  }
+
   function brandFormTemplate(brand = {}) {
     return `
       <input type="hidden" name="id" value="${escapeHtml(brand.id || '')}" />
@@ -444,7 +484,8 @@ export function createOwnerUi(ctx) {
           <input name="image" placeholder="URL изображения" value="${escapeHtml(product.image || '')}" />
           <input class="file-input" name="imageFile" type="file" accept="image/*,.gif" />
           <div class="helper-text">Фото автоматически сжимается, чтобы каталог грузился быстрее.</div>
-          <div data-preview>${mediaPreview(product.image || '', product.name || 'Товар')}</div>
+          ${productFrameControls(product)}
+          <div data-preview>${product.image ? `<div class="preview-card"><img src="${escapeHtml(product.image || '')}" alt="${escapeHtml(product.name || 'Товар')}" loading="lazy" decoding="async" style="${escapeHtml(productFrameStyle(product))}" /></div>` : mediaPreview(product.image || '', product.name || 'Товар')}</div>
         </div>
         <div class="form-actions">
           <button class="owner-btn" type="submit">Сохранить</button>
@@ -560,6 +601,9 @@ export function createOwnerUi(ctx) {
       isTop: false,
       description: '',
       image: '',
+      imageFocusX: 50,
+      imageFocusY: 50,
+      imageZoom: 100,
       variants: []
     };
     const list = [];
@@ -631,7 +675,19 @@ export function createOwnerUi(ctx) {
     const src = await mediaFieldValue(form, options).catch(() => '');
     const preview = form.querySelector('[data-preview]');
     const mode = options.mode === 'contain' ? 'contain' : 'cover';
-    if (preview) preview.innerHTML = mediaPreview(src, fallbackName, mode);
+    const hasFrameFields = form.querySelector('input[name="imageFocusX"], input[name="imageFocusY"], input[name="imageZoom"]');
+    if (preview) {
+      if (src && mode === 'cover' && hasFrameFields) {
+        const style = productFrameStyle({
+          imageFocusX: form.querySelector('input[name="imageFocusX"]')?.value,
+          imageFocusY: form.querySelector('input[name="imageFocusY"]')?.value,
+          imageZoom: form.querySelector('input[name="imageZoom"]')?.value
+        });
+        preview.innerHTML = `<div class="preview-card"><img src="${escapeHtml(src)}" alt="${escapeHtml(fallbackName)}" loading="lazy" decoding="async" style="${escapeHtml(style)}" /></div>`;
+      } else {
+        preview.innerHTML = mediaPreview(src, fallbackName, mode);
+      }
+    }
   }
 
   return {

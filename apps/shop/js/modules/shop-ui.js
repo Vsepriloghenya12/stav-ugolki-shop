@@ -209,6 +209,25 @@ export function createShopUi(ctx) {
     `;
   }
 
+  function clampProductImageAxis(value, fallback = 50) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(100, Math.max(0, numeric));
+  }
+
+  function clampProductImageZoom(value, fallback = 100) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(160, Math.max(60, numeric));
+  }
+
+  function productImageStyle(product = {}) {
+    const focusX = clampProductImageAxis(product.imageFocusX, 50);
+    const focusY = clampProductImageAxis(product.imageFocusY, 50);
+    const zoom = clampProductImageZoom(product.imageZoom, 100) / 100;
+    return `--product-image-x:${focusX}%;--product-image-y:${focusY}%;--product-image-zoom:${zoom};`;
+  }
+
   function productCardHtml(product) {
     const isFavorite = state.favorites.includes(product.id);
     return `
@@ -216,7 +235,7 @@ export function createShopUi(ctx) {
         <div class="product-image-wrap theme-${product.accent || 'tiffany'}">
           ${productBadgesHtml(product)}
           ${product.image
-            ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" fetchpriority="low" />`
+            ? `<img class="product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async" fetchpriority="low" style="${escapeHtml(productImageStyle(product))}" />`
             : `<div class="product-fallback">${fallbackVisual(product)}</div>`}
           <div class="product-actions">
             <button class="mini-action" type="button" data-share="${product.id}">${icon('share')}</button>
