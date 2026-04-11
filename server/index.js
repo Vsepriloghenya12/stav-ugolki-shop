@@ -251,7 +251,11 @@ function normalizeOrderRecord(order = {}) {
     reservedAt: String(order.reservedAt || ''),
     stockApplied: order.stockApplied !== undefined ? Boolean(order.stockApplied) : status === 'fulfilled',
     processedAt: String(order.processedAt || (status !== 'new' ? (order.updatedAt || order.createdAt || '') : '')),
-    updatedAt: String(order.updatedAt || '')
+    updatedAt: String(order.updatedAt || ''),
+    telegramNotified: order.telegramNotified !== undefined ? Boolean(order.telegramNotified) : true,
+    telegramNotifyAttempts: Math.max(0, Number(order.telegramNotifyAttempts || 0)),
+    telegramNotifyError: String(order.telegramNotifyError || ''),
+    telegramNotifiedAt: String(order.telegramNotifiedAt || '')
   };
 }
 
@@ -571,6 +575,126 @@ function formatMoney(value) {
   return `${Number(value || 0).toLocaleString('ru-RU')} VND`;
 }
 
+const TELEGRAM_MESSAGE_LIMIT = 4096;
+const ORDER_NOTIFY_MAX_RETRIES = 4;
+const ORDER_NOTIFY_BASE_DELAY_MS = 1500;
+const ORDER_NOTIFY_POLL_INTERVAL_MS = 60 * 1000;
+const inFlightOrderNotifications = new Set();
+let pendingOrderNotificationFlush = false;
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function buildOrderNotificationLines(order = {}) {
+  const orderId = String(order.id || '').trim();
+  const lines = [
+    orderId ? `Новый заказ ${escapeTelegram(orderId)}` : 'Новый заказ',
+    '',
+    `Клиент: ${escapeTelegram(order?.customer?.name || 'Без имени')}`,
+    order?.customer?.phone ? `Телефон: ${escapeTelegram(order.customer.phone)}` : '',
+    order?.customer?.telegram ? `Telegram: ${escapeTelegram(order.customer.telegram)}` : '',
+    '',
+    'Состав:'
+  ].filter(Boolean);
+
+  for (const [index, item] of (Array.isArray(order?.items) ? order.items : []).entries()) {
+    const variant = item?.variantLabel ? ` • ${item.variantLabel}` : '';
+    lines.push(`${index + 1}. ${escapeTelegram(item?.name || 'Товар')}${variant} × ${Number(item?.qty || 0)} — ${formatMoney(Number(item?.price || 0) * Number(item?.qty || 0))}`);
+  }
+
+  lines.push('', `Итого: ${formatMoney(order?.total || 0)}`);
+  return lines;
+}
+
+function splitTelegramLines(lines = [], limit = TELEGRAM_MESSAGE_LIMIT) {
+  const chunks = [];
+  let current = '';
+
+  const pushChunk = value => {
+    const trimmed = String(value || '').trim();
+    if (trimmed) chunks.push(trimmed);
+  };
+
+  for (const rawLine of Array.isArray(lines) ? lines : []) {
+    let line = String(rawLine ?? '');
+    if (!line) {
+      const candidate = current ? `${current}\n` : '\n';
+      if (candidate.length <= limit) {
+        current = candidate;
+      } else {
+        pushChunk(current);
+        current = '';
+      }
+      continue;
+    }
+
+    while (line.length > limit) {
+      const slice = line.slice(0, limit);
+      const boundary = slice.lastIndexOf(' ');
+      const chunk = boundary > Math.floor(limit * 0.6) ? line.slice(0, boundary) : slice;
+      if (current) {
+        pushChunk(current);
+        current = '';
+      }
+      pushChunk(chunk);
+      line = line.slice(chunk.length).trimStart();
+    }
+
+    const candidate = current ? `${current}\n${line}` : line;
+    if (candidate.length > limit && current) {
+      pushChunk(current);
+      current = line;
+    } else {
+      current = candidate;
+    }
+  }
+
+  pushChunk(current);
+  return chunks.length ? chunks : ['Новый заказ'];
+}
+
+function pendingOrderNotifications(items = []) {
+  return (Array.isArray(items) ? items : []).filter(item => item && item.status === 'new' && item.telegramNotified === false);
+}
+
+function updateOrderNotificationState(orderId, patch = {}) {
+  const current = readJson('orders.json').map(normalizeOrderRecord);
+  const index = current.findIndex(item => item.id === orderId);
+  if (index === -1) return null;
+  current[index] = normalizeOrderRecord({
+    ...current[index],
+    ...patch
+  });
+  writeJson('orders.json', current);
+  return current[index];
+}
+
+function isRetriableTelegramError(error) {
+  const code = Number(error?.code || 0);
+  if (Number(error?.retryAfter || 0) > 0) return true;
+  if ([408, 425, 429, 500, 502, 503, 504].includes(code)) return true;
+  const message = String(error?.message || '').toLowerCase();
+  return [
+    'timeout',
+    'timed out',
+    'fetch failed',
+    'network',
+    'socket',
+    'temporar',
+    'too many requests',
+    'bad gateway',
+    'service unavailable',
+    'gateway timeout'
+  ].some(fragment => message.includes(fragment));
+}
+
+function telegramRetryDelay(error, attempt) {
+  const retryAfterSeconds = Math.max(0, Number(error?.retryAfter || 0));
+  if (retryAfterSeconds) return retryAfterSeconds * 1000;
+  return Math.min(15_000, ORDER_NOTIFY_BASE_DELAY_MS * (2 ** Math.max(0, attempt - 1)));
+}
+
 async function telegramRequest(method, payload, isMultipart = false) {
   if (!botToken) throw new Error('BOT_TOKEN не задан');
   const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
@@ -578,8 +702,20 @@ async function telegramRequest(method, payload, isMultipart = false) {
     headers: isMultipart ? undefined : { 'Content-Type': 'application/json' },
     body: isMultipart ? payload : JSON.stringify(payload)
   });
-  const data = await response.json();
-  if (!data.ok) throw new Error(data.description || 'Telegram API error');
+  const raw = await response.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { ok: response.ok, description: raw || `Telegram API error (${response.status})` };
+  }
+  if (!response.ok || !data.ok) {
+    const error = new Error(data.description || `Telegram API error (${response.status})`);
+    error.code = Number(data.error_code || response.status || 0);
+    error.parameters = data.parameters || {};
+    error.retryAfter = Number(data.parameters?.retry_after || 0);
+    throw error;
+  }
   return data.result;
 }
 
@@ -696,26 +832,81 @@ async function publishOwnerPost(payload) {
 
 async function notifyOrder(order) {
   const ordersChatId = resolveOrdersChatId();
-  if (!botToken || !ordersChatId) {
-    console.warn('Order telegram notify skipped:', !botToken ? 'BOT_TOKEN missing' : 'orders chat not configured');
-    return;
+  if (!botToken) throw new Error('BOT_TOKEN missing');
+  if (!ordersChatId) throw new Error('orders chat not configured');
+  const chunks = splitTelegramLines(buildOrderNotificationLines(order));
+  for (const chunk of chunks) {
+    await sendTelegramMessage(ordersChatId, chunk);
   }
-  const lines = [
-    'Новый заказ',
-    '',
-    `Клиент: ${escapeTelegram(order.customer.name || 'Без имени')}`,
-    order.customer.phone ? `Телефон: ${escapeTelegram(order.customer.phone)}` : '',
-    order.customer.telegram ? `Telegram: ${escapeTelegram(order.customer.telegram)}` : '',
-    '',
-    'Состав:'
-  ].filter(Boolean);
+}
 
-  order.items.forEach((item, index) => {
-    const variant = item.variantLabel ? ` • ${item.variantLabel}` : '';
-    lines.push(`${index + 1}. ${escapeTelegram(item.name)}${variant} × ${item.qty} — ${formatMoney(item.price * item.qty)}`);
-  });
-  lines.push('', `Итого: ${formatMoney(order.total)}`);
-  await sendTelegramMessage(ordersChatId, lines.join('\n'));
+async function deliverOrderNotification(orderId, options = {}) {
+  const id = String(orderId || '').trim();
+  if (!id) return false;
+  if (inFlightOrderNotifications.has(id)) return false;
+  inFlightOrderNotifications.add(id);
+  const maxRetries = Math.max(1, Number(options.maxRetries || ORDER_NOTIFY_MAX_RETRIES));
+
+  try {
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+      const currentOrders = readJson('orders.json').map(normalizeOrderRecord);
+      const order = currentOrders.find(item => item.id === id);
+      if (!order) return false;
+      if (order.telegramNotified) return true;
+      if (order.status !== 'new') return false;
+
+      updateOrderNotificationState(id, {
+        telegramNotifyAttempts: Math.max(0, Number(order.telegramNotifyAttempts || 0)) + 1,
+        telegramNotifyError: ''
+      });
+
+      try {
+        await notifyOrder(order);
+        updateOrderNotificationState(id, {
+          telegramNotified: true,
+          telegramNotifyError: '',
+          telegramNotifiedAt: new Date().toISOString()
+        });
+        return true;
+      } catch (error) {
+        const message = String(error?.message || 'Не удалось отправить заявку в Telegram').slice(0, 300);
+        updateOrderNotificationState(id, {
+          telegramNotified: false,
+          telegramNotifyError: message
+        });
+        console.error('Order telegram notify error:', {
+          orderId: id,
+          attempt,
+          code: Number(error?.code || 0),
+          retryAfter: Number(error?.retryAfter || 0),
+          message
+        });
+
+        if (attempt >= maxRetries || !isRetriableTelegramError(error)) {
+          return false;
+        }
+
+        await delay(telegramRetryDelay(error, attempt));
+      }
+    }
+    return false;
+  } finally {
+    inFlightOrderNotifications.delete(id);
+  }
+}
+
+async function flushPendingOrderNotifications(limit = 20) {
+  if (pendingOrderNotificationFlush) return;
+  if (!botToken || !resolveOrdersChatId()) return;
+  pendingOrderNotificationFlush = true;
+  try {
+    const queued = pendingOrderNotifications(readJson('orders.json').map(normalizeOrderRecord)).slice(0, limit);
+    for (const order of queued) {
+      await deliverOrderNotification(order.id, { maxRetries: ORDER_NOTIFY_MAX_RETRIES });
+    }
+  } finally {
+    pendingOrderNotificationFlush = false;
+  }
 }
 
 function shopKeyboard(mode = 'webapp') {
@@ -931,6 +1122,7 @@ async function handleApi(req, res, pathname) {
   const posts = () => readJson('posts.json');
 
   if (pathname === '/api/health' && method === 'GET') {
+    const pendingOrders = pendingOrderNotifications(orders());
     return sendJson(res, 200, {
       ok: true,
       name: 'stav-ugolki',
@@ -938,7 +1130,8 @@ async function handleApi(req, res, pathname) {
       telegramConfig: telegramConfigStatus(),
       telegramWebhookPath,
       telegramWebhookTarget: telegramWebhookUrl(),
-      hasBotToken: Boolean(botToken)
+      hasBotToken: Boolean(botToken),
+      pendingOrderNotifications: pendingOrders.length
     });
   }
 
@@ -1014,7 +1207,11 @@ async function handleApi(req, res, pathname) {
         reservedAt: new Date().toISOString(),
         stockApplied: false,
         processedAt: '',
-        updatedAt: ''
+        updatedAt: '',
+        telegramNotified: false,
+        telegramNotifyAttempts: 0,
+        telegramNotifyError: '',
+        telegramNotifiedAt: ''
       });
       current.unshift(order);
       writeJson('orders.json', current);
@@ -1022,7 +1219,7 @@ async function handleApi(req, res, pathname) {
       if (reserveResult.freshAlerts.length) {
         notifyLowStockAlerts(reserveResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
       }
-      notifyOrder(order).catch(error => console.error('Order telegram notify error:', error.message));
+      deliverOrderNotification(order.id).catch(error => console.error('Order telegram notify queue error:', error.message));
       return sendJson(res, 201, { ok: true, order });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
@@ -1492,4 +1689,11 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, '0.0.0.0', async () => {
   console.log(`Ставь Угольки запущен на порту ${port}`);
   await syncTelegramWebhook();
+  await flushPendingOrderNotifications().catch(error => console.error('Pending order telegram flush error:', error.message));
 });
+
+const pendingOrderNotificationTimer = setInterval(() => {
+  flushPendingOrderNotifications().catch(error => console.error('Pending order telegram flush error:', error.message));
+}, ORDER_NOTIFY_POLL_INTERVAL_MS);
+
+pendingOrderNotificationTimer.unref?.();
