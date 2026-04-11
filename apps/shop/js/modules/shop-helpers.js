@@ -98,7 +98,12 @@ export function createShopHelpers(ctx) {
 
   function variantStock(product, variant = null) {
     if (!variant) return Math.max(0, Number(product?.stock || 0));
-    const raw = variant?.stock;
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const resolved = String(variant?.id || '')
+      ? variants.find(item => item.id === String(variant.id))
+      : null;
+    const actual = resolved || variant;
+    const raw = actual?.stock;
     if (raw === undefined || raw === null || raw === '') return Math.max(0, Number(product?.stock || 0));
     return Math.max(0, Number(raw || 0));
   }
@@ -137,6 +142,10 @@ export function createShopHelpers(ctx) {
   }
 
   function maxQtyFor(product, variant = null) {
+    if (variant?.id) {
+      const actualVariant = selectedVariantForProduct(product, variant.id);
+      if (actualVariant) return variantStock(product, actualVariant);
+    }
     if (variant) return variantStock(product, variant);
     return Math.max(0, Number(product?.stock || 0));
   }
@@ -201,7 +210,8 @@ export function createShopHelpers(ctx) {
   function selectedVariantForProduct(product, variantId = '') {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     if (!variants.length) return null;
-    return variants.find(item => item.id === (variantId || state.selectedVariants[product.id])) || currentVariant(product);
+    const requestedId = String(variantId || state.selectedVariants[product.id] || '').trim();
+    return variants.find(item => item.id === requestedId) || currentVariant(product);
   }
 
   function shouldDisplayProduct(productId) {

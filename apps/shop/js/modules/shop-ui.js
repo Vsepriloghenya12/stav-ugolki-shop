@@ -243,7 +243,18 @@ export function createShopUi(ctx) {
   function renderCart() {
     const items = state.cart.map(entry => {
       const product = state.products.find(item => item.id === entry.id);
-      return product ? { ...product, qty: entry.qty, variantId: entry.variantId, variantLabel: entry.variantLabel, price: entry.price } : null;
+      if (!product) return null;
+      const actualVariant = entry.variantId
+        ? (Array.isArray(product.variants) ? product.variants.find(item => item.id === entry.variantId) : null)
+        : null;
+      return {
+        ...product,
+        qty: entry.qty,
+        variantId: actualVariant?.id || entry.variantId,
+        variantLabel: actualVariant?.label || entry.variantLabel,
+        price: Number(actualVariant?.price ?? entry.price ?? product.price ?? 0),
+        cartVariant: actualVariant || null
+      };
     }).filter(Boolean);
 
     const totalQty = cartTotalQty();
@@ -266,7 +277,7 @@ export function createShopUi(ctx) {
         </div>
         <div class="cart-item-side">
           <div class="cart-item-sum">${money(item.price * item.qty)}</div>
-          ${priceControlHtml(item, item.variantLabel ? { id: item.variantId, label: item.variantLabel, price: item.price } : null)}
+          ${priceControlHtml(item, item.cartVariant || null)}
         </div>
       </div>
     `).join('');
