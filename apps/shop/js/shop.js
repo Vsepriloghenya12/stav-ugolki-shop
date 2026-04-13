@@ -59,6 +59,11 @@ import { createShopUi } from './modules/shop-ui.js';
     historySheet: document.getElementById('historySheet'),
     orderSuccessModal: document.getElementById('orderSuccessModal'),
     successModalCloseBtn: document.getElementById('successModalCloseBtn'),
+    inventoryConflictModal: document.getElementById('inventoryConflictModal'),
+    inventoryConflictCloseBtn: document.getElementById('inventoryConflictCloseBtn'),
+    inventoryConflictTitle: document.getElementById('inventoryConflictTitle'),
+    inventoryConflictText: document.getElementById('inventoryConflictText'),
+    inventoryConflictList: document.getElementById('inventoryConflictList'),
     quickFilterToggle: document.getElementById('quickFilterToggle'),
     heroLogoButton: document.getElementById('heroLogoButton'),
     searchForm: document.getElementById('searchForm'),
@@ -173,7 +178,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '74';
+  const APP_ASSET_VERSION = '76';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -360,6 +365,7 @@ import { createShopUi } from './modules/shop-ui.js';
       next.push({
         key,
         id: product.id,
+        name: product.name,
         variantId,
         variantLabel: resolvedVariant?.label || '',
         price: Number(resolvedVariant?.price ?? product.price ?? 0),
@@ -377,17 +383,33 @@ import { createShopUi } from './modules/shop-ui.js';
 
   function normalizeCartState() {
     const normalized = [];
+    const conflicts = [];
     for (const entry of Array.isArray(state.cart) ? state.cart : []) {
       const product = productById(entry.id);
-      if (!product) continue;
+      const fallbackName = String(entry.name || product?.name || 'Товар');
+      if (!product) {
+        conflicts.push({ name: fallbackName, variantLabel: String(entry.variantLabel || ''), availableQty: 0 });
+        continue;
+      }
       const variant = entry.variantId ? selectedVariantForProduct(product, entry.variantId) : null;
-      if (entry.variantId && !variant) continue;
+      if (entry.variantId && !variant) {
+        conflicts.push({ name: product.name, variantLabel: String(entry.variantLabel || ''), availableQty: 0 });
+        continue;
+      }
+      const requestedQty = Math.max(0, Math.floor(Number(entry.qty || 0)));
       const maxAllowed = maxQtyFor(product, variant);
-      const nextQty = Math.max(0, Math.min(Math.floor(Number(entry.qty || 0)), maxAllowed));
-      if (!nextQty) continue;
+      const nextQty = Math.max(0, Math.min(requestedQty, maxAllowed));
+      if (!nextQty) {
+        conflicts.push({ name: product.name, variantLabel: String(variant?.label || entry.variantLabel || ''), availableQty: 0 });
+        continue;
+      }
+      if (nextQty !== requestedQty) {
+        conflicts.push({ name: product.name, variantLabel: String(variant?.label || entry.variantLabel || ''), availableQty: nextQty });
+      }
       normalized.push({
         key: cartEntryKey(product.id, variant?.id || ''),
         id: product.id,
+        name: product.name,
         variantId: variant?.id || '',
         variantLabel: variant?.label || '',
         price: Number(variant?.price ?? product.price ?? 0),
@@ -405,10 +427,11 @@ import { createShopUi } from './modules/shop-ui.js';
           || Number(prev.price || 0) !== item.price;
       });
 
-    if (!changed) return false;
-    state.cart = normalized;
-    save(STORAGE_KEYS.cart, state.cart);
-    return true;
+    if (changed) {
+      state.cart = normalized;
+      save(STORAGE_KEYS.cart, state.cart);
+    }
+    return { changed, conflicts };
   }
 
   function startBannerAutoplay() {
@@ -630,7 +653,11 @@ import { createShopUi } from './modules/shop-ui.js';
     const variant = selectedVariantForProduct(product, variantId);
     if (variant) rememberVariant(product.id, variant.id);
     if (maxQtyFor(product, variant) <= 0) {
-      showNotice('Эта граммовка закончилась');
+      showInventoryConflictModal([{
+        name: product.name,
+        variantLabel: String(variant?.label || ''),
+        availableQty: 0
+      }]);
       return;
     }
     pulseHaptic('medium');
@@ -749,6 +776,11 @@ async function shareProduct(productId) {
   }
 
   function showNotice(text) {
+    const normalized = String(text || '').trim();
+    if (normalized && /(законч|остатк|нет в наличии|недоступ)/i.test(normalized)) {
+      showInventoryConflictModal([], normalized);
+      return;
+    }
     el.checkoutNotice.textContent = text;
     clearTimeout(showNotice.timer);
     showNotice.timer = setTimeout(() => { el.checkoutNotice.textContent = ''; }, 4200);
@@ -757,13 +789,44 @@ async function shareProduct(productId) {
   function showSuccessModal() {
     if (!el.orderSuccessModal) return;
     el.orderSuccessModal.classList.remove('hidden');
-    document.body.classList.add('has-success-modal');
+    syncModalState();
   }
 
   function hideSuccessModal() {
     if (!el.orderSuccessModal) return;
     el.orderSuccessModal.classList.add('hidden');
-    document.body.classList.remove('has-success-modal');
+    syncModalState();
+  }
+
+  function syncModalState() {
+    const hasVisibleModal = [el.orderSuccessModal, el.inventoryConflictModal]
+      .some(node => node && !node.classList.contains('hidden'));
+    document.body.classList.toggle('has-success-modal', hasVisibleModal);
+  }
+
+  function hideInventoryConflictModal() {
+    if (!el.inventoryConflictModal) return;
+    el.inventoryConflictModal.classList.add('hidden');
+    syncModalState();
+  }
+
+  function showInventoryConflictModal(conflicts = [], fallbackText = '') {
+    if (!el.inventoryConflictModal) return;
+    const prepared = Array.isArray(conflicts) ? conflicts.filter(Boolean) : [];
+    const hasReducedItems = prepared.some(item => Number(item.availableQty || 0) > 0);
+    el.inventoryConflictTitle.textContent = prepared.length > 1 ? 'Товары в корзине изменились' : 'Товар в корзине закончился';
+    el.inventoryConflictText.textContent = String(fallbackText || '').trim() || (
+      hasReducedItems
+        ? 'Мы обновили корзину по актуальным остаткам. Проверьте количество товаров перед оформлением.'
+        : 'Пока товар лежал в корзине, он закончился. Мы обновили корзину по актуальным остаткам.'
+    );
+    el.inventoryConflictList.innerHTML = prepared.map(item => {
+      const suffix = item.variantLabel ? ` · ${escapeHtml(item.variantLabel)}` : '';
+      const detail = Number(item.availableQty || 0) > 0 ? `доступно ${item.availableQty}` : 'закончился';
+      return `<div class="inventory-modal-item"><strong>${escapeHtml(item.name)}${suffix}</strong><span>${detail}</span></div>`;
+    }).join('');
+    el.inventoryConflictModal.classList.remove('hidden');
+    syncModalState();
   }
 
   function goHome() {
@@ -809,6 +872,38 @@ async function shareProduct(productId) {
         variantLabel: entry.variantLabel
       } : null;
     }).filter(Boolean);
+  }
+
+  function applyBootstrapPayload(data = {}) {
+    state.products = data.products || [];
+    state.brands = data.brands || state.brands;
+    state.banners = data.banners || state.banners;
+    state.supportContacts = data.supportContacts || state.supportContacts;
+    state.products.forEach(product => {
+      if (product.variants?.length && !state.selectedVariants[product.id]) {
+        state.selectedVariants[product.id] = (product.variants.find(item => variantStock(product, item) > 0) || product.variants[0]).id;
+      }
+    });
+    save(STORAGE_KEYS.selectedVariants, state.selectedVariants);
+    return normalizeCartState();
+  }
+
+  async function refreshCatalogState(options = {}) {
+    const { showInventoryModal = false, silent = false } = options;
+    try {
+      const data = await window.AppApi.getShopBootstrap();
+      const cartSync = applyBootstrapPayload(data);
+      renderCategories();
+      renderFilterOptions();
+      renderProducts();
+      renderSupport();
+      renderCart();
+      if (showInventoryModal && cartSync.conflicts.length) showInventoryConflictModal(cartSync.conflicts);
+      return { ok: true, cartSync, data };
+    } catch (error) {
+      if (!silent) showNotice(error.message || 'Не удалось обновить остатки');
+      return { ok: false, cartSync: { changed: false, conflicts: [] }, error };
+    }
   }
 
   function applyBannerFilter(bannerId) {
@@ -945,8 +1040,20 @@ async function shareProduct(productId) {
       showNotice('Корзина пуста');
       return;
     }
+    const refreshBeforeCheckout = await refreshCatalogState({ showInventoryModal: true, silent: true });
+    if (refreshBeforeCheckout.cartSync.conflicts.length) {
+      if (!state.cart.length) {
+        showInventoryConflictModal([], 'Некоторые товары закончились и были удалены из корзины.');
+      }
+      openSheet(el.cartSheet, 'cart');
+      return;
+    }
     const formData = new FormData(el.checkoutForm);
     const payload = currentCartPayload();
+    if (!payload.length) {
+      showNotice('Корзина пуста');
+      return;
+    }
     const phone = String(formData.get('phone') || '').trim();
     let telegram = String(formData.get('telegram') || '').trim();
     if (telegram && telegram.startsWith('@')) telegram = `https://t.me/${telegram.slice(1)}`;
@@ -968,13 +1075,7 @@ async function shareProduct(productId) {
       pushOrderToHistory(created.order);
       state.cart = [];
       save(STORAGE_KEYS.cart, state.cart);
-      try {
-        const fresh = await window.AppApi.getShopBootstrap();
-        state.products = fresh.products || state.products;
-        state.banners = fresh.banners || state.banners;
-        state.supportContacts = fresh.supportContacts || state.supportContacts;
-        normalizeCartState();
-      } catch {}
+      try { await refreshCatalogState({ silent: true }); } catch {}
       renderCart();
       renderProducts();
       el.checkoutForm.reset();
@@ -984,6 +1085,13 @@ async function shareProduct(productId) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error) {
+      if (/законч|остатк|недоступ/i.test(String(error.message || ''))) {
+        const refreshAfterFailure = await refreshCatalogState({ showInventoryModal: true, silent: true });
+        if (refreshAfterFailure.cartSync.conflicts.length) {
+          openSheet(el.cartSheet, 'cart');
+          return;
+        }
+      }
       showNotice(error.message);
     }
   }
@@ -1219,9 +1327,15 @@ async function shareProduct(productId) {
     el.orderSuccessModal?.addEventListener('click', event => {
       if (event.target.matches('[data-close-success-modal]')) hideSuccessModal();
     });
+    el.inventoryConflictCloseBtn?.addEventListener('click', hideInventoryConflictModal);
+    el.inventoryConflictModal?.addEventListener('click', event => {
+      if (event.target.matches('[data-close-inventory-modal]')) hideInventoryConflictModal();
+    });
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && el.orderSuccessModal && !el.orderSuccessModal.classList.contains('hidden')) {
         hideSuccessModal();
+      } else if (event.key === 'Escape' && el.inventoryConflictModal && !el.inventoryConflictModal.classList.contains('hidden')) {
+        hideInventoryConflictModal();
       }
     });
 
@@ -1237,7 +1351,11 @@ async function shareProduct(productId) {
       closeAllSheets();
       switchView(nextView);
     });
-    el.navCart.addEventListener('click', () => openSheet(el.cartSheet, 'cart'));
+    el.navCart.addEventListener('click', async () => {
+      openSheet(el.cartSheet, 'cart');
+      const refreshResult = await refreshCatalogState({ showInventoryModal: true, silent: true });
+      if (!refreshResult.ok) renderCart();
+    });
     el.navSearch.addEventListener('click', () => {
       openSheet(el.searchSheet, 'search');
       resetSearchViewportBase();
@@ -1310,17 +1428,7 @@ async function shareProduct(productId) {
       renderProductSkeletons(window.matchMedia('(min-width: 900px)').matches ? 8 : 6);
         renderOrderHistory();
         const data = await window.AppApi.getShopBootstrap();
-        state.products = data.products || [];
-        state.brands = data.brands || [];
-        state.banners = data.banners || [];
-        state.supportContacts = data.supportContacts || [];
-      state.products.forEach(product => {
-        if (product.variants?.length && !state.selectedVariants[product.id]) {
-          state.selectedVariants[product.id] = (product.variants.find(item => variantStock(product, item) > 0) || product.variants[0]).id;
-        }
-      });
-      save(STORAGE_KEYS.selectedVariants, state.selectedVariants);
-      normalizeCartState();
+        applyBootstrapPayload(data);
       await preloadInitialMedia(data);
       const minLoaderMs = 320;
       const elapsed = Date.now() - startedAt;

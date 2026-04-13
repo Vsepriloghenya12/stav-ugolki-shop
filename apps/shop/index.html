@@ -7,12 +7,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ставь угольки" />
-    <link rel="manifest" href="/apps/shop/manifest.webmanifest?v=74" />
-    <link rel="apple-touch-icon" href="/apps/shared/assets/img/logo-ember.png?v=74" />
+    <link rel="manifest" href="/apps/shop/manifest.webmanifest?v=76" />
+    <link rel="apple-touch-icon" href="/apps/shared/assets/img/logo-ember.png?v=76" />
     <title>Ставь угольки</title>
-    <link rel="stylesheet" href="/apps/shared/css/theme.css?v=74" />
-    <link rel="stylesheet" href="/apps/shared/css/base.css?v=74" />
-    <link rel="stylesheet" href="/apps/shop/css/shop.css?v=74" />
+    <link rel="stylesheet" href="/apps/shared/css/theme.css?v=76" />
+    <link rel="stylesheet" href="/apps/shared/css/base.css?v=76" />
+    <link rel="stylesheet" href="/apps/shop/css/shop.css?v=76" />
     <script>
       (function () {
         try {
@@ -37,7 +37,7 @@
             <span class="hero-logo-sparks app-loader-sparks" aria-hidden="true">
               <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
             </span>
-            <img id="appLoaderLogo" class="hero-logo app-loader-logo" src="/apps/shared/assets/img/header-logo.png?v=74" alt="Ставь угольки" />
+            <img id="appLoaderLogo" class="hero-logo app-loader-logo" src="/apps/shared/assets/img/header-logo.png?v=76" alt="Ставь угольки" />
           </span>
         </div>
         <div class="app-loader-line" aria-hidden="true"><span></span></div>
@@ -52,7 +52,7 @@
             <span class="hero-logo-sparks" aria-hidden="true">
               <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
             </span>
-            <img id="heroLogoImage" class="hero-logo" src="/apps/shared/assets/img/header-logo.png?v=74" alt="Ставь угольки" />
+            <img id="heroLogoImage" class="hero-logo" src="/apps/shared/assets/img/header-logo.png?v=76" alt="Ставь угольки" />
           </span>
         </button>
       </header>
@@ -211,7 +211,19 @@
       </div>
     </section>
 
-    <script src="/apps/shared/js/api.js?v=74"></script>
-    <script type="module" src="/apps/shop/js/shop.js?v=74"></script>
+    <section class="success-modal inventory-modal hidden" id="inventoryConflictModal" aria-live="polite" aria-modal="true" role="dialog">
+      <div class="success-modal-backdrop" data-close-inventory-modal></div>
+      <div class="success-modal-card inventory-modal-card">
+        <div class="success-modal-glow" aria-hidden="true"></div>
+        <div class="success-modal-icon inventory-modal-icon" aria-hidden="true">!</div>
+        <div class="success-modal-title" id="inventoryConflictTitle">Остатки изменились</div>
+        <div class="success-modal-text" id="inventoryConflictText">Пока товар лежал в корзине, часть позиций закончилась или стала доступна в меньшем количестве.</div>
+        <div class="inventory-modal-list" id="inventoryConflictList"></div>
+        <button class="submit-button success-modal-button" id="inventoryConflictCloseBtn" type="button">Понятно</button>
+      </div>
+    </section>
+
+    <script src="/apps/shared/js/api.js?v=76"></script>
+    <script type="module" src="/apps/shop/js/shop.js?v=76"></script>
   </body>
 </html>

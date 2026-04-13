@@ -1092,6 +1092,14 @@ function normalizeBrandRecord(body, fallback = {}) {
   };
 }
 
+let inventoryMutationQueue = Promise.resolve();
+
+function withInventoryMutation(task) {
+  const run = inventoryMutationQueue.then(() => task(), () => task());
+  inventoryMutationQueue = run.catch(() => undefined);
+  return run;
+}
+
 function uniqueBrandsFromProducts(items = []) {
   const map = new Map();
   for (const item of Array.isArray(items) ? items : []) {
@@ -1189,38 +1197,41 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/shop/orders' && method === 'POST') {
     try {
       const body = await parseBody(req);
-      const current = orders();
-      const currentProducts = products();
-      const customer = sanitizeOrderCustomer(body.customer || {});
-      ensureCustomerHasContact(customer);
-      const items = resolveValidatedOrderItems(body.items, currentProducts, { enforceStock: true });
-      const recalculatedTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
-      const reserveResult = applyOrderInventory({ items }, currentProducts, 'reserve');
-      const order = normalizeOrderRecord({
-        id: nextId('order'),
-        createdAt: new Date().toISOString(),
-        customer,
-        items,
-        total: recalculatedTotal,
-        status: 'new',
-        reservationApplied: true,
-        reservedAt: new Date().toISOString(),
-        stockApplied: false,
-        processedAt: '',
-        updatedAt: '',
-        telegramNotified: false,
-        telegramNotifyAttempts: 0,
-        telegramNotifyError: '',
-        telegramNotifiedAt: ''
+      const result = await withInventoryMutation(async () => {
+        const current = orders();
+        const currentProducts = products();
+        const customer = sanitizeOrderCustomer(body.customer || {});
+        ensureCustomerHasContact(customer);
+        const items = resolveValidatedOrderItems(body.items, currentProducts, { enforceStock: true });
+        const recalculatedTotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+        const reserveResult = applyOrderInventory({ items }, currentProducts, 'reserve');
+        const order = normalizeOrderRecord({
+          id: nextId('order'),
+          createdAt: new Date().toISOString(),
+          customer,
+          items,
+          total: recalculatedTotal,
+          status: 'new',
+          reservationApplied: true,
+          reservedAt: new Date().toISOString(),
+          stockApplied: false,
+          processedAt: '',
+          updatedAt: '',
+          telegramNotified: false,
+          telegramNotifyAttempts: 0,
+          telegramNotifyError: '',
+          telegramNotifiedAt: ''
+        });
+        current.unshift(order);
+        writeJson('orders.json', current);
+        writeJson('products.json', reserveResult.products);
+        return { order, freshAlerts: reserveResult.freshAlerts };
       });
-      current.unshift(order);
-      writeJson('orders.json', current);
-      writeJson('products.json', reserveResult.products);
-      if (reserveResult.freshAlerts.length) {
-        notifyLowStockAlerts(reserveResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+      if (result.freshAlerts.length) {
+        notifyLowStockAlerts(result.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
       }
-      deliverOrderNotification(order.id).catch(error => console.error('Order telegram notify queue error:', error.message));
-      return sendJson(res, 201, { ok: true, order });
+      deliverOrderNotification(result.order.id).catch(error => console.error('Order telegram notify queue error:', error.message));
+      return sendJson(res, 201, { ok: true, order: result.order });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
@@ -1527,76 +1538,81 @@ async function handleApi(req, res, pathname) {
     const id = pathname.split('/').pop();
     try {
       const body = await parseBody(req);
-      const current = orders();
-      const index = current.findIndex(item => item.id === id);
-      if (index === -1) return sendJson(res, 404, { error: 'Order not found' });
+      const result = await withInventoryMutation(async () => {
+        const current = orders();
+        const index = current.findIndex(item => item.id === id);
+        if (index === -1) return { status: 404, payload: { error: 'Order not found' } };
 
-      const currentOrder = normalizeOrderRecord(current[index]);
-      const action = String(body.action || body.status || 'save').trim().toLowerCase();
-      const normalizedAction = action === 'done' || action === 'paid' ? 'fulfilled' : action === 'cancelled' ? 'failed' : action;
-      const currentProducts = products();
-      const releasedProducts = currentOrder.reservationApplied ? applyOrderInventory(currentOrder, currentProducts, 'release').products : cloneProductsList(currentProducts);
+        const currentOrder = normalizeOrderRecord(current[index]);
+        const action = String(body.action || body.status || 'save').trim().toLowerCase();
+        const normalizedAction = action === 'done' || action === 'paid' ? 'fulfilled' : action === 'cancelled' ? 'failed' : action;
+        const currentProducts = products();
+        const releasedProducts = currentOrder.reservationApplied ? applyOrderInventory(currentOrder, currentProducts, 'release').products : cloneProductsList(currentProducts);
 
-      if (currentOrder.status !== 'new') {
-        return sendJson(res, 400, { error: 'Заявка уже обработана и находится в истории' });
-      }
-
-      if (normalizedAction === 'save' || normalizedAction === 'edit') {
-        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
-        const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
-        current[index] = normalizeOrderRecord({
-          ...currentOrder,
-          ...draft,
-          reservationApplied: true,
-          reservedAt: currentOrder.reservedAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        writeJson('orders.json', current);
-        writeJson('products.json', reserveResult.products);
-        if (reserveResult.freshAlerts.length) {
-          notifyLowStockAlerts(reserveResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+        if (currentOrder.status !== 'new') {
+          return { status: 400, payload: { error: 'Заявка уже обработана и находится в истории' } };
         }
-        return sendJson(res, 200, { ok: true, order: current[index] });
-      }
 
-      if (normalizedAction === 'fulfilled') {
-        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
-        const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
-        const finalizeResult = applyOrderInventory({ items: draft.items }, reserveResult.products, 'finalize');
-        current[index] = normalizeOrderRecord({
-          ...currentOrder,
-          ...draft,
-          status: 'fulfilled',
-          reservationApplied: false,
-          stockApplied: true,
-          processedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        writeJson('orders.json', current);
-        writeJson('products.json', finalizeResult.products);
-        if (finalizeResult.freshAlerts.length) {
-          notifyLowStockAlerts(finalizeResult.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+        if (normalizedAction === 'save' || normalizedAction === 'edit') {
+          const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
+          const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
+          current[index] = normalizeOrderRecord({
+            ...currentOrder,
+            ...draft,
+            reservationApplied: true,
+            reservedAt: currentOrder.reservedAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          writeJson('orders.json', current);
+          writeJson('products.json', reserveResult.products);
+          return { status: 200, payload: { ok: true, order: current[index] }, freshAlerts: reserveResult.freshAlerts };
         }
-        return sendJson(res, 200, { ok: true, order: current[index], lowStockAlerts: finalizeResult.freshAlerts });
-      }
 
-      if (normalizedAction === 'failed') {
-        const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: false });
-        current[index] = normalizeOrderRecord({
-          ...currentOrder,
-          ...draft,
-          status: 'failed',
-          reservationApplied: false,
-          stockApplied: false,
-          processedAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        writeJson('orders.json', current);
-        writeJson('products.json', releasedProducts);
-        return sendJson(res, 200, { ok: true, order: current[index] });
-      }
+        if (normalizedAction === 'fulfilled') {
+          const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: true });
+          const reserveResult = applyOrderInventory({ items: draft.items }, releasedProducts, 'reserve');
+          const finalizeResult = applyOrderInventory({ items: draft.items }, reserveResult.products, 'finalize');
+          current[index] = normalizeOrderRecord({
+            ...currentOrder,
+            ...draft,
+            status: 'fulfilled',
+            reservationApplied: false,
+            stockApplied: true,
+            processedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          writeJson('orders.json', current);
+          writeJson('products.json', finalizeResult.products);
+          return {
+            status: 200,
+            payload: { ok: true, order: current[index], lowStockAlerts: finalizeResult.freshAlerts },
+            freshAlerts: finalizeResult.freshAlerts
+          };
+        }
 
-      return sendJson(res, 400, { error: 'Недопустимое действие для заявки' });
+        if (normalizedAction === 'failed') {
+          const draft = prepareOrderDraft(body, currentOrder, releasedProducts, { enforceStock: false });
+          current[index] = normalizeOrderRecord({
+            ...currentOrder,
+            ...draft,
+            status: 'failed',
+            reservationApplied: false,
+            stockApplied: false,
+            processedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          writeJson('orders.json', current);
+          writeJson('products.json', releasedProducts);
+          return { status: 200, payload: { ok: true, order: current[index] } };
+        }
+
+        return { status: 400, payload: { error: 'Недопустимое действие для заявки' } };
+      });
+
+      if (result.freshAlerts?.length) {
+        notifyLowStockAlerts(result.freshAlerts).catch(error => console.error('Low stock telegram notify error:', error.message));
+      }
+      return sendJson(res, result.status, result.payload);
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
