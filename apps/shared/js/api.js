@@ -52,11 +52,11 @@ window.AppApi = {
     }, { defaultError: 'Не удалось создать заказ' });
   },
 
-  async getOrderHistory(ids) {
+  async getOrderHistory(orders) {
     return requestJson('/api/shop/orders/history', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids })
+      body: JSON.stringify({ orders })
     }, { defaultError: 'Не удалось загрузить историю' });
   },
 

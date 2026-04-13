@@ -178,7 +178,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '77';
+  const APP_ASSET_VERSION = '78';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -543,10 +543,18 @@ import { createShopUi } from './modules/shop-ui.js';
   }
 
   async function refreshOrderHistory() {
-    const ids = state.orderHistory.map(item => item.id).filter(Boolean);
-    if (!ids.length || !window.AppApi.getOrderHistory) return;
+    const orderRefs = state.orderHistory
+      .map(item => ({
+        id: String(item?.id || '').trim(),
+        accessKey: String(item?.historyAccessKey || '').trim()
+      }))
+      .filter(item => item.id && item.accessKey);
+    if (!orderRefs.length || !window.AppApi.getOrderHistory) {
+      renderOrderHistory();
+      return;
+    }
     try {
-      const data = await window.AppApi.getOrderHistory(ids);
+      const data = await window.AppApi.getOrderHistory(orderRefs);
       if (Array.isArray(data.orders) && data.orders.length) {
         const byId = new Map(data.orders.map(item => [item.id, item]));
         state.orderHistory = state.orderHistory.map(item => byId.get(item.id) || item);

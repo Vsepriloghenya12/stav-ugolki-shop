@@ -252,10 +252,11 @@ function normalizeOrderRecord(order = {}) {
     stockApplied: order.stockApplied !== undefined ? Boolean(order.stockApplied) : status === 'fulfilled',
     processedAt: String(order.processedAt || (status !== 'new' ? (order.updatedAt || order.createdAt || '') : '')),
     updatedAt: String(order.updatedAt || ''),
-    telegramNotified: order.telegramNotified !== undefined ? Boolean(order.telegramNotified) : true,
+    telegramNotified: order.telegramNotified !== undefined ? Boolean(order.telegramNotified) : status !== 'new',
     telegramNotifyAttempts: Math.max(0, Number(order.telegramNotifyAttempts || 0)),
     telegramNotifyError: String(order.telegramNotifyError || ''),
-    telegramNotifiedAt: String(order.telegramNotifiedAt || '')
+    telegramNotifiedAt: String(order.telegramNotifiedAt || ''),
+    historyAccessKey: String(order.historyAccessKey || '')
   };
 }
 
@@ -395,10 +396,22 @@ function staticCacheControl(filePath) {
 
 function serveStatic(res, relativePath) {
   const cleanPath = safeFilePath(relativePath);
-  let filePath = path.join(rootDir, cleanPath);
+  const appsRoot = path.resolve(rootDir, 'apps');
+  const shopSwPath = path.resolve(rootDir, 'shop-sw.js');
+  const normalizedRelative = cleanPath.startsWith('/') || cleanPath.startsWith('\\')
+    ? cleanPath
+    : `/${cleanPath}`;
+  let filePath = path.resolve(rootDir, `.${normalizedRelative}`);
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
     filePath = path.join(filePath, 'index.html');
+  }
+
+  const isUnderApps = filePath === appsRoot || filePath.startsWith(`${appsRoot}${path.sep}`);
+  const isAllowedRootFile = filePath === shopSwPath;
+  if (!isUnderApps && !isAllowedRootFile) {
+    sendText(res, 404, 'Not found');
+    return;
   }
 
   if (!fs.existsSync(filePath)) {
@@ -521,7 +534,12 @@ function mutateInventoryByOrderItem(product, orderItem, mode = 'reserve') {
   const variants = Array.isArray(product.variants) ? product.variants : [];
   if (variants.length) {
     const target = variants.find(variant => variant.id === orderItem.variantId) || null;
-    if (!target) return;
+    if (!target) {
+      const variantLabel = String(orderItem?.variantLabel || '').trim();
+      throw new Error(variantLabel
+        ? `Вариант товара «${product.name} · ${variantLabel}» больше недоступен`
+        : `Вариант товара «${product.name}» больше недоступен`);
+    }
     const stock = Math.max(0, Number(target.stock || 0));
     const reserved = Math.max(0, Number(target.reserved || 0));
     if (mode === 'reserve') {
@@ -721,6 +739,33 @@ async function telegramRequest(method, payload, isMultipart = false) {
 
 function telegramWebhookUrl() {
   return appBaseUrl ? `${appBaseUrl}${telegramWebhookPath}` : '';
+}
+
+function createOrderHistoryAccessKey() {
+  return crypto.randomBytes(18).toString('hex');
+}
+
+function ensureConfigSyncAccess(req, res) {
+  if (!configSyncSecret) {
+    sendJson(res, 503, { error: 'CONFIG_SYNC_SECRET missing' });
+    return false;
+  }
+  const token = extractConfigSyncToken(req);
+  if (token !== configSyncSecret) {
+    sendJson(res, 401, { error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+}
+
+function hasActiveOrdersForProduct(productId = '', currentOrders = []) {
+  const id = String(productId || '').trim();
+  if (!id) return false;
+  return (Array.isArray(currentOrders) ? currentOrders : []).some(order =>
+    normalizeOrderStatus(order?.status) === 'new'
+    && Array.isArray(order?.items)
+    && order.items.some(item => String(item?.id || '').trim() === id)
+  );
 }
 
 async function syncTelegramWebhook() {
@@ -1162,14 +1207,12 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/internal/telegram-config' && method === 'GET') {
-    const token = extractConfigSyncToken(req);
-    if (configSyncSecret && token !== configSyncSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (!ensureConfigSyncAccess(req, res)) return;
     return sendJson(res, 200, { ok: true, telegramConfig: readTelegramConfig(), resolved: telegramConfigStatus() });
   }
 
   if (pathname === '/api/internal/telegram-config' && method === 'POST') {
-    const token = extractConfigSyncToken(req);
-    if (configSyncSecret && token !== configSyncSecret) return sendJson(res, 401, { error: 'Unauthorized' });
+    if (!ensureConfigSyncAccess(req, res)) return;
     try {
       const body = await parseBody(req);
       const next = updateTelegramConfig({
@@ -1220,7 +1263,8 @@ async function handleApi(req, res, pathname) {
           telegramNotified: false,
           telegramNotifyAttempts: 0,
           telegramNotifyError: '',
-          telegramNotifiedAt: ''
+          telegramNotifiedAt: '',
+          historyAccessKey: createOrderHistoryAccessKey()
         });
         current.unshift(order);
         writeJson('orders.json', current);
@@ -1240,9 +1284,27 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/shop/orders/history' && method === 'POST') {
     try {
       const body = await parseBody(req);
-      const ids = Array.isArray(body.ids) ? body.ids.map(item => String(item || '')) : [];
-      const map = new Set(ids);
-      return sendJson(res, 200, { ok: true, orders: orders().filter(item => map.has(String(item.id || ''))).slice(0, 20) });
+      const requests = Array.isArray(body.orders)
+        ? body.orders
+        : [];
+      const accessMap = new Map(
+        requests
+          .map(item => ({
+            id: String(item?.id || '').trim(),
+            accessKey: String(item?.accessKey || '').trim()
+          }))
+          .filter(item => item.id && item.accessKey)
+          .map(item => [item.id, item.accessKey])
+      );
+      if (!accessMap.size) {
+        return sendJson(res, 200, { ok: true, orders: [] });
+      }
+      return sendJson(res, 200, {
+        ok: true,
+        orders: orders()
+          .filter(item => accessMap.get(String(item.id || '')) === String(item.historyAccessKey || ''))
+          .slice(0, 20)
+      });
     } catch (error) {
       return sendJson(res, 400, { error: error.message });
     }
@@ -1348,9 +1410,26 @@ async function handleApi(req, res, pathname) {
   if (pathname.startsWith('/api/owner/products/') && method === 'DELETE') {
     if (!ensureOwner(req, res)) return;
     const id = pathname.split('/').pop();
-    const current = products();
-    writeJson('products.json', current.filter(item => item.id !== id));
-    return sendJson(res, 200, { ok: true });
+    try {
+      const result = await withInventoryMutation(async () => {
+        const currentProducts = products();
+        const currentOrders = orders();
+        const target = currentProducts.find(item => item.id === id);
+        if (!target) return { status: 404, payload: { error: 'Product not found' } };
+        const reservedQty = Math.max(0, Number(withOwnerStock(target).reserved || 0));
+        if (hasActiveOrdersForProduct(id, currentOrders) || reservedQty > 0) {
+          return {
+            status: 400,
+            payload: { error: 'Нельзя удалить товар, пока по нему есть активные заявки или резерв. Сначала скройте его с витрины.' }
+          };
+        }
+        writeJson('products.json', currentProducts.filter(item => item.id !== id));
+        return { status: 200, payload: { ok: true } };
+      });
+      return sendJson(res, result.status, result.payload);
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
   }
 
 
@@ -1652,7 +1731,7 @@ if ((process.env.JWT_SECRET || '') === '' || process.env.JWT_SECRET === 'stav-ug
   console.warn('⚠️ Используется стандартный JWT_SECRET. Обязательно задайте свой секрет в env.');
 }
 if (!configSyncSecret) {
-  console.warn('⚠️ CONFIG_SYNC_SECRET не задан. /api/internal/telegram-config доступен без секрета.');
+  console.warn('⚠️ CONFIG_SYNC_SECRET не задан. /api/internal/telegram-config отключён, пока секрет не будет задан.');
 }
 if (botToken) {
   console.log(`Telegram webhook endpoint готов: ${telegramWebhookPath}`);
