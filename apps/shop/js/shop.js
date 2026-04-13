@@ -178,7 +178,7 @@ import { createShopUi } from './modules/shop-ui.js';
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const APP_ASSET_VERSION = '76';
+  const APP_ASSET_VERSION = '77';
 
   const DEFAULT_THEME = {
     bodyClass: '',
@@ -197,6 +197,8 @@ import { createShopUi } from './modules/shop-ui.js';
   } : null;
   let searchViewportSyncFrame = 0;
   let searchViewportBaseHeight = 0;
+  let searchScrollLockY = 0;
+  let searchScrollLocked = false;
 
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -933,6 +935,24 @@ async function shareProduct(productId) {
   function syncOpenSheetState(activeSheet = null) {
     document.body.classList.toggle('has-cart-sheet-open', activeSheet === el.cartSheet);
     document.body.classList.toggle('has-product-sheet-open', activeSheet === el.productSheet);
+    setSearchScrollLock(activeSheet === el.searchSheet);
+  }
+
+  function setSearchScrollLock(shouldLock) {
+    if (shouldLock === searchScrollLocked) return;
+    if (shouldLock) {
+      searchScrollLockY = Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0));
+      document.body.classList.add('has-search-sheet-open');
+      document.body.style.top = `-${searchScrollLockY}px`;
+      searchScrollLocked = true;
+      return;
+    }
+    document.body.classList.remove('has-search-sheet-open');
+    document.body.style.top = '';
+    const restoreY = searchScrollLockY;
+    searchScrollLocked = false;
+    searchScrollLockY = 0;
+    window.scrollTo(0, restoreY);
   }
 
   function requestSearchSheetViewportSync() {
@@ -970,8 +990,9 @@ async function shareProduct(productId) {
     el.searchSheet.style.setProperty('--search-sheet-keyboard-offset', `${keyboardOffset}px`);
     el.searchSheet.style.setProperty('--search-sheet-viewport-height', `${viewportHeight || searchViewportBaseHeight || window.innerHeight}px`);
     el.searchSheet.classList.toggle('sheet-keyboard-active', keyboardOffset > 0);
-    if (keyboardOffset > 0 && searchFocused) {
-      el.searchInput?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (searchOpen && searchScrollLocked) {
+      const activeScrollY = Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0));
+      if (activeScrollY !== searchScrollLockY) window.scrollTo(0, searchScrollLockY);
     }
   }
 

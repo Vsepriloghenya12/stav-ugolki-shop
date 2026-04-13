@@ -32,6 +32,13 @@ body {
   overflow-x: clip;
 }
 
+body.has-search-sheet-open {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 button {
   cursor: pointer;
 }
@@ -1079,11 +1086,21 @@ body.is-loading-app .sheet-backdrop {
   --search-sheet-viewport-height: 100dvh;
   bottom: var(--search-sheet-keyboard-offset);
   max-height: min(calc(var(--search-sheet-viewport-height) - 12px), 760px);
+  overflow: hidden;
+  overscroll-behavior: contain;
   transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .24s ease, bottom .24s ease;
 }
 
 .search-sheet-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
   padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+
+#searchSheet.sheet-keyboard-active .search-sheet-body {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 
